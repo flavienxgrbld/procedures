@@ -1,0 +1,199 @@
+Installation de GLPI 11.0.4 sur Debian/Ubuntu
+
+
+- Passage en mode super-administrateur et mise à jour des dépôts : 
+sudo su
+apt update && apt upgrade -y
+
+- Installation des prérequis
+apt install -y lsb-release ca-certificates apt-transport-https software-properties-common gnupg2
+
+- Ajout du dépôt Sury pour PHP 8.2+
+curl -sSL https://packages.sury.org/php/README.txt | bash -x
+apt update
+
+- Installation d'Apache2, PHP 8.2+ et extensions
+apt install -y apache2 \
+    php8.2 \
+    php8.2-apcu \
+    php8.2-cli \
+    php8.2-common \
+    php8.2-curl \
+    php8.2-gd \
+    php8.2-imap \
+    php8.2-ldap \
+    php8.2-mysql \
+    php8.2-xmlrpc \
+    php8.2-xml \
+    php8.2-mbstring \
+    php8.2-bcmath \
+    php8.2-intl \
+    php8.2-zip \
+    php8.2-redis \
+    php8.2-bz2 \
+    libapache2-mod-php8.2 \
+    php8.2-soap \
+    php-cas
+
+- Installation de MariaDB
+apt install -y mariadb-server
+
+- Configuration de MariaDB
+mysql_secure_installation
+Définir un mot de passe root fort et accepter toutes les options
+
+
+
+
+
+
+- Création de la base de données GLPI
+mysql -u root -p
+
+- Dans MariaDB :
+CREATE DATABASE glpi CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'glpi'@'localhost' IDENTIFIED BY 'EntreTonMotDePasseGLPI';
+GRANT ALL PRIVILEGES ON glpi.* TO 'glpi'@'localhost';
+GRANT SELECT ON `mysql`.`time_zone_name` TO 'glpi'@'localhost';
+FLUSH PRIVILEGES;
+quit;
+
+- Charger les fuseaux horaires MySQL
+mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql
+
+- Téléchargement de GLPI
+cd /tmp
+wget https://github.com/glpi-project/glpi/releases/download/11.0.4/glpi-11.0.4.tgz
+tar -xzf glpi-11.0.4.tgz -C /var/www/html/
+rm -f glpi-11.0.4.tgz
+
+- Création des répertoires de configuration
+mkdir -p /etc/glpi
+mkdir -p /var/lib/glpi
+mkdir -p /var/log/glpi
+
+- Création du fichier downstream.php
+nano /var/www/html/glpi/inc/downstream.php
+
+Contenu du fichier :
+<?php
+define('GLPI_CONFIG_DIR', '/etc/glpi/');
+if (file_exists(GLPI_CONFIG_DIR . '/local_define.php')) {
+    require_once GLPI_CONFIG_DIR . '/local_define.php';
+}
+
+- Déplacement des répertoires
+mv /var/www/html/glpi/config/* /etc/glpi/
+rmdir /var/www/html/glpi/config
+mv /var/www/html/glpi/files/* /var/lib/glpi/
+rmdir /var/www/html/glpi/files
+mv /var/lib/glpi/_log/* /var/log/glpi/
+rmdir /var/lib/glpi/_log
+
+- Création du fichier local_define.php
+nano /etc/glpi/local_define.php
+
+Contenu du fichier :
+<?php
+define('GLPI_VAR_DIR', '/var/lib/glpi');
+define('GLPI_DOC_DIR', GLPI_VAR_DIR);
+define('GLPI_CACHE_DIR', GLPI_VAR_DIR . '/_cache');
+define('GLPI_CRON_DIR', GLPI_VAR_DIR . '/_cron');
+define('GLPI_GRAPH_DIR', GLPI_VAR_DIR . '/_graphs');
+define('GLPI_LOCAL_I18N_DIR', GLPI_VAR_DIR . '/_locales');
+define('GLPI_LOCK_DIR', GLPI_VAR_DIR . '/_lock');
+define('GLPI_PICTURE_DIR', GLPI_VAR_DIR . '/_pictures');
+define('GLPI_PLUGIN_DOC_DIR', GLPI_VAR_DIR . '/_plugins');
+define('GLPI_RSS_DIR', GLPI_VAR_DIR . '/_rss');
+define('GLPI_SESSION_DIR', GLPI_VAR_DIR . '/_sessions');
+define('GLPI_TMP_DIR', GLPI_VAR_DIR . '/_tmp');
+define('GLPI_UPLOAD_DIR', GLPI_VAR_DIR . '/_uploads');
+define('GLPI_INVENTORY_DIR', GLPI_VAR_DIR . '/_inventories');
+define('GLPI_THEMES_DIR', GLPI_VAR_DIR . '/_themes');
+define('GLPI_LOG_DIR', '/var/log/glpi');
+
+- Configuration des permissions
+chown -R root:root /var/www/html/glpi/
+chown -R www-data:www-data /etc/glpi
+chown -R www-data:www-data /var/lib/glpi
+chown -R www-data:www-data /var/log/glpi
+chown -R www-data:www-data /var/www/html/glpi/marketplace
+
+find /var/www/html/glpi/ -type f -exec chmod 0644 {} \;
+find /var/www/html/glpi/ -type d -exec chmod 0755 {} \;
+find /etc/glpi -type f -exec chmod 0644 {} \;
+find /etc/glpi -type d -exec chmod 0755 {} \;
+find /var/lib/glpi -type f -exec chmod 0644 {} \;
+find /var/lib/glpi -type d -exec chmod 0755 {} \;
+find /var/log/glpi -type f -exec chmod 0644 {} \;
+find /var/log/glpi -type d -exec chmod 0755 {} \;
+
+- Configuration du VirtualHost Apache
+nano /etc/apache2/sites-available/glpi.conf
+
+Contenu du fichier :
+<VirtualHost *:80>
+    ServerName yourglpi.yourdomain.com
+    DocumentRoot /var/www/html/glpi/public
+    
+    <Directory /var/www/html/glpi/public>
+        Require all granted
+        RewriteEngine On
+        
+        RewriteCond %{HTTP:Authorization} ^(.+)$
+        RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+        
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteRule ^(.*)$ index.php [QSA,L]
+    </Directory>
+</VirtualHost>
+
+- Activation du site GLPI
+a2dissite 000-default.conf
+a2ensite glpi.conf
+a2enmod rewrite
+
+- Configuration de PHP
+nano /etc/php/8.2/apache2/php.ini
+
+Modifier les lignes suivantes :
+upload_max_filesize = 20M
+post_max_size = 20M
+memory_limit = 256M
+max_execution_time = 300
+max_input_vars = 5000
+session.cookie_httponly = On
+date.timezone = Europe/Paris
+
+- Redémarrage d'Apache
+systemctl restart apache2
+systemctl enable apache2
+
+
+
+
+Lancer l'interface Web
+Ouvrir un navigateur :
+
+
+http://IP_DU_SERVEUR/glpi
+
+
+Suivre l'assistant d'installation avec les informations de base de données :
+- Serveur : localhost
+- Base de données : glpi
+- Utilisateur : glpi
+- Mot de passe : (celui défini précédemment)
+
+
+Identifiants par défaut GLPI :
+
+Super-Admin : glpi / glpi
+Technicien : tech / tech
+Utilisateur normal : normal / normal
+Post-only : post-only / postonly
+
+
+IMPORTANT :
+- Changer tous les mots de passe par défaut après la première connexion
+- Supprimer le répertoire d'installation : rm -rf /var/www/html/glpi/install

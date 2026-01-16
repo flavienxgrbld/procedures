@@ -43,7 +43,7 @@ success "Environnement validé"
 info "Mise à jour du système"
 apt update
 apt upgrade -y
-
+export PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin
 ### ==============================
 ### INSTALLATION DÉPÔT ZABBIX
 ### ==============================

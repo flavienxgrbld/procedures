@@ -1,133 +1,154 @@
 #!/bin/bash
+set -euo pipefail
 
-# Arrêter le script en cas d'erreur
-set -e
+### ==============================
+### VARIABLES
+### ==============================
+ZABBIX_VERSION="7.4"
+ZABBIX_DEB="zabbix-release_latest_${ZABBIX_VERSION}+debian13_all.deb"
+ZABBIX_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/release/debian/pool/main/z/zabbix-release/${ZABBIX_DEB}"
+ZABBIX_CONF="/etc/zabbix/zabbix_server.conf"
 
-# Fonction de gestion des erreurs
+### ==============================
+### FONCTIONS
+### ==============================
 error_exit() {
-    echo "ERREUR: $1" >&2
-    echo "Le script s'est arrêté à la ligne $2" >&2
+    echo "❌ ERREUR: $1" >&2
     exit 1
 }
 
-# Trappe pour capturer les erreurs
-trap 'error_exit "Une erreur est survenue" $LINENO' ERR
-
-echo "---------------------------------------------------------"
-echo "Script d'installation automatisée de Zabbix 7.4 sur Debian 13"
-echo "---------------------------------------------------------"
-
-# Vérification exécution en root
-if [ "$EUID" -ne 0 ]; then
-    echo "ERREUR: Veuillez exécuter ce script en tant que root."
-    exit 1
-fi
-
-# Vérification de la connexion Internet
-echo "Vérification de la connexion Internet..."
-if ! ping -c 1 repo.zabbix.com &> /dev/null; then
-    error_exit "Impossible de joindre repo.zabbix.com. Vérifiez votre connexion Internet."
-fi
-
-echo "Mise à jour du système..."
-apt update || error_exit "Échec de la mise à jour des paquets"
-apt upgrade -y || error_exit "Échec de la mise à niveau du système"
-
-echo "Installation du dépôt Zabbix..."
-export PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin
-
-if [ ! -f "zabbix-release_latest_7.4+debian13_all.deb" ]; then
-    wget https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian13_all.deb || \
-        error_exit "Échec du téléchargement du paquet Zabbix"
-fi
-
-dpkg -i zabbix-release_latest_7.4+debian13_all.deb || error_exit "Échec de l'installation du dépôt Zabbix"
-apt update || error_exit "Échec de la mise à jour après ajout du dépôt Zabbix"
-
-echo "Installation des paquets Zabbix et MariaDB..."
-apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf \
-zabbix-sql-scripts zabbix-agent mariadb-server || \
-    error_exit "Échec de l'installation des paquets Zabbix/MariaDB"
-
-echo "Sécurisation de MariaDB (manuel)..."
-echo "Lancez l'assistant et répondez OUI à tout sauf 'Change the root password'."
-mariadb-secure-installation || {
-    echo "AVERTISSEMENT: La sécurisation de MariaDB a échoué ou été annulée"
-    read -p "Voulez-vous continuer malgré tout? (o/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Oo]$ ]]; then
-        exit 1
-    fi
+info() {
+    echo "➡️  $1"
 }
 
-echo "Création de la base de données Zabbix..."
+success() {
+    echo "✅ $1"
+}
+
+### ==============================
+### VÉRIFICATIONS INITIALES
+### ==============================
+[ "$EUID" -eq 0 ] || error_exit "Ce script doit être exécuté en root"
+
+grep -q "trixie" /etc/os-release || error_exit "Ce script est prévu pour Debian 13 (trixie)"
+
+info "Vérification de la connectivité HTTPS vers repo.zabbix.com"
+curl -fs https://repo.zabbix.com >/dev/null || error_exit "Accès HTTPS à repo.zabbix.com impossible"
+
+success "Environnement validé"
+
+### ==============================
+### MISE À JOUR SYSTÈME
+### ==============================
+info "Mise à jour du système"
+apt update
+apt upgrade -y
+
+### ==============================
+### INSTALLATION DÉPÔT ZABBIX
+### ==============================
+info "Installation du dépôt Zabbix ${ZABBIX_VERSION}"
+if ! dpkg -l | grep -q zabbix-release; then
+    wget -q "$ZABBIX_URL"
+    dpkg -i "$ZABBIX_DEB"
+else
+    info "Dépôt Zabbix déjà installé"
+fi
+
+apt update
+
+### ==============================
+### INSTALLATION PAQUETS
+### ==============================
+info "Installation des paquets Zabbix et MariaDB"
+apt install -y \
+    zabbix-server-mysql \
+    zabbix-frontend-php \
+    zabbix-apache-conf \
+    zabbix-sql-scripts \
+    zabbix-agent \
+    mariadb-server
+
+success "Paquets installés"
+
+### ==============================
+### SÉCURISATION MARIADB
+### ==============================
+info "Sécurisation MariaDB (manuel recommandé)"
+mariadb-secure-installation || true
+
+read -sp "Mot de passe root MariaDB : " MYSQL_ROOT_PASS
+echo
+
+### ==============================
+### BASE DE DONNÉES ZABBIX
+### ==============================
 while true; do
-    read -sp "Mot de passe à définir pour l'utilisateur SQL 'zabbix' : " ZBX_DB_PASS
+    read -sp "Mot de passe utilisateur SQL zabbix : " ZBX_DB_PASS
     echo
-    if [ -z "$ZBX_DB_PASS" ]; then
-        echo "ERREUR: Le mot de passe ne peut pas être vide."
-        continue
-    fi
-    read -sp "Confirmez le mot de passe : " ZBX_DB_PASS_CONFIRM
+    read -sp "Confirmation : " ZBX_DB_PASS_CONFIRM
     echo
-    if [ "$ZBX_DB_PASS" = "$ZBX_DB_PASS_CONFIRM" ]; then
-        break
-    else
-        echo "ERREUR: Les mots de passe ne correspondent pas."
-    fi
+    [ "$ZBX_DB_PASS" = "$ZBX_DB_PASS_CONFIRM" ] && break
+    echo "❌ Les mots de passe ne correspondent pas"
 done
 
-echo "Configuration de la base de données..."
-mysql -u root -p <<EOF || error_exit "Échec de la création de la base de données"
-create database zabbix character set utf8mb4 collate utf8mb4_bin;
-create user zabbix@localhost identified by '${ZBX_DB_PASS}';
-grant all privileges on zabbix.* to zabbix@localhost;
-set global log_bin_trust_function_creators = 1;
+info "Création et configuration de la base Zabbix"
+mysql -u root -p"$MYSQL_ROOT_PASS" <<EOF
+CREATE DATABASE IF NOT EXISTS zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER IF NOT EXISTS zabbix@localhost IDENTIFIED BY '${ZBX_DB_PASS}';
+GRANT ALL PRIVILEGES ON zabbix.* TO zabbix@localhost;
+SET GLOBAL log_bin_trust_function_creators = 1;
+FLUSH PRIVILEGES;
 EOF
 
-echo "Import du schéma SQL (cela peut prendre plusieurs minutes)..."
-if [ ! -f "/usr/share/zabbix/sql-scripts/mysql/server.sql.gz" ]; then
-    error_exit "Le fichier SQL de Zabbix est introuvable"
-fi
-
+info "Import du schéma Zabbix (peut être long)"
 zcat /usr/share/zabbix/sql-scripts/mysql/server.sql.gz | \
-mysql --default-character-set=utf8mb4 -u zabbix -p${ZBX_DB_PASS} zabbix || \
-    error_exit "Échec de l'import du schéma SQL"
+mysql --default-character-set=utf8mb4 -u zabbix -p"$ZBX_DB_PASS" zabbix
 
-mysql -u root -p <<EOF || error_exit "Échec de la configuration finale de la base"
-set global log_bin_trust_function_creators = 0;
-EOF
+mysql -u root -p"$MYSQL_ROOT_PASS" -e "SET GLOBAL log_bin_trust_function_creators = 0;"
 
-echo "Configuration du serveur Zabbix..."
-if [ ! -f "/etc/zabbix/zabbix_server.conf" ]; then
-    error_exit "Le fichier de configuration de Zabbix est introuvable"
+success "Base de données prête"
+
+### ==============================
+### CONFIGURATION ZABBIX
+### ==============================
+info "Configuration de zabbix_server.conf"
+
+if grep -q "^DBPassword=" "$ZABBIX_CONF"; then
+    sed -i "s|^DBPassword=.*|DBPassword=${ZBX_DB_PASS}|" "$ZABBIX_CONF"
+else
+    echo "DBPassword=${ZBX_DB_PASS}" >> "$ZABBIX_CONF"
 fi
 
-sed -i "s/# DBPassword=/DBPassword=${ZBX_DB_PASS}/" /etc/zabbix/zabbix_server.conf || \
-    error_exit "Échec de la modification du fichier de configuration"
+chown zabbix:zabbix "$ZABBIX_CONF"
+chmod 640 "$ZABBIX_CONF"
 
-echo "Redémarrage des services..."
-systemctl restart zabbix-server || error_exit "Échec du redémarrage de zabbix-server"
-systemctl restart zabbix-agent || error_exit "Échec du redémarrage de zabbix-agent"
-systemctl restart apache2 || error_exit "Échec du redémarrage d'apache2"
+### ==============================
+### SERVICES
+### ==============================
+info "Redémarrage et activation des services"
+systemctl restart zabbix-server zabbix-agent apache2
+systemctl enable zabbix-server zabbix-agent apache2
 
-systemctl enable zabbix-server zabbix-agent apache2 || \
-    error_exit "Échec de l'activation automatique des services"
-
-# Vérification de l'état des services
-echo "Vérification de l'état des services..."
-for service in zabbix-server zabbix-agent apache2; do
-    if systemctl is-active --quiet $service; then
-        echo "✓ $service est actif"
-    else
-        echo "✗ AVERTISSEMENT: $service n'est pas actif"
-    fi
+for svc in zabbix-server zabbix-agent apache2; do
+    systemctl is-active --quiet $svc && success "$svc actif" || echo "⚠️ $svc inactif"
 done
 
-echo ""
+### ==============================
+### TEST WEB
+### ==============================
+curl -fs http://localhost/zabbix >/dev/null \
+    && success "Interface Web accessible" \
+    || echo "⚠️ Interface Web non accessible (Apache/PHP ?)"
+
+### ==============================
+### FIN
+### ==============================
+echo
 echo "============================================"
-echo "Installation terminée avec succès!"
+echo "🎉 INSTALLATION ZABBIX TERMINÉE"
 echo "============================================"
-echo "Accédez à l'interface Web via : http://IP_DU_SERVEUR/zabbix"
-echo "Identifiants par défaut : Admin / zabbix"
-echo ""
+echo "URL : http://IP_DU_SERVEUR/zabbix"
+echo "Login : Admin"
+echo "Mot de passe : zabbix"
+echo "============================================"

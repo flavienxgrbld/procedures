@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Script d'installation de GLPI 11.0.4 sur Debian/Ubuntu
-# Date: 2026-01-16
 
 set -e
 
@@ -27,7 +26,10 @@ apt install -y lsb-release ca-certificates apt-transport-https software-properti
 # Ajouter le dépôt Sury pour avoir PHP 8.2+
 if ! grep -q "sury" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
     echo "Ajout du dépôt Sury pour PHP 8.2+..."
-    curl -sSL https://packages.sury.org/php/README.txt | bash -x
+    curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
+    dpkg -i /tmp/debsuryorg-archive-keyring.deb
+    rm /tmp/debsuryorg-archive-keyring.deb
+    echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/sury-php.list
     apt update
 fi
 

@@ -1,17 +1,17 @@
-# 📚 Procédures d'Installation
+# Procédures d'Installation
 
 Ce dépôt contient des scripts d'installation automatisés et de la documentation pour diverses solutions de gestion IT.
 
-## 🚀 Contenu
+## Contenu
 
 ### GLPI 11.0.4
 Solution complète de gestion de parc informatique et de service desk.
 
-- 📁 **Emplacement** : [`GLPI/`](GLPI/)
-- 🔧 **Script d'installation** : [install_glpi.sh](GLPI/install_glpi.sh)
-- 📖 **Documentation** : [installation glpi.md](GLPI/installation%20glpi.md)
-- 💻 **OS supportés** : Ubuntu 22.04 LTS (Jammy), Debian 11/12
-- 🐘 **Prérequis** : PHP 8.2+, Apache2, MariaDB
+- **Emplacement** : [`GLPI/`](GLPI/)
+- **Script d'installation** : [install_glpi.sh](GLPI/install_glpi.sh)
+- **Documentation** : [installation glpi.md](GLPI/installation%20glpi.md)
+- **OS supportés** : Ubuntu 22.04 LTS (Jammy), Debian 11/12
+- **Prérequis** : PHP 8.2+, Apache2, MariaDB
 
 **Fonctionnalités** :
 - Installation automatisée complète de GLPI
@@ -33,11 +33,11 @@ sudo ./install_glpi.sh
 ### Zabbix 7.4
 Solution de monitoring et supervision réseau open-source.
 
-- 📁 **Emplacement** : [`ZABBIX/`](ZABBIX/)
-- 🔧 **Script d'installation** : [install_zabbix.sh](ZABBIX/install_zabbix.sh)
-- 📖 **Documentation** : [installation zabbix.md](ZABBIX/installation%20zabbix.md)
-- 💻 **OS supporté** : Debian 13
-- 🐘 **Prérequis** : PHP, Apache2/Nginx, PostgreSQL/MySQL
+- **Emplacement** : [`ZABBIX/`](ZABBIX/)
+- **Script d'installation** : [install_zabbix.sh](ZABBIX/install_zabbix.sh)
+- **Documentation** : [installation zabbix.md](ZABBIX/installation%20zabbix.md)
+- **OS supporté** : Debian 13
+- **Prérequis** : PHP, Apache2/Nginx, PostgreSQL/MySQL
 
 **Utilisation rapide** :
 ```bash
@@ -48,7 +48,7 @@ sudo ./install_zabbix.sh
 
 ---
 
-## ⚙️ Prérequis Généraux
+## Prérequis Généraux
 
 - Système d'exploitation à jour
 - Accès root ou sudo
@@ -56,7 +56,7 @@ sudo ./install_zabbix.sh
 - Minimum 2 Go de RAM (4 Go recommandés)
 - 10 Go d'espace disque disponible
 
-## 📋 Instructions d'Utilisation
+## Instructions d'Utilisation
 
 1. **Cloner le dépôt** :
    ```bash
@@ -81,14 +81,14 @@ sudo ./install_zabbix.sh
 
 5. **Suivre les instructions** affichées à l'écran
 
-## ⚠️ Notes Importantes
+## Notes Importantes
 
 - **Sauvegarde** : Toujours sauvegarder vos données avant d'exécuter un script d'installation
 - **Test** : Testez d'abord dans un environnement de développement/test
 - **Sécurité** : Changez tous les mots de passe par défaut après installation
 - **Documentation** : Consultez la documentation spécifique dans chaque dossier pour plus de détails
 
-## 🔒 Sécurité
+## Sécurité
 
 Les scripts effectuent les opérations suivantes pour la sécurité :
 - Configuration de `mysql_secure_installation`
@@ -96,18 +96,18 @@ Les scripts effectuent les opérations suivantes pour la sécurité :
 - Séparation des répertoires de configuration
 - Activation de `session.cookie_httponly` pour PHP
 
-## 🤝 Contribution
+## Contribution
 
 Les contributions sont les bienvenues ! N'hésitez pas à :
 - Signaler des bugs
 - Proposer des améliorations
 - Ajouter de nouvelles procédures
 
-## 📝 Licence
+## Licence
 
 Ces scripts et documentations sont fournis "tels quels" à des fins éducatives et de déploiement.
 
-## 👤 Auteur
+## Auteur
 
 **flavienxgrbld**
 

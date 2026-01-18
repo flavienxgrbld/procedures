@@ -21,7 +21,7 @@ apt update && apt upgrade -y
 
 # Ajouter le dépôt Sury pour PHP 8.2+ si nécessaire (Debian/Ubuntu)
 echo "=== Vérification et installation de PHP 8.2+ ==="
-apt install -y lsb-release ca-certificates apt-transport-https software-properties-common gnupg2
+apt install -y lsb-release ca-certificates apt-transport-https software-properties-common gnupg2 curl wget
 
 # Ajouter le dépôt Sury pour avoir PHP 8.2+
 if ! grep -q "sury" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then

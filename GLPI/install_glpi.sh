@@ -90,7 +90,6 @@ echo
 
 echo "=== Création de la base de données GLPI ==="
 mysql -uroot -p"${MYSQL_ROOT_PASS}" <<EOSQL
-mysql -uroot -p"${MYSQL_ROOT_PASS}" <<EOSQL
 CREATE DATABASE IF NOT EXISTS ${GLPI_DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${GLPI_DB_USER}'@'localhost' IDENTIFIED BY '${GLPI_DB_PASS}';
 GRANT ALL PRIVILEGES ON ${GLPI_DB_NAME}.* TO '${GLPI_DB_USER}'@'localhost';
@@ -139,7 +138,6 @@ fi
 
 echo "=== Création du fichier local_define.php ==="
 cat > /etc/glpi/local_define.php <<'EOPHP'
-cat > /etc/glpi/local_define.php <<'EOPHP'
 <?php
 define('GLPI_VAR_DIR', '/var/lib/glpi');
 define('GLPI_DOC_DIR', GLPI_VAR_DIR);
@@ -161,8 +159,6 @@ EOPHP
 
 echo "=== Configuration des permissions ==="
 chown -R root:root /var/www/html/glpi/
-echo "=== Configuration des permissions ==="
-chown -R root:root /var/www/html/glpi/
 chown -R www-data:www-data /etc/glpi
 chown -R www-data:www-data /var/lib/glpi
 chown -R www-data:www-data /var/log/glpi
@@ -180,8 +176,6 @@ find /var/log/glpi -type d -exec chmod 0755 {} \;
 echo "=== Configuration du VirtualHost Apache ==="
 # Détecter automatiquement la version PHP
 PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
-
-cat > /etc/apache2/sites-available/glpi.conf <<'EOCONF'
 
 cat > /etc/apache2/sites-available/glpi.conf <<'EOCONF'
 <VirtualHost *:80>
@@ -203,7 +197,6 @@ cat > /etc/apache2/sites-available/glpi.conf <<'EOCONF'
 </VirtualHost>
 EOCONF
 
-echo "=== Activation du site GLPI ==="
 echo "=== Activation du site GLPI ==="
 a2dissite 000-default.conf
 a2ensite glpi.conf

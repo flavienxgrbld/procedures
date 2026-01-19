@@ -1,0 +1,246 @@
+================================================================================
+                    COMMANDES PROXMOX - AIDE-MÉMOIRE
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GESTION DES SERVICES PROXMOX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Vérifier le statut :
+  systemctl status pve-cluster          # Cluster Proxmox
+  systemctl status pvedaemon            # Démon principal
+  systemctl status pveproxy             # Proxy web
+
+Redémarrer les services :
+  systemctl restart pve-cluster
+  systemctl restart pvedaemon
+  systemctl restart pveproxy
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GESTION DES MACHINES VIRTUELLES (qm)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Liste et informations :
+  qm list                               # Lister toutes les VMs
+  qm status <VMID>                      # Statut d'une VM
+  qm config <VMID>                      # Configuration d'une VM
+
+Contrôle de l'alimentation :
+  qm start <VMID>                       # Démarrer une VM
+  qm shutdown <VMID>                    # Arrêt propre (ACPI)
+  qm stop <VMID>                        # Arrêt forcé
+  qm reboot <VMID>                      # Redémarrer une VM
+
+Console :
+  qm terminal <VMID>                    # Accéder au terminal série
+
+Snapshots :
+  qm listsnapshot <VMID>                # Lister les snapshots
+  qm snapshot <VMID> <snapname>         # Créer un snapshot
+  qm rollback <VMID> <snapname>         # Restaurer un snapshot
+  qm delsnapshot <VMID> <snapname>      # Supprimer un snapshot
+
+Clone et template :
+  qm clone <VMID> <NEWID> --name <nom>  # Cloner une VM
+  qm template <VMID>                    # Convertir en template
+
+Migration :
+  qm migrate <VMID> <node>              # Migrer vers un autre nœud
+  qm migrate <VMID> <node> --online     # Migration à chaud
+
+Suppression :
+  qm destroy <VMID>                     # Supprimer une VM
+  qm destroy <VMID> --purge             # Supprimer VM + disques
+
+  pct console <CTID>                    # Console du conteneur
+
+Snapshots :
+  pct listsnapshot <CTID>               # Lister les snapshots
+  pct snapshot <CTID> <snapname>        # Créer un snapshot
+  pct rollback <CTID> <snapname>        # Restaurer un snapshot
+  pct delsnapshot <CTID> <snapname>     # Supprimer un snapshot
+
+Clone et template :
+  pct clone <CTID> <NEWID>              # Cloner un conteneur
+  pct template <CTID>                   # Convertir en template
+
+Migration :
+  pct migrate <CTID> <node>             # Migrer vers un autre nœud
+  pct migrate <CTID> <node> --restart   # Migrer avec redémarrage
+
+Suppression :
+  pct destroy <CTID>                    # Supprimer un conteneur
+  pct destroy <CTID> --purge            # Supprimer conteneur + disques
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Liste et informations :
+  pct list                              # Lister tous les conteneurs
+  pct status <CTID>                     # Statut d'un conteneur
+  pct config <CTID>                     # Configuration d'un conteneur
+
+Contrôle de l'alimentation :
+  pct start <CTID>                      # Démarrer un conteneur
+  pct shutdown <CTID>                   # Arrêt propre
+  pct stop <CTID>                       # Arrêt forcé
+  pct reboot <CTID>                     # Redémarrer un conteneur
+
+Console :
+  pct enter <CTID>                      # Entrer dans le conteneur (shell)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💾 GESTION DU STOCKAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Lister le stockage :
+  pvesm status                          # Statut de tous les stockages
+  pvesm list <storage>                  # Contenu d'un stockage
+  pvesm list local                      # Voir les fichiers sur local
+
+Informations d'espace :
+  pvesm status --storage <storage>      # Espace disponible
+  df -h                                 # Espace disque global
+
+Gérer les ISO :
+  pvesm list local --content iso        # Lister les ISO
+  cd /var/lib/vz/template/iso           # Dossier des ISO
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💿 GESTION DES BACKUPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Sauvegarder une VM :
+  vzdump <VMID>                         # Backup simple
+  vzdump <VMID> --mode snapshot         # Backup avec snapshot
+  vzdump <VMID> --storage <storage>     # Backup vers un stockage
+  vzdump <VMID> --compress zstd         # Backup avec compression
+
+Sauvegarder un conteneur :
+  vzdump <CTID> --mode snapshot         # Backup de conteneur
+
+Restaurer une VM :
+  qmrestore <backup-file> <VMID>        # Restaurer une VM
+  qmrestore local:vzdump-xxx.vma.zst 100 --storage local-lvm
+
+Restaurer un conteneur :
+  pct restore <CTID> <backup-file>      # Restaurer un conteneur
+
+Lister les backups :
+  pvesm list <storage> --content backup # Voir les backups disponibles
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌐 GESTION DU RÉSEAU
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Configuration réseau :
+  cat /etc/network/interfaces           # Voir la config réseau
+  systemctl restart networking          # Redémarrer le réseau
+  ifreload -a                           # Recharger la config réseau
+
+Vérifier les bridges :
+  brctl show                            # Lister les bridges
+  ip link show                          # Interfaces réseau
+
+Tests réseau :
+  ping -c 4 <IP>                        # Test de connectivité
+  ip addr show                          # Adresses IP
+  ip route show                         # Table de routage
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 MONITORING ET LOGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Informations système :
+  pveversion --verbose                  # Version Proxmox détaillée
+  pveperf                               # Test de performances
+  pvesh get /version                    # Version via API
+
+Logs :
+  journalctl -u pveproxy                # Logs du proxy
+  journalctl -u pvedaemon               # Logs du démon
+  journalctl -f                         # Suivre les logs en temps réel
+  tail -f /var/log/syslog               # Logs système
+
+Tâches :
+  pvesh get /cluster/tasks              # Lister les tâches
+  qm showcmd <VMID>                     # Voir la commande QEMU
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👥 GESTION DU CLUSTER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Informations cluster :
+  pvecm status                          # Statut du cluster
+  pvecm nodes                           # Lister les nœuds
+  pvecm expected 1                      # Mode quorum forcé (dépannage)
+
+Haute disponibilité :
+  ha-manager status                     # Statut HA
+  ha-manager config                     # Configuration HA
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔑 GESTION DES UTILISATEURS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Utilisateurs :
+  pveum user list                       # Lister les utilisateurs
+  pveum user add <user@pam> --password  # Ajouter un utilisateur
+  pveum passwd <user@pam>               # Changer le mot de passe
+
+Permissions :
+  pveum role list                       # Lister les rôles
+  pveum acl list                        # Lister les ACL
+  pveum aclmod / -user <user@pam> -role Administrator
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔥 COMMANDES DE DÉPANNAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Déverrouiller une VM :
+  qm unlock <VMID>                      # Retirer le verrou
+
+Réinitialiser la configuration web :
+  pvesh delete /access/ticket           # Invalider les sessions
+
+Nettoyer les ressources :
+  qm cleanup <VMID> clean-shutdown      # Nettoyer après arrêt sale
+  qm cleanup <VMID> clean-failed        # Nettoyer après échec
+
+Vérifier les processus :
+  ps aux | grep kvm                     # Processus VM en cours
+  pgrep -a qemu                         # Processus QEMU
+
+Réparer le stockage :
+  lvs                                   # Lister les volumes logiques
+  vgs                                   # Lister les groupes de volumes
+  pvs                                   # Lister les volumes physiques
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRÉATION ET CONFIGURATION DE VM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Créer une VM (sans disque) :
+  qm create 100 \
+    --name vm-test \
+    --memory 2048 \
+    --cores 2 \
+    --net0 virtio,bridge=vmbr0
+
+Ajouter un disque virtuel :
+  qm set 100 --scsi0 local-lvm:20       # Disque de 20 Go sur local-lvm
+
+Ajouter un ISO d'installation :
+  qm set 100 --ide2 local:iso/debian-12.iso,media=cdrom
+
+================================================================================

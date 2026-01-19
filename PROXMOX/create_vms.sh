@@ -185,7 +185,6 @@ create_vm() {
             --cores $CORES \
             --memory $MEMORY \
             --net0 virtio,bridge=$BRIDGE \
-            --scsihw virtio-scsi-single \
             --ostype win11 \
             --machine q35 \
             --bios ovmf \
@@ -202,9 +201,9 @@ create_vm() {
         qm set $VMID --tpmstate0 $STORAGE:1,version=v2.0
         echo "✓ TPM 2.0 ajouté"
         
-        # Ajouter le disque principal
-        qm set $VMID --scsi0 $STORAGE:$DISK_SIZE,cache=writeback,discard=on
-        echo "✓ Disque principal ajouté ($DISK_SIZE sur $STORAGE)"
+        # Ajouter le disque principal en SATA avec émulation SSD
+        qm set $VMID --sata0 $STORAGE:$DISK_SIZE,cache=writeback,discard=on,ssd=1
+        echo "✓ Disque principal SATA ajouté avec émulation SSD ($DISK_SIZE sur $STORAGE)"
         
         # Monter l'ISO Windows
         qm set $VMID --ide2 $ISO_STORAGE:iso/$ISO_FILE,media=cdrom
@@ -215,8 +214,8 @@ create_vm() {
         echo "   Commande: qm set $VMID --ide0 local:iso/virtio-win.iso,media=cdrom"
         
         # Configurer le boot
-        qm set $VMID --boot order=scsi0\;ide2
-        echo "✓ Ordre de boot configuré"
+        qm set $VMID --boot order=sata0\;ide2
+        echo "✓ Ordre de boot configuré (SATA + SSD emulation)"
         
         # Agent QEMU pour Windows (sera disponible après installation de qemu-guest-agent)
         qm set $VMID --agent enabled=1,fstrim_cloned_disks=1
@@ -231,16 +230,15 @@ create_vm() {
             --cores $CORES \
             --memory $MEMORY \
             --net0 virtio,bridge=$BRIDGE \
-            --scsihw virtio-scsi-pci \
             --ostype l26
 
         echo "✓ VM Linux de base créée"
 
-        # Ajouter le disque
+        # Ajouter le disque en SATA avec émulation SSD
         qm set $VMID \
-            --scsi0 $STORAGE:$DISK_SIZE
+            --sata0 $STORAGE:$DISK_SIZE,ssd=1
 
-        echo "✓ Disque ajouté ($DISK_SIZE sur $STORAGE)"
+        echo "✓ Disque SATA ajouté avec émulation SSD ($DISK_SIZE sur $STORAGE)"
 
         # Monter l'ISO
         qm set $VMID \
@@ -250,9 +248,9 @@ create_vm() {
 
         # Configurer le boot
         qm set $VMID \
-            --boot order=scsi0\;ide2
+            --boot order=sata0\;ide2
 
-        echo "✓ Ordre de boot configuré"
+        echo "✓ Ordre de boot configuré (SATA + SSD emulation)"
 
         # Configurer l'agent QEMU
         qm set $VMID \

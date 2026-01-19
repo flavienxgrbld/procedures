@@ -73,11 +73,23 @@ apt install -y \
 success "Paquets installés"
 
 
-info "Sécurisation MariaDB (manuel recommandé)"
-mariadb-secure-installation || true
-
-read -sp "Mot de passe root MariaDB : " MYSQL_ROOT_PASS
+info "Sécurisation automatique de MariaDB"
+read -sp "Mot de passe root MariaDB à définir : " MYSQL_ROOT_PASS
 echo
+
+# Sécurisation automatique de MySQL
+mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';" 2>/dev/null || \
+    mysql -e "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${MYSQL_ROOT_PASS}');"
+
+mysql -u root -p"$MYSQL_ROOT_PASS" <<EOSQL
+DELETE FROM mysql.user WHERE User='';
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+FLUSH PRIVILEGES;
+EOSQL
+
+success "MariaDB sécurisé automatiquement"
 
 # Validation de la connexion MySQL
 if ! mysql -u root -p"$MYSQL_ROOT_PASS" -e "SELECT 1;" &>/dev/null; then

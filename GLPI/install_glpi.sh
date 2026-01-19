@@ -78,15 +78,24 @@ echo "=== Installation de MariaDB ==="
 apt install -y mariadb-server
 
 echo "=== Configuration de MariaDB ==="
-echo "IMPORTANT: Exécutez mysql_secure_installation et définissez un mot de passe root"
-read -p "Appuyez sur Entrée pour lancer mysql_secure_installation..." 
-mysql_secure_installation
-
 # Demander les mots de passe
-read -sp "Entrez le mot de passe root MySQL: " MYSQL_ROOT_PASS
+read -sp "Entrez le mot de passe root MySQL à définir: " MYSQL_ROOT_PASS
 echo
 read -sp "Entrez le mot de passe pour l'utilisateur GLPI (DB): " GLPI_DB_PASS
 echo
+
+echo "=== Sécurisation automatique de MySQL ==="
+# Exécuter mysql_secure_installation automatiquement
+mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';"
+mysql -uroot -p"${MYSQL_ROOT_PASS}" <<EOSQL
+DELETE FROM mysql.user WHERE User='';
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+FLUSH PRIVILEGES;
+EOSQL
+
+echo "✓ MySQL sécurisé avec succès"
 
 echo "=== Création de la base de données GLPI ==="
 mysql -uroot -p"${MYSQL_ROOT_PASS}" <<EOSQL

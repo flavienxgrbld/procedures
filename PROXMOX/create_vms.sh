@@ -317,8 +317,12 @@ create_vm() {
 
     # Configuration spécifique selon le type d'OS
     if [[ "$OS_TYPE" == "win11" ]]; then
-        # Configuration pour Windows Server 2022 avec UEFI, TPM et Secure Boot
-        echo "Configuration Windows Server 2022 avec UEFI, TPM et Secure Boot..."
+        # Déterminer le type de Windows
+        if [[ "$VM_NAME" == *"CLIENT"* ]] || [[ "$VM_NAME" == "W11"* ]]; then
+            echo "Configuration Windows 11 avec UEFI, TPM et Secure Boot..."
+        else
+            echo "Configuration Windows Server 2022 avec UEFI, TPM et Secure Boot..."
+        fi
         
         # Créer la VM Windows
         qm create $VMID \
@@ -343,12 +347,19 @@ create_vm() {
         echo "✓ TPM 2.0 ajouté"
         
         # Ajouter le disque principal en SATA avec émulation SSD
-        qm set $VMID --sata0 $STORAGE:$DISK_SIZE,ssd=1
+        if ! qm set $VMID --sata0 $STORAGE:$DISK_SIZE,ssd=1,format=raw; then
+            echo "❌ Erreur lors de l'ajout du disque SATA"
+            return 1
+        fi
         echo "✓ Disque principal SATA ajouté avec émulation SSD ($DISK_SIZE sur $STORAGE)"
         
-        # Monter l'ISO Windows Server 2022
+        # Monter l'ISO Windows
         qm set $VMID --ide2 $ISO_STORAGE:iso/$ISO_FILE,media=cdrom
-        echo "✓ ISO Windows Server 2022 monté ($ISO_FILE)"
+        if [[ "$VM_NAME" == *"CLIENT"* ]] || [[ "$VM_NAME" == "W11"* ]]; then
+            echo "✓ ISO Windows 11 monté ($ISO_FILE)"
+        else
+            echo "✓ ISO Windows Server 2022 monté ($ISO_FILE)"
+        fi
         
         # Note: Ajouter les drivers VirtIO si disponible
         echo "ℹ️  Note: Pensez à monter l'ISO VirtIO drivers pour l'installation Windows Server"
@@ -431,8 +442,10 @@ create_vm() {
             echo "✓ VM Linux de base créée"
 
             # Ajouter le disque en SATA avec émulation SSD
-            qm set $VMID \
-                --sata0 $STORAGE:$DISK_SIZE,ssd=1
+            if ! qm set $VMID --sata0 $STORAGE:$DISK_SIZE,ssd=1,format=raw; then
+                echo "❌ Erreur lors de l'ajout du disque SATA"
+                return 1
+            fi
 
             echo "✓ Disque SATA ajouté avec émulation SSD ($DISK_SIZE sur $STORAGE)"
 
@@ -456,8 +469,8 @@ create_vm() {
         fi
     fi
 
-    # Configuration réseau statique (si spécifié)
-    if [ -n "$IP_ADDRESS" ]; then
+    # Configuration réseau statique (si spécifié, uniquement pour cloud-init/Linux)
+    if [ -n "$IP_ADDRESS" ] && [ "$USE_CLOUD_INIT" -eq 1 ]; then
         if [ -n "$GATEWAY" ]; then
             qm set $VMID --ipconfig0 ip=$IP_ADDRESS,gw=$GATEWAY
         else
@@ -466,8 +479,8 @@ create_vm() {
         echo "✓ Configuration réseau statique: $IP_ADDRESS"
     fi
 
-    # Configuration DNS (si spécifié)
-    if [ -n "$DNS" ]; then
+    # Configuration DNS (si spécifié, uniquement pour cloud-init/Linux)
+    if [ -n "$DNS" ] && [ "$USE_CLOUD_INIT" -eq 1 ]; then
         qm set $VMID --nameserver $DNS
         echo "✓ DNS configuré: $DNS"
     fi
@@ -481,7 +494,11 @@ create_vm() {
     echo ""
     echo "✅ VM $VMID ($VM_NAME) créée avec succès!"
     if [[ "$OS_TYPE" == "win11" ]]; then
-        echo "   Type: Windows Server 2022 Desktop Experience (UEFI + TPM 2.0 + Secure Boot)"
+        if [[ "$VM_NAME" == *"CLIENT"* ]] || [[ "$VM_NAME" == "W11"* ]]; then
+            echo "   Type: Windows 11 (UEFI + TPM 2.0 + Secure Boot)"
+        else
+            echo "   Type: Windows Server 2022 Desktop Experience (UEFI + TPM 2.0 + Secure Boot)"
+        fi
     else
         echo "   Type: Linux"
     fi

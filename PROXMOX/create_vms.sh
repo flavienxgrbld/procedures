@@ -343,7 +343,7 @@ create_vm() {
         echo "✓ TPM 2.0 ajouté"
         
         # Ajouter le disque principal en SATA avec émulation SSD
-        qm set $VMID --sata0 $STORAGE:$DISK_SIZE,cache=writeback,discard=on,ssd=1
+        qm set $VMID --sata0 $STORAGE:$DISK_SIZE,ssd=1
         echo "✓ Disque principal SATA ajouté avec émulation SSD ($DISK_SIZE sur $STORAGE)"
         
         # Monter l'ISO Windows Server 2022

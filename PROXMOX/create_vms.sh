@@ -235,8 +235,8 @@ auto_select_iso() {
     local VM_NAME=$2
     local PREFERRED_ISO=$3
     
-    echo ""
-    echo "Sélection automatique de l'ISO pour $VM_NAME..."
+    echo "" >&2
+    echo "Sélection automatique de l'ISO pour $VM_NAME..." >&2
     
     # Récupérer la liste des ISOs
     local ISO_LIST=()
@@ -252,8 +252,8 @@ auto_select_iso() {
     
     # Vérifier s'il y a des ISOs disponibles
     if [ ${#ISO_LIST[@]} -eq 0 ]; then
-        echo "❌ Aucune ISO trouvée dans le stockage $ISO_STORAGE"
-        echo "Veuillez télécharger une ISO d'abord."
+        echo "❌ Aucune ISO trouvée dans le stockage $ISO_STORAGE" >&2
+        echo "Veuillez télécharger une ISO d'abord." >&2
         exit 1
     fi
     
@@ -261,16 +261,16 @@ auto_select_iso() {
     if [ -n "$PREFERRED_ISO" ]; then
         for iso in "${ISO_LIST[@]}"; do
             if [[ "$iso" == "$PREFERRED_ISO" ]]; then
-                echo "✓ ISO trouvée: $iso"
+                echo "✓ ISO trouvée: $iso" >&2
                 echo "$iso"
                 return 0
             fi
         done
-        echo "⚠️  ISO préférée '$PREFERRED_ISO' non trouvée, utilisation de la première disponible"
+        echo "⚠️  ISO préférée '$PREFERRED_ISO' non trouvée, utilisation de la première disponible" >&2
     fi
     
     # Prendre la première ISO disponible
-    echo "✓ ISO sélectionnée automatiquement: ${ISO_LIST[0]}"
+    echo "✓ ISO sélectionnée automatiquement: ${ISO_LIST[0]}" >&2
     echo "${ISO_LIST[0]}"
     return 0
 }

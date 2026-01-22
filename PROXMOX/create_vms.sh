@@ -14,8 +14,8 @@ AUTO_RECREATE_TEMPLATE=0  # 1 = recréer le template s'il existe, 0 = réutilise
 
 # ========== CONFIGURATION CLOUD-INIT (pour VMs Linux) ==========
 CLOUD_INIT_TEMPLATE_ID=9000  # ID du template cloud-init
-CLOUD_INIT_USER="admin"
-CLOUD_INIT_PASSWORD="ChangeMe123!"  # À changer!
+CLOUD_INIT_USER="sio"
+CLOUD_INIT_PASSWORD="Azerty13."  # À changer!
 CLOUD_INIT_SSH_KEY=""  # Chemin vers votre clé SSH publique (ex: ~/.ssh/id_rsa.pub) ou laisser vide
 CLOUD_INIT_DISTRO="ubuntu2204"  # Distribution pour cloud-init: ubuntu2204, ubuntu2404, debian12, debian13
 
@@ -38,7 +38,7 @@ VM1_GATEWAY=""
 VM1_DNS=""
 VM1_ISO_STORAGE="local"
 VM1_START_ON_BOOT=1
-VM1_OS_TYPE="win11"  # win11 pour Windows
+VM1_OS_TYPE="win11"  # win11 pour Windows Server 2022
 
 # ========== CONFIGURATION VM 2 ==========
 VM2_ID=102
@@ -53,7 +53,7 @@ VM2_GATEWAY=""
 VM2_DNS=""
 VM2_ISO_STORAGE="local"
 VM2_START_ON_BOOT=0
-VM2_OS_TYPE="win11"  # win11 pour Windows
+VM2_OS_TYPE="win11"  # win11 pour Windows Server 2022
 
 # ========== CONFIGURATION VM 3 ==========
 VM3_ID=103
@@ -100,7 +100,7 @@ VM5_GATEWAY=""
 VM5_DNS=""
 VM5_ISO_STORAGE="local"
 VM5_START_ON_BOOT=0
-VM5_OS_TYPE="win11"  # win11 pour Windows
+VM5_OS_TYPE="win11"  # win11 pour Windows 11
 
 # ========== FONCTION DE CRÉATION DU TEMPLATE CLOUD-INIT ==========
 
@@ -323,8 +323,8 @@ create_vm() {
 
     # Configuration spécifique selon le type d'OS
     if [[ "$OS_TYPE" == "win11" ]]; then
-        # Configuration pour Windows avec UEFI, TPM et Secure Boot
-        echo "Configuration Windows avec UEFI, TPM et Secure Boot..."
+        # Configuration pour Windows Server 2022 avec UEFI, TPM et Secure Boot
+        echo "Configuration Windows Server 2022 avec UEFI, TPM et Secure Boot..."
         
         # Créer la VM Windows
         qm create $VMID \
@@ -352,12 +352,12 @@ create_vm() {
         qm set $VMID --sata0 $STORAGE:$DISK_SIZE,cache=writeback,discard=on,ssd=1
         echo "✓ Disque principal SATA ajouté avec émulation SSD ($DISK_SIZE sur $STORAGE)"
         
-        # Monter l'ISO Windows
+        # Monter l'ISO Windows Server 2022
         qm set $VMID --ide2 $ISO_STORAGE:iso/$ISO_FILE,media=cdrom
-        echo "✓ ISO Windows monté ($ISO_FILE)"
+        echo "✓ ISO Windows Server 2022 monté ($ISO_FILE)"
         
         # Note: Ajouter les drivers VirtIO si disponible
-        echo "ℹ️  Note: Pensez à monter l'ISO VirtIO drivers pour l'installation Windows"
+        echo "ℹ️  Note: Pensez à monter l'ISO VirtIO drivers pour l'installation Windows Server"
         echo "   Commande: qm set $VMID --ide0 local:iso/virtio-win.iso,media=cdrom"
         
         # Configurer le boot
@@ -487,7 +487,7 @@ create_vm() {
     echo ""
     echo "✅ VM $VMID ($VM_NAME) créée avec succès!"
     if [[ "$OS_TYPE" == "win11" ]]; then
-        echo "   Type: Windows 11 (UEFI + TPM 2.0 + Secure Boot)"
+        echo "   Type: Windows Server 2022 Desktop Experience (UEFI + TPM 2.0 + Secure Boot)"
     else
         echo "   Type: Linux"
     fi

@@ -347,7 +347,9 @@ create_vm() {
         echo "✓ TPM 2.0 ajouté"
         
         # Ajouter le disque principal en SATA avec émulation SSD
-        if ! qm set $VMID --sata0 $STORAGE:$DISK_SIZE,ssd=1,format=raw; then
+        # Extraire la taille numérique (enlever le G de 120G)
+        local DISK_SIZE_NUM="${DISK_SIZE%G}"
+        if ! qm set $VMID --sata0 $STORAGE:$DISK_SIZE_NUM,ssd=1,format=raw; then
             echo "❌ Erreur lors de l'ajout du disque SATA"
             return 1
         fi
@@ -442,7 +444,9 @@ create_vm() {
             echo "✓ VM Linux de base créée"
 
             # Ajouter le disque en SATA avec émulation SSD
-            if ! qm set $VMID --sata0 $STORAGE:$DISK_SIZE,ssd=1,format=raw; then
+            # Extraire la taille numérique (enlever le G de 50G)
+            local DISK_SIZE_NUM="${DISK_SIZE%G}"
+            if ! qm set $VMID --sata0 $STORAGE:$DISK_SIZE_NUM,ssd=1,format=raw; then
                 echo "❌ Erreur lors de l'ajout du disque SATA"
                 return 1
             fi

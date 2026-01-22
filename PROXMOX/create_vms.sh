@@ -314,12 +314,6 @@ create_vm() {
             return 0
         fi
     fi
-            echo "✓ VM supprimée"
-        else
-            echo "⏭️  Saut de la VM $VMID (AUTO_RECREATE_VMS=0)"
-            return 0
-        fi
-    fi
 
     # Configuration spécifique selon le type d'OS
     if [[ "$OS_TYPE" == "win11" ]]; then

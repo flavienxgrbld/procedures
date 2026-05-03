@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/../install_common.sh"
+
+ensure_root
+detect_os
+detect_package_manager
+
+info "Ntopng - Moniteur de trafic réseau"
+
+echo "=== Installation de ntopng ==="
+pkg_install ntopng ntopngd
+
+# Service
+systemctl enable ntopng
+systemctl start ntopng
+
+if command -v ufw >/dev/null 2>&1; then
+    ufw allow 3000/tcp
+fi
+
+echo
+echo "✅ ntopng en cours d'installation"
+echo "URL: http://votre-serveur:3000"
+echo "Identifiant par défaut: admin / admin"

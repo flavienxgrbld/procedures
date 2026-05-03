@@ -3,16 +3,16 @@
 ## Description
 Description non trouvÃ©e
 
-## PrÃ©requis
+## Prérequis
 - Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
-- AccÃ¨s root ou sudo
+- Acces root ou sudo
 - Connexion Internet
 
 ## Installation
 
-ExÃ©cutez le script d'installation :
+Exécutez le script d'installation :
 
-`ash
+`Bash
 bash install_GLPI.sh
 `
 

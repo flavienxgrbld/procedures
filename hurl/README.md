@@ -1,24 +1,33 @@
 ﻿# Installation hurl
 
 ## Description
-Documentation d'installation pour hurl.
+Hurl - Tester les API REST
 
 ## PrÃ©requis
-- Ubuntu/Debian Linux
+- Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
 - AccÃ¨s root ou sudo
 - Connexion Internet
 
 ## Installation
 
-\\\ash
+ExÃ©cutez le script d'installation :
+
+`ash
 bash install_hurl.sh
-\\\
+`
+
+### Ã‰tapes dÃ©taillÃ©es
+### Installation de Hurl
+
+- [DÃ©tails Ã  ajouter]
+
 
 ## Configuration
-[Ajouter les Ã©tapes de configuration ici]
+[Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]
 
 ## VÃ©rification
-[Ajouter les Ã©tapes de vÃ©rification ici]
+- VÃ©rifiez que le service est actif : systemctl status [service]
+- AccÃ©dez Ã  l'URL si applicable
 
 ## Documentation
 - [Site officiel]()

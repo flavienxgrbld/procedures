@@ -1,7 +1,7 @@
-﻿# Installation owncloud
+﻿# Installation PLAUSIBLE
 
 ## Description
-OwnCloud - Synchronisation et partage de fichiers
+Plausible Analytics - Analytics respectueux de la vie privÃ©e
 
 ## PrÃ©requis
 - Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
@@ -13,11 +13,11 @@ OwnCloud - Synchronisation et partage de fichiers
 ExÃ©cutez le script d'installation :
 
 `ash
-bash install_owncloud.sh
+bash install_PLAUSIBLE.sh
 `
 
 ### Ã‰tapes dÃ©taillÃ©es
-### Mise Ã  jour du systÃ¨me
+### Installation de Plausible Analytics
 
 - [DÃ©tails Ã  ajouter]
 

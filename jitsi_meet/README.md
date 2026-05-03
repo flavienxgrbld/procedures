@@ -1,24 +1,33 @@
 ﻿# Installation jitsi_meet
 
 ## Description
-Documentation d'installation pour jitsi_meet.
+Jitsi Meet - VisioconfÃ©rence open-source
 
 ## PrÃ©requis
-- Ubuntu/Debian Linux
+- Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
 - AccÃ¨s root ou sudo
 - Connexion Internet
 
 ## Installation
 
-\\\ash
+ExÃ©cutez le script d'installation :
+
+`ash
 bash install_jitsi_meet.sh
-\\\
+`
+
+### Ã‰tapes dÃ©taillÃ©es
+### Installation de Jitsi Meet
+
+- [DÃ©tails Ã  ajouter]
+
 
 ## Configuration
-[Ajouter les Ã©tapes de configuration ici]
+[Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]
 
 ## VÃ©rification
-[Ajouter les Ã©tapes de vÃ©rification ici]
+- VÃ©rifiez que le service est actif : systemctl status [service]
+- AccÃ©dez Ã  l'URL si applicable
 
 ## Documentation
 - [Site officiel]()

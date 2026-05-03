@@ -1,7 +1,7 @@
-﻿# Installation owncloud
+﻿# Installation OPEN WEB ANALYTICS
 
 ## Description
-OwnCloud - Synchronisation et partage de fichiers
+Open Web Analytics - Alternative Ã  Google Analytics
 
 ## PrÃ©requis
 - Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
@@ -13,11 +13,11 @@ OwnCloud - Synchronisation et partage de fichiers
 ExÃ©cutez le script d'installation :
 
 `ash
-bash install_owncloud.sh
+bash install_OPEN WEB ANALYTICS.sh
 `
 
 ### Ã‰tapes dÃ©taillÃ©es
-### Mise Ã  jour du systÃ¨me
+### Installation d'Open Web Analytics
 
 - [DÃ©tails Ã  ajouter]
 

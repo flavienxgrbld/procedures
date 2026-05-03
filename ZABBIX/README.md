@@ -1,7 +1,7 @@
-﻿# Installation owncloud
+﻿# Installation ZABBIX
 
 ## Description
-OwnCloud - Synchronisation et partage de fichiers
+VÃ©rification de la connectivitÃ© HTTPS vers repo.zabbix.com
 
 ## PrÃ©requis
 - Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
@@ -13,14 +13,10 @@ OwnCloud - Synchronisation et partage de fichiers
 ExÃ©cutez le script d'installation :
 
 `ash
-bash install_owncloud.sh
+bash install_ZABBIX.sh
 `
 
 ### Ã‰tapes dÃ©taillÃ©es
-### Mise Ã  jour du systÃ¨me
-
-- [DÃ©tails Ã  ajouter]
-
 
 ## Configuration
 [Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]

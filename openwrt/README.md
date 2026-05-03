@@ -1,24 +1,33 @@
 ﻿# Installation openwrt
 
 ## Description
-Documentation d'installation pour openwrt.
+OpenWrt - SystÃ¨me d'exploitation WiFi/routeur
 
 ## PrÃ©requis
-- Ubuntu/Debian Linux
+- Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
 - AccÃ¨s root ou sudo
 - Connexion Internet
 
 ## Installation
 
-\\\ash
+ExÃ©cutez le script d'installation :
+
+`ash
 bash install_openwrt.sh
-\\\
+`
+
+### Ã‰tapes dÃ©taillÃ©es
+### Installation d'OpenWrt
+
+- [DÃ©tails Ã  ajouter]
+
 
 ## Configuration
-[Ajouter les Ã©tapes de configuration ici]
+[Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]
 
 ## VÃ©rification
-[Ajouter les Ã©tapes de vÃ©rification ici]
+- VÃ©rifiez que le service est actif : systemctl status [service]
+- AccÃ©dez Ã  l'URL si applicable
 
 ## Documentation
 - [Site officiel]()

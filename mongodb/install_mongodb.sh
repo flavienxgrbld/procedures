@@ -2,8 +2,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "$SCRIPT_DIR/../install_common.sh"
+COMMON_SCRIPT="/tmp/install_common.sh"
+if [ ! -f "$COMMON_SCRIPT" ]; then
+    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+fi
+source "$COMMON_SCRIPT"
 
 ensure_root
 detect_os

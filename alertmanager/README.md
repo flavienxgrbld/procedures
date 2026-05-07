@@ -1,53 +1,53 @@
-﻿# Installation de alertmanager
+﻿# Installation d'Alertmanager
 
 ## Description
 
-Alertmanager - Gestionnaire d'alertes Prometheus
+Alertmanager - Gestionnaire d'alertes pour Prometheus
 
 ### Type
 Monitoring
 
-## PrÃ©requis
+## Prérequis
 
-- **SystÃ¨me d'exploitation** : Ubuntu 20.04 LTS ou plus rÃ©cent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **AccÃ¨s** : AccÃ¨s root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **RÃ©seau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **DÃ©pendances** : curl, wget, git (installÃ©s automatiquement si nÃ©cessaire)
+- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
+- **Accès** : accès root ou sudo
+- **Ressources** : RAM minimale 2 Go, espace disque selon l'application
+- **Réseau** : connexion Internet stable
+- **Ports** : ports disponibles pour l'application
+- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
 
 ## Installation
 
-### MÃ©thode Automatique (RecommandÃ©e)
+### Méthode automatique (recommandée)
 
-`ash
-# 1. Rendez le script exÃ©cutable
+```bash
+# 1. Rendez le script exécutable
 chmod +x install_alertmanager.sh
 
-# 2. ExÃ©cutez le script d'installation
+# 2. Exécutez le script d'installation
 bash install_alertmanager.sh
 
-# 3. RÃ©pondez aux questions interactives si nÃ©cessaire
-`
+# 3. Répondez aux questions interactives si nécessaire
+```
 
-### Ã‰tapes Manuelles DÃ©taillÃ©es
+### Installation manuelle (étapes détaillées)
 
-#### 1. Mise Ã  jour du systÃ¨me
-`ash
+#### 1. Mise à jour du système
+```bash
 sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
 # ou
 sudo dnf update -y  # RedHat/Fedora
 # ou
 sudo zypper update  # openSUSE
-`
+```
 
-#### 2. Installation des dÃ©pendances de base
-`ash
+#### 2. Installation des dépendances de base
+```bash
 sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```
 
-#### 3. VÃ©rification du gestionnaire de paquets
-Le script dÃ©tecte automatiquement votre systÃ¨me et utilise le bon gestionnaire parmi :
+#### 3. Vérification du gestionnaire de paquets
+Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
 - **apt** (Debian, Ubuntu)
 - **dnf/yum** (Red Hat, Fedora, CentOS)
 - **zypper** (openSUSE)
@@ -55,284 +55,259 @@ Le script dÃ©tecte automatiquement votre systÃ¨me et utilise le bon gestionn
 
 #### 4. Installation des packages
 L'installation inclut automatiquement :
-- Toutes les dÃ©pendances requises
-- Les services systÃ¨me
+- Toutes les dépendances requises
+- Les services système
 - La configuration de base
 - Les autorisations firewall
 
-## Services InstallÃ©s
+## Services installés
 
-Les services suivants seront crÃ©Ã©s et activÃ©s :
-- **alertmanager** - Service systÃ¨me avec dÃ©marrage automatique
+Les services suivants seront créés et activés :
+- **alertmanager** — service système avec démarrage automatique
 
-## Ports Requis
+## Ports requis
 
 | Port | Protocole | Description |
 |------|-----------|-------------|
+| 9093 | TCP       | Interface Alertmanager |
 
-| 9093 | tcp | Application |
 ## Configuration
 
-### Configuration de Base
+### Configuration de base
 
-Les fichiers de configuration se trouvent gÃ©nÃ©ralement dans :
-- /etc/alertmanager/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/alertmanager/ - DonnÃ©es de l'application
-- /var/log/alertmanager/ - Logs de l'application
+Les fichiers de configuration se trouvent généralement dans :
+- `/etc/alertmanager/` — configuration de l'application
+- `/etc/systemd/system/` — services systemd
+- `/var/lib/alertmanager/` — données de l'application
+- `/var/log/alertmanager/` — logs de l'application
 
-### Configuration AvancÃ©e
+### Configuration avancée
 
 Consultez la documentation officielle pour :
 - Configuration SSL/TLS
-- IntÃ©gration avec d'autres services
+- Intégration avec d'autres services
 - Optimisation des performances
-- Haute disponibilitÃ©
+- Haute disponibilité
 
-## VÃ©rification de l'Installation
+## Vérification de l'installation
 
-### VÃ©rifier l'Ã©tat des services
-`ash
-# VÃ©rifier tous les services
+### Vérifier l'état des services
+```bash
+# Vérifier tous les services
 systemctl status
 
-# VÃ©rifier les services spÃ©cifiques
+# Vérifier Alertmanager
 systemctl status alertmanager
-# VÃ©rifier que le service dÃ©marre au boot
-systemctl is-enabled True
-`
 
-### VÃ©rifier les ports
-`ash
-# Afficher les ports Ã©coutants
+# Vérifier l'activation au démarrage
+systemctl is-enabled alertmanager
+```
+
+### Vérifier les ports
+```bash
+# Afficher les ports en écoute
 ss -tlnp
 # ou
 netstat -tlnp
 
-# VÃ©rifier un port spÃ©cifique
-ss -tlnp | grep :$PORT_NUMBER
-`
+# Vérifier un port spécifique
+ss -tlnp | grep :9093
+```
 
-### Logs et Debugging
-`ash
-# Voir les logs en temps rÃ©el
-journalctl -u True -f
+### Logs et debugging
+```bash
+# Logs en temps réel
+journalctl -u alertmanager -f
 
-# Voir les derniers logs
-journalctl -u True -n 50
+# Derniers logs
+journalctl -u alertmanager -n 50
 
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accÃ¨s Web
+# Tous les logs
+journalctl -u alertmanager
+```
 
-`ash
-# VÃ©rifier la connectivitÃ© HTTP
-curl -v http://localhost:
+### Test d'accès web
+```bash
+# Vérifier la connectivité HTTP
+curl -v http://localhost:9093
 
-# Ou accÃ©dez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
+# Ou via navigateur
+# http://votre-serveur:9093
+```
+
+## Configuration du firewall
 
 ### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
+# Autoriser le port
 sudo ufw allow 9093/tcp
-# VÃ©rifier les rÃ¨gles
+
+# Vérifier les règles
 sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de maniÃ¨re permanente
+### Avec firewall-cmd (RedHat/Fedora)
+```bash
+# Autoriser le port
 sudo firewall-cmd --permanent --add-port=9093/tcp
-# Recharger le firewall
+
+# Recharger
 sudo firewall-cmd --reload
-`
+```
 
-## DÃ©pannage
+## Dépannage
 
-### ProblÃ¨mes Courants
+### Problèmes courants
 
-#### Le service ne dÃ©marre pas
-`ash
-# VÃ©rifier les erreurs
-sudo journalctl -u True -n 50
+#### Le service ne démarre pas
+```bash
+# Vérifier les erreurs
+sudo journalctl -u alertmanager -n 50
 
-# VÃ©rifier la syntaxe de configuration
-sudo True --version
+# Vérifier la version
+alertmanager --version
 
-# RedÃ©marrer le service
-sudo systemctl restart True
+# Redémarrer
+sudo systemctl restart alertmanager
 
-# RÃ©appliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/alertmanager/
-`
+# Permissions
+sudo chown -R alertmanager:alertmanager /var/lib/alertmanager/
+```
 
-#### Port dÃ©jÃ  utilisÃ©
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
+#### Port déjà utilisé
+```bash
+# Identifier le processus
+sudo ss -tlnp | grep :9093
 
 # Ou
-sudo lsof -i :True
+sudo lsof -i :9093
 
-# ArrÃªter le processus conflictuel
+# Tuer le processus
 sudo kill -9 PID
 
-# RedÃ©marrer le service
-sudo systemctl restart True
-`
+# Redémarrer
+sudo systemctl restart alertmanager
+```
 
 #### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nÃ©cessaire
-sudo usermod -aG True $USER
+```bash
+# Ajouter au groupe
+sudo usermod -aG alertmanager $USER
 
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/alertmanager/
+# Permissions
+sudo chown -R alertmanager:alertmanager /var/lib/alertmanager/
 
-# Se reconnecter pour appliquer les changements de groupe
+# Reconnexion
 exit
-`
+```
 
-#### Firewall bloque l'accÃ¨s
-`ash
-# VÃ©rifier les rÃ¨gles firewall
-sudo ufw status numbered
+#### Firewall bloque l'accès
+```bash
+# Vérifier
+sudo ufw status
 
-# Ajouter le port si nÃ©cessaire
-sudo ufw allow True
+# Autoriser
+sudo ufw allow 9093/tcp
 
-# Rechec de la connectivitÃ©
-curl -v http://localhost:True
-`
+# Tester
+curl -v http://localhost:9093
+```
 
-### VÃ©rification du Log Principal
-`ash
-# Pour les erreurs systÃ¨me
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
+### Vérification des logs système
+```bash
+# Debian/Ubuntu
+tail -f /var/log/syslog
 
-# Pour les erreurs d'application
+# RedHat/Fedora
+tail -f /var/log/messages
+
+# Logs applicatifs
 tail -f /var/log/alertmanager/*.log
-`
+```
 
-### RÃ©initialisation ComplÃ¨te
+### Réinitialisation complète
+```bash
+# Stop
+sudo systemctl stop alertmanager
 
-Si vous devez rÃ©initialiser l'installation :
-`ash
-# 1. ArrÃªter le service
-sudo systemctl stop True
+# Disable
+sudo systemctl disable alertmanager
 
-# 2. DÃ©sactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
+# Suppression
 sudo rm -rf /opt/alertmanager
 sudo rm -rf /var/lib/alertmanager
 sudo rm -rf /etc/alertmanager
 
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
+# Service
+sudo rm /etc/systemd/system/alertmanager.service
 sudo systemctl daemon-reload
 
-# 5. RÃ©exÃ©cutez le script d'installation
+# Réinstallation
 bash install_alertmanager.sh
-`
+```
 
-## Documentation Officielle
+## Documentation officielle
 
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
+- Site officiel : https://prometheus.io/
+- Documentation : https://prometheus.io/docs/alerting/latest/alertmanager/
+- GitHub : https://github.com/prometheus/alertmanager
 
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilitÃ©
-- Optimisation des performances
-- IntÃ©gration avec Kubernetes
+## Notes supplémentaires
 
-### CommunautÃ©
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: alertmanager)
+### Sécurité
+1. Utiliser HTTPS en production
+2. Configurer le firewall correctement
+3. Utiliser des mots de passe forts
+4. Mettre à jour régulièrement
+5. Faire des sauvegardes
+6. Limiter les accès
+7. Utiliser des certificats SSL valides
 
-## Notes SupplÃ©mentaires
+### Optimisation
+1. Limiter les ressources
+2. Ajuster le cache
+3. Utiliser un load balancer
+4. Surveiller les métriques
+5. Optimiser le stockage
 
-### ConsidÃ©rations de SÃ©curitÃ©
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez Ã  jour rÃ©guliÃ¨rement
-5. Faites des sauvegardes rÃ©guliÃ¨res
-6. Limitez l'accÃ¨s administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramÃ¨tres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les mÃ©triques
-5. Optimisez la base de donnÃ©es
-
-### Sauvegarde et RÃ©cupÃ©ration
-`ash
-# CrÃ©er une sauvegarde complÃ¨te
+### Sauvegarde
+```bash
+# Sauvegarde
 sudo tar -czf backup-alertmanager-$(date +%Y%m%d).tar.gz /var/lib/alertmanager/
 
-# Restaurer une sauvegarde
-sudo tar -xzf backup-alertmanager-20240101.tar.gz -C /
-`
+# Restauration
+sudo tar -xzf backup-alertmanager-YYYYMMDD.tar.gz -C /
+```
 
-### Mise Ã  Jour
-`ash
-# VÃ©rifier les mises Ã  jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
+### Mise à jour
+```bash
+# Vérifier
+apt list --upgradable
 
-# Mettre Ã  jour
-sudo apt upgrade alertmanager  # Debian/Ubuntu
-sudo dnf upgrade alertmanager  # RedHat/Fedora
+# Mettre à jour
+sudo apt upgrade alertmanager
 
-# RedÃ©marrer le service
-sudo systemctl restart True
-`
+# Redémarrer
+sudo systemctl restart alertmanager
+```
 
-### Restauration de la Configuration par DÃ©faut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/alertmanager/config /etc/alertmanager/config.bak
+### Restauration configuration
+```bash
+# Backup
+sudo cp /etc/alertmanager/config.yml /etc/alertmanager/config.yml.bak
 
-# RÃ©installer depuis les sources
-sudo apt install --reinstall alertmanager  # Debian/Ubuntu
+# Réinstallation
+sudo apt install --reinstall alertmanager
+```
 
-# Ou, restaurer depuis le paquet
-sudo apt-file extract alertmanager /etc/
-`
-
-### IntÃ©gration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problÃ¨me :
-- Consultez la documentation officielle
-- VÃ©rifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
+## Intégrations possibles
+- Nginx / Apache / HAProxy
+- Prometheus / Grafana
+- ELK / Loki
+- Docker / Kubernetes
 
 ---
 
-**DerniÃ¨re mise Ã  jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**TestÃ© sur** : 
-
-**Statut** : Production Ready âœ…
+**Dernière mise à jour** : 03/05/2026  
+**Version du script** : 1.0  
+**Statut** : Production Ready ✅

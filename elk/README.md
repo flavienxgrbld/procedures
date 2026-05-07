@@ -1,338 +1,178 @@
-﻿# Installation de elk
+﻿# Installation de ELK (Elastic Stack)
 
 ## Description
-
-Elastic Stack (ELK) - Logging et analytics
+ELK (Elasticsearch, Logstash, Kibana) est une suite open source utilisée pour la collecte, l’analyse et la visualisation de logs et de données.
 
 ### Type
-Application
+Stack de monitoring et analytics
 
-## PrÃ©requis
+## Prérequis
 
-- **SystÃ¨me d'exploitation** : Ubuntu 20.04 LTS ou plus rÃ©cent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **AccÃ¨s** : AccÃ¨s root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **RÃ©seau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **DÃ©pendances** : curl, wget, git (installÃ©s automatiquement si nÃ©cessaire)
+- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
+- **Accès** : root ou sudo
+- **Ressources** : minimum 4 Go de RAM recommandé (ELK est gourmand)
+- **Réseau** : connexion Internet stable
+- **Ports** :
+  - 5601 (Kibana)
+  - 9200 (Elasticsearch)
+  - 5044 (Logstash)
+- **Dépendances** : curl, wget, Java (OpenJDK 11+)
 
 ## Installation
 
-### MÃ©thode Automatique (RecommandÃ©e)
+### Méthode automatique (recommandée)
 
-`ash
-# 1. Rendez le script exÃ©cutable
+```bash
+# 1. Rendre le script exécutable
 chmod +x install_elk.sh
 
-# 2. ExÃ©cutez le script d'installation
+# 2. Lancer l'installation
 bash install_elk.sh
 
-# 3. RÃ©pondez aux questions interactives si nÃ©cessaire
-`
+# 3. Suivre les instructions
+```
 
-### Ã‰tapes Manuelles DÃ©taillÃ©es
+### Installation manuelle (étapes détaillées)
 
-#### 1. Mise Ã  jour du systÃ¨me
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+#### 1. Mise à jour du système
+```bash
+sudo apt update && sudo apt upgrade -y
+```
 
-#### 2. Installation des dÃ©pendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+#### 2. Installation de Java (obligatoire)
+```bash
+sudo apt install openjdk-11-jdk -y
+java -version
+```
 
-#### 3. VÃ©rification du gestionnaire de paquets
-Le script dÃ©tecte automatiquement votre systÃ¨me et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+#### 3. Ajout du dépôt Elastic
+```bash
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dÃ©pendances requises
-- Les services systÃ¨me
-- La configuration de base
-- Les autorisations firewall
+sudo apt install apt-transport-https -y
 
-## Services InstallÃ©s
+echo "deb https://artifacts.elastic.co/packages/8.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-8.x.list
 
-Les services suivants seront crÃ©Ã©s et activÃ©s :
-- **elasticsearch** - Service systÃ¨me avec dÃ©marrage automatique
+sudo apt update
+```
 
-## Ports Requis
+#### 4. Installation des composants
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+```bash
+sudo apt install elasticsearch logstash kibana -y
+```
 
-| 5000 | tcp | Logstash / Application |
+#### 5. Activation des services
+
+```bash
+sudo systemctl enable elasticsearch
+sudo systemctl start elasticsearch
+
+sudo systemctl enable logstash
+sudo systemctl start logstash
+
+sudo systemctl enable kibana
+sudo systemctl start kibana
+```
+
 ## Configuration
 
-### Configuration de Base
+### Elasticsearch
+Fichier :
+```bash
+/etc/elasticsearch/elasticsearch.yml
+```
 
-Les fichiers de configuration se trouvent gÃ©nÃ©ralement dans :
-- /etc/elk/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/elk/ - DonnÃ©es de l'application
-- /var/log/elk/ - Logs de l'application
+### Kibana
+Fichier :
+```bash
+/etc/kibana/kibana.yml
+```
 
-### Configuration AvancÃ©e
+Accès :
+```
+http://localhost:5601
+```
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- IntÃ©gration avec d'autres services
-- Optimisation des performances
-- Haute disponibilitÃ©
+### Logstash
+Fichiers :
+```
+/etc/logstash/conf.d/
+```
 
-## VÃ©rification de l'Installation
+## Vérification de l'installation
 
-### VÃ©rifier l'Ã©tat des services
-`ash
-# VÃ©rifier tous les services
-systemctl status
-
-# VÃ©rifier les services spÃ©cifiques
+```bash
+# Statut Elasticsearch
 systemctl status elasticsearch
-# VÃ©rifier que le service dÃ©marre au boot
-systemctl is-enabled True
-`
 
-### VÃ©rifier les ports
-`ash
-# Afficher les ports Ã©coutants
-ss -tlnp
-# ou
-netstat -tlnp
+# Statut Kibana
+systemctl status kibana
 
-# VÃ©rifier un port spÃ©cifique
-ss -tlnp | grep :$PORT_NUMBER
-`
+# Statut Logstash
+systemctl status logstash
+```
 
-### Logs et Debugging
-`ash
-# Voir les logs en temps rÃ©el
-journalctl -u True -f
+### Vérifier les ports
 
-# Voir les derniers logs
-journalctl -u True -n 50
+```bash
+ss -tlnp | grep 9200
+ss -tlnp | grep 5601
+ss -tlnp | grep 5044
+```
 
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accÃ¨s Web
+### Test Elasticsearch
 
-`ash
-# VÃ©rifier la connectivitÃ© HTTP
-curl -v http://localhost:
+```bash
+curl http://localhost:9200
+```
 
-# Ou accÃ©dez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
+## Configuration firewall
 
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 5000/tcp
-# VÃ©rifier les rÃ¨gles
-sudo ufw status numbered
-`
+### UFW
+```bash
+sudo ufw allow 5601/tcp
+sudo ufw allow 9200/tcp
+sudo ufw allow 5044/tcp
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de maniÃ¨re permanente
-sudo firewall-cmd --permanent --add-port=5000/tcp
-# Recharger le firewall
+### firewall-cmd
+```bash
+sudo firewall-cmd --permanent --add-port=5601/tcp
+sudo firewall-cmd --permanent --add-port=9200/tcp
+sudo firewall-cmd --permanent --add-port=5044/tcp
 sudo firewall-cmd --reload
-`
+```
 
-## DÃ©pannage
+## Dépannage
 
-### ProblÃ¨mes Courants
+```bash
+# Logs Elasticsearch
+journalctl -u elasticsearch -f
 
-#### Le service ne dÃ©marre pas
-`ash
-# VÃ©rifier les erreurs
-sudo journalctl -u True -n 50
+# Logs Kibana
+journalctl -u kibana -f
 
-# VÃ©rifier la syntaxe de configuration
-sudo True --version
+# Logs Logstash
+journalctl -u logstash -f
 
-# RedÃ©marrer le service
-sudo systemctl restart True
+# Vérifier Java
+java -version
+```
 
-# RÃ©appliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/elk/
-`
+## Accès Web
 
-#### Port dÃ©jÃ  utilisÃ©
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
+- Kibana :
+```
+http://IP_DU_SERVEUR:5601
+```
 
-# Ou
-sudo lsof -i :True
+## Documentation
+- https://www.elastic.co/
+- https://www.elastic.co/guide/
 
-# ArrÃªter le processus conflictuel
-sudo kill -9 PID
-
-# RedÃ©marrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nÃ©cessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/elk/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accÃ¨s
-`ash
-# VÃ©rifier les rÃ¨gles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nÃ©cessaire
-sudo ufw allow True
-
-# Rechec de la connectivitÃ©
-curl -v http://localhost:True
-`
-
-### VÃ©rification du Log Principal
-`ash
-# Pour les erreurs systÃ¨me
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/elk/*.log
-`
-
-### RÃ©initialisation ComplÃ¨te
-
-Si vous devez rÃ©initialiser l'installation :
-`ash
-# 1. ArrÃªter le service
-sudo systemctl stop True
-
-# 2. DÃ©sactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/elk
-sudo rm -rf /var/lib/elk
-sudo rm -rf /etc/elk
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. RÃ©exÃ©cutez le script d'installation
-bash install_elk.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilitÃ©
-- Optimisation des performances
-- IntÃ©gration avec Kubernetes
-
-### CommunautÃ©
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: elk)
-
-## Notes SupplÃ©mentaires
-
-### ConsidÃ©rations de SÃ©curitÃ©
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez Ã  jour rÃ©guliÃ¨rement
-5. Faites des sauvegardes rÃ©guliÃ¨res
-6. Limitez l'accÃ¨s administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramÃ¨tres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les mÃ©triques
-5. Optimisez la base de donnÃ©es
-
-### Sauvegarde et RÃ©cupÃ©ration
-`ash
-# CrÃ©er une sauvegarde complÃ¨te
-sudo tar -czf backup-elk-$(date +%Y%m%d).tar.gz /var/lib/elk/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-elk-20240101.tar.gz -C /
-`
-
-### Mise Ã  Jour
-`ash
-# VÃ©rifier les mises Ã  jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre Ã  jour
-sudo apt upgrade elk  # Debian/Ubuntu
-sudo dnf upgrade elk  # RedHat/Fedora
-
-# RedÃ©marrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par DÃ©faut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/elk/config /etc/elk/config.bak
-
-# RÃ©installer depuis les sources
-sudo apt install --reinstall elk  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract elk /etc/
-`
-
-### IntÃ©gration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problÃ¨me :
-- Consultez la documentation officielle
-- VÃ©rifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**DerniÃ¨re mise Ã  jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**TestÃ© sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready âœ…
+## Notes
+- ELK est très gourmand en ressources (RAM et CPU)
+- Elasticsearch doit être correctement dimensionné pour la production
+- Il est recommandé d’utiliser HTTPS en production
+- Peut être remplacé ou complété par Grafana/Loki dans certains cas

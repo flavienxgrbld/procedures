@@ -1,338 +1,149 @@
-﻿# Installation de duplicati
+﻿# Installation de Duplicati
 
 ## Description
-
-Duplicati - Sauvegarde chiffrÃ©e et distribuÃ©e
+Duplicati est une solution de sauvegarde open source permettant de réaliser des backups chiffrés, compressés et stockés localement ou dans le cloud.
 
 ### Type
-Application
+Application de sauvegarde
 
-## PrÃ©requis
+## Prérequis
 
-- **SystÃ¨me d'exploitation** : Ubuntu 20.04 LTS ou plus rÃ©cent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **AccÃ¨s** : AccÃ¨s root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **RÃ©seau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **DÃ©pendances** : curl, wget, git (installÃ©s automatiquement si nÃ©cessaire)
+- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
+- **Accès** : root ou sudo
+- **Ressources** : minimum 2 Go de RAM recommandé
+- **Réseau** : connexion Internet stable (pour installation et stockage cloud)
+- **Ports** : 8200/tcp (interface web)
+- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
 
 ## Installation
 
-### MÃ©thode Automatique (RecommandÃ©e)
+### Méthode automatique (recommandée)
 
-`ash
-# 1. Rendez le script exÃ©cutable
+```bash
+# 1. Rendez le script exécutable
 chmod +x install_duplicati.sh
 
-# 2. ExÃ©cutez le script d'installation
+# 2. Lancez l'installation
 bash install_duplicati.sh
 
-# 3. RÃ©pondez aux questions interactives si nÃ©cessaire
-`
+# 3. Suivez les instructions affichées
+```
 
-### Ã‰tapes Manuelles DÃ©taillÃ©es
+### Installation manuelle (étapes détaillées)
 
-#### 1. Mise Ã  jour du systÃ¨me
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+#### 1. Mise à jour du système
+```bash
+sudo apt update && sudo apt upgrade -y
+```
 
-#### 2. Installation des dÃ©pendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+#### 2. Installation des dépendances
+```bash
+sudo apt install wget curl unzip mono-complete -y
+```
 
-#### 3. VÃ©rification du gestionnaire de paquets
-Le script dÃ©tecte automatiquement votre systÃ¨me et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+#### 3. Téléchargement de Duplicati
+```bash
+wget https://updates.duplicati.com/beta/duplicati-2.0.7.1_beta_2023-05-25.zip
+unzip duplicati-*.zip
+sudo mv Duplicati /opt/duplicati
+```
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dÃ©pendances requises
-- Les services systÃ¨me
-- La configuration de base
-- Les autorisations firewall
+#### 4. Création du service systemd
+```bash
+sudo nano /etc/systemd/system/duplicati.service
+```
 
-## Services InstallÃ©s
+Contenu :
+```
+[Unit]
+Description=Duplicati Backup Service
+After=network.target
 
-Les services suivants seront crÃ©Ã©s et activÃ©s :
-- **duplicati** - Service systÃ¨me avec dÃ©marrage automatique
+[Service]
+ExecStart=/usr/bin/mono /opt/duplicati/Duplicati.Server.exe
+Restart=always
+User=root
 
-## Ports Requis
+[Install]
+WantedBy=multi-user.target
+```
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+#### 5. Activation du service
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable duplicati
+sudo systemctl start duplicati
+```
 
-| 8200 | tcp | Vault API |
 ## Configuration
 
-### Configuration de Base
+### Accès interface web
+```
+http://localhost:8200
+```
 
-Les fichiers de configuration se trouvent gÃ©nÃ©ralement dans :
-- /etc/duplicati/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/duplicati/ - DonnÃ©es de l'application
-- /var/log/duplicati/ - Logs de l'application
+ou
+```
+http://IP_DU_SERVEUR:8200
+```
 
-### Configuration AvancÃ©e
+### Dossier de configuration
+- `/root/.config/Duplicati/`
+- `/var/lib/duplicati/`
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- IntÃ©gration avec d'autres services
-- Optimisation des performances
-- Haute disponibilitÃ©
+## Vérification
 
-## VÃ©rification de l'Installation
-
-### VÃ©rifier l'Ã©tat des services
-`ash
-# VÃ©rifier tous les services
-systemctl status
-
-# VÃ©rifier les services spÃ©cifiques
+```bash
+# Vérifier le service
 systemctl status duplicati
-# VÃ©rifier que le service dÃ©marre au boot
-systemctl is-enabled True
-`
 
-### VÃ©rifier les ports
-`ash
-# Afficher les ports Ã©coutants
-ss -tlnp
-# ou
-netstat -tlnp
+# Vérifier le port
+ss -tlnp | grep 8200
 
-# VÃ©rifier un port spÃ©cifique
-ss -tlnp | grep :$PORT_NUMBER
-`
+# Logs
+journalctl -u duplicati -f
+```
 
-### Logs et Debugging
-`ash
-# Voir les logs en temps rÃ©el
-journalctl -u True -f
+## Configuration firewall
 
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accÃ¨s Web
-
-`ash
-# VÃ©rifier la connectivitÃ© HTTP
-curl -v http://localhost:
-
-# Ou accÃ©dez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+### UFW
+```bash
 sudo ufw allow 8200/tcp
-# VÃ©rifier les rÃ¨gles
-sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de maniÃ¨re permanente
+### firewall-cmd
+```bash
 sudo firewall-cmd --permanent --add-port=8200/tcp
-# Recharger le firewall
 sudo firewall-cmd --reload
-`
+```
 
-## DÃ©pannage
+## Dépannage
 
-### ProblÃ¨mes Courants
+```bash
+# Vérifier logs
+journalctl -u duplicati -n 50
 
-#### Le service ne dÃ©marre pas
-`ash
-# VÃ©rifier les erreurs
-sudo journalctl -u True -n 50
+# Processus utilisant le port
+sudo lsof -i :8200
 
-# VÃ©rifier la syntaxe de configuration
-sudo True --version
+# Redémarrer service
+sudo systemctl restart duplicati
+```
 
-# RedÃ©marrer le service
-sudo systemctl restart True
+## Sauvegarde avec Duplicati
 
-# RÃ©appliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/duplicati/
-`
+Duplicati permet de sauvegarder vers :
+- Disque local
+- FTP / SFTP
+- Google Drive
+- Amazon S3
+- OneDrive
 
-#### Port dÃ©jÃ  utilisÃ©
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
+## Documentation
+- Site officiel : https://www.duplicati.com/
+- Documentation : https://docs.duplicati.com/
 
-# Ou
-sudo lsof -i :True
-
-# ArrÃªter le processus conflictuel
-sudo kill -9 PID
-
-# RedÃ©marrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nÃ©cessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/duplicati/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accÃ¨s
-`ash
-# VÃ©rifier les rÃ¨gles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nÃ©cessaire
-sudo ufw allow True
-
-# Rechec de la connectivitÃ©
-curl -v http://localhost:True
-`
-
-### VÃ©rification du Log Principal
-`ash
-# Pour les erreurs systÃ¨me
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/duplicati/*.log
-`
-
-### RÃ©initialisation ComplÃ¨te
-
-Si vous devez rÃ©initialiser l'installation :
-`ash
-# 1. ArrÃªter le service
-sudo systemctl stop True
-
-# 2. DÃ©sactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/duplicati
-sudo rm -rf /var/lib/duplicati
-sudo rm -rf /etc/duplicati
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. RÃ©exÃ©cutez le script d'installation
-bash install_duplicati.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilitÃ©
-- Optimisation des performances
-- IntÃ©gration avec Kubernetes
-
-### CommunautÃ©
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: duplicati)
-
-## Notes SupplÃ©mentaires
-
-### ConsidÃ©rations de SÃ©curitÃ©
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez Ã  jour rÃ©guliÃ¨rement
-5. Faites des sauvegardes rÃ©guliÃ¨res
-6. Limitez l'accÃ¨s administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramÃ¨tres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les mÃ©triques
-5. Optimisez la base de donnÃ©es
-
-### Sauvegarde et RÃ©cupÃ©ration
-`ash
-# CrÃ©er une sauvegarde complÃ¨te
-sudo tar -czf backup-duplicati-$(date +%Y%m%d).tar.gz /var/lib/duplicati/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-duplicati-20240101.tar.gz -C /
-`
-
-### Mise Ã  Jour
-`ash
-# VÃ©rifier les mises Ã  jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre Ã  jour
-sudo apt upgrade duplicati  # Debian/Ubuntu
-sudo dnf upgrade duplicati  # RedHat/Fedora
-
-# RedÃ©marrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par DÃ©faut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/duplicati/config /etc/duplicati/config.bak
-
-# RÃ©installer depuis les sources
-sudo apt install --reinstall duplicati  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract duplicati /etc/
-`
-
-### IntÃ©gration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problÃ¨me :
-- Consultez la documentation officielle
-- VÃ©rifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**DerniÃ¨re mise Ã  jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**TestÃ© sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready âœ…
+## Notes
+- L’interface web fonctionne par défaut sur le port 8200
+- Pensez à sécuriser l’accès (reverse proxy + HTTPS recommandé)
+- Solution idéale pour backups automatisés et chiffrés

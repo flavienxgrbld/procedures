@@ -1,41 +1,134 @@
-﻿# Installation certbot
+﻿# Installation de Certbot
 
 ## Description
-Certbot - GÃ©nÃ©ration de certificats SSL/TLS Let's Encrypt
+Certbot est un outil permettant de générer et renouveler automatiquement des certificats SSL/TLS gratuits via Let's Encrypt afin de sécuriser les services web en HTTPS.
 
-## PrÃ©requis
-- Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
-- AccÃ¨s root ou sudo
+## Prérequis
+- Système d'exploitation : Ubuntu/Debian Linux (ou autre distribution compatible)
+- Accès : root ou sudo
 - Connexion Internet
+- Nom de domaine pointant vers votre serveur
+- Serveur web (Apache ou Nginx recommandé)
 
 ## Installation
 
-ExÃ©cutez le script d'installation :
+### Méthode automatique (recommandée)
 
-`ash
+```bash
 bash install_certbot.sh
-`
+```
 
-### Ã‰tapes dÃ©taillÃ©es
-### Mise Ã  jour du systÃ¨me
+### Installation manuelle (étapes détaillées)
 
-- [DÃ©tails Ã  ajouter]
+#### 1. Mise à jour du système
+```bash
+sudo apt update && sudo apt upgrade -y
+```
 
-### Installation de Certbot
+#### 2. Installation de Certbot
 
-- [DÃ©tails Ã  ajouter]
+##### Avec Apache
+```bash
+sudo apt install certbot python3-certbot-apache -y
+```
 
+##### Avec Nginx
+```bash
+sudo apt install certbot python3-certbot-nginx -y
+```
+
+##### Méthode universelle (snap recommandé)
+```bash
+sudo apt install snapd -y
+sudo snap install core
+sudo snap refresh core
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+```
+
+#### 3. Génération d’un certificat SSL
+
+##### Avec Apache
+```bash
+sudo certbot --apache
+```
+
+##### Avec Nginx
+```bash
+sudo certbot --nginx
+```
+
+##### Mode standalone
+```bash
+sudo certbot certonly --standalone -d votre-domaine.com
+```
+
+Suivez les instructions pour :
+- Valider votre domaine
+- Configurer HTTPS automatiquement
+- Activer la redirection HTTP → HTTPS
+
+#### 4. Renouvellement automatique
+```bash
+sudo certbot renew --dry-run
+```
+
+Un cron ou timer systemd est généralement installé automatiquement.
 
 ## Configuration
-[Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]
 
-## VÃ©rification
-- VÃ©rifiez que le service est actif : systemctl status [service]
-- AccÃ©dez Ã  l'URL si applicable
+### Emplacement des certificats
+- `/etc/letsencrypt/live/` — certificats actifs
+- `/etc/letsencrypt/archive/` — historique
+- `/etc/letsencrypt/renewal/` — configuration de renouvellement
+
+### Configuration Apache/Nginx
+Certbot peut modifier automatiquement la configuration pour activer HTTPS.
+
+Exemple Apache :
+```
+<VirtualHost *:443>
+    ServerName votre-domaine.com
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/votre-domaine.com/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/votre-domaine.com/privkey.pem
+</VirtualHost>
+```
+
+## Vérification
+
+```bash
+# Vérifier Certbot
+certbot --version
+
+# Tester le renouvellement
+sudo certbot renew --dry-run
+
+# Tester HTTPS
+curl -I https://votre-domaine.com
+```
+
+## Dépannage
+
+```bash
+# Logs Certbot
+sudo tail -f /var/log/letsencrypt/letsencrypt.log
+
+# Vérifier ports
+sudo ss -tlnp | grep :80
+sudo ss -tlnp | grep :443
+
+# Vérifier configuration web
+sudo apache2ctl configtest
+sudo nginx -t
+```
 
 ## Documentation
-- [Site officiel]()
-- [Documentation]()
+- Site officiel : https://certbot.eff.org/
+- Documentation : https://certbot.eff.org/docs/
+- Let's Encrypt : https://letsencrypt.org/
 
 ## Notes
-[Ajouter vos notes ici]
+- Assurez-vous que le port 80 est accessible pour la validation
+- Les certificats expirent tous les 90 jours (renouvellement automatique recommandé)
+- Utilisez HTTPS pour sécuriser toutes vos applications web

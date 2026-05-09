@@ -23,6 +23,7 @@ pkg_upgrade
 
 # Installation PHP
 install_php "$PHP_VERSION"
+PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
 
 # Installation serveur web
 install_webserver "apache"
@@ -31,7 +32,7 @@ install_webserver "apache"
 install_database
 
 # Modules PHP
-pkg_install "php${PHP_VERSION//./}-curl" "php${PHP_VERSION//./}-xml" "php${PHP_VERSION//./}-zip"
+pkg_install "php${PHP_VERSION}-curl" "php${PHP_VERSION}-xml" "php${PHP_VERSION}-zip"
 
 # Installation Composer
 curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer

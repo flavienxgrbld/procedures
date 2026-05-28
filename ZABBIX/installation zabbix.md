@@ -31,7 +31,7 @@ apt update && apt upgrade -y
 
 ## 4. Configuration de MariaDB
 
-Lancer l’assistant de sécurisation :
+Lancer l'assistant de sécurisation :
 
 ```bash
 mariadb-secure-installation
@@ -65,7 +65,7 @@ zcat /usr/share/zabbix/sql-scripts/mysql/server.sql.gz | \
 mysql --default-character-set=utf8mb4 -u zabbix -p zabbix
 ```
 
-Puis désactiver l’option temporaire :
+Puis désactiver l'option temporaire :
 
 ```bash
 mysql -u root -p
@@ -94,7 +94,7 @@ systemctl restart zabbix-server zabbix-agent apache2
 systemctl enable zabbix-server zabbix-agent apache2
 ```
 
-## 6. Accès à l’interface Web
+## 6. Accès à l'interface Web
 
 Ouvrir un navigateur et accéder à :
 
@@ -109,24 +109,24 @@ Identifiants par défaut :
 
 ---
 
-# Installation de l’agent Zabbix sur Windows
+# Installation de l'agent Zabbix sur Windows
 
-Télécharger l’agent :
+Télécharger l'agent :
 
 ```
 https://cdn.zabbix.com/zabbix/binaries/stable/7.4/7.4.6/zabbix_agent2-7.4.6-windows-amd64-openssl.msi
 ```
 
-Lors de l’installation, renseigner :
+Lors de l'installation, renseigner :
 
-- l’IP du serveur Zabbix  
+- l'IP du serveur Zabbix  
 - le port par défaut : 10050  
 
 ---
 
-# Ajout de l’hôte Windows dans Zabbix
+# Ajout de l'hôte Windows dans Zabbix
 
-Dans l’interface Zabbix :
+Dans l'interface Zabbix :
 
 **Collecte de données → Hôtes → Créer un hôte**
 

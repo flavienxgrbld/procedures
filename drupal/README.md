@@ -1,4 +1,4 @@
-﻿# Installation de Drupal
+# Installation de Drupal
 
 ## Description
 Drupal est un CMS open source puissant permettant de créer des sites web complexes, des portails et des applications web évolutives.
@@ -83,7 +83,7 @@ Accédez à :
 http://votre-serveur/drupal
 ```
 
-Puis suivez l’assistant :
+Puis suivez l'assistant :
 - Choix de la langue
 - Configuration base de données
 - Création compte administrateur
@@ -126,4 +126,4 @@ sudo systemctl restart apache2
 ## Notes
 - Drupal est très flexible mais plus complexe que WordPress
 - Idéal pour sites avancés et plateformes personnalisées
-- Recommandé de sécuriser avec HTTPS (Let’s Encrypt)
+- Recommandé de sécuriser avec HTTPS (Let's Encrypt)

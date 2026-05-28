@@ -1,4 +1,4 @@
-﻿# Installation d'Akaunting
+# Installation d'Akaunting
 
 ## Description
 Akaunting est un logiciel de comptabilité open source gratuit permettant de gérer les finances d'une entreprise. Il offre des fonctionnalités telles que la facturation, la gestion des dépenses, les rapports financiers, etc.
@@ -7,7 +7,7 @@ Akaunting est un logiciel de comptabilité open source gratuit permettant de gé
 - Système d'exploitation : Ubuntu/Debian Linux (ou autres distributions compatibles)
 - Accès : root ou sudo
 - Connexion Internet pour télécharger les dépendances
-- Espace disque : au moins 1 Go d’espace libre
+- Espace disque : au moins 1 Go d'espace libre
 - Mémoire : au moins 512 Mo de RAM
 
 ## Installation
@@ -145,7 +145,7 @@ sudo systemctl reload apache2
 
 ## Vérification
 
-- Vérifiez qu’Apache est actif :
+- Vérifiez qu'Apache est actif :
   ```bash
   sudo systemctl status apache2
   ```

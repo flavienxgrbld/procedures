@@ -1,4 +1,4 @@
-﻿# Installation de minio
+# Installation de minio
 
 ## Description
 
@@ -7,33 +7,33 @@ MinIO - Stockage d'objets compatibles S3
 ### Type
 Application
 
-## PrÃ©requis
+## Prérequis
 
-- **SystÃ¨me d'exploitation** : Ubuntu 20.04 LTS ou plus rÃ©cent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **AccÃ¨s** : AccÃ¨s root ou sudo
+- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
+- **Accès** : Accès root ou sudo
 - **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **RÃ©seau** : Connexion Internet stable
+- **Réseau** : Connexion Internet stable
 - **Port** : Ports disponibles pour l'application
-- **DÃ©pendances** : curl, wget, git (installÃ©s automatiquement si nÃ©cessaire)
+- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
 
 ## Installation
 
-### MÃ©thode Automatique (RecommandÃ©e)
+### Méthode Automatique (Recommandée)
 
-`ash
-# 1. Rendez le script exÃ©cutable
+`ash
+# 1. Rendez le script exécutable
 chmod +x install_minio.sh
 
-# 2. ExÃ©cutez le script d'installation
+# 2. Exécutez le script d'installation
 bash install_minio.sh
 
-# 3. RÃ©pondez aux questions interactives si nÃ©cessaire
+# 3. Répondez aux questions interactives si nécessaire
 `
 
-### Ã‰tapes Manuelles DÃ©taillÃ©es
+### Étapes Manuelles Détaillées
 
-#### 1. Mise Ã  jour du systÃ¨me
-`ash
+#### 1. Mise à jour du système
+`ash
 sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
 # ou
 sudo dnf update -y  # RedHat/Fedora
@@ -41,13 +41,13 @@ sudo dnf update -y  # RedHat/Fedora
 sudo zypper update  # openSUSE
 `
 
-#### 2. Installation des dÃ©pendances de base
-`ash
+#### 2. Installation des dépendances de base
+`ash
 sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
 `
 
-#### 3. VÃ©rification du gestionnaire de paquets
-Le script dÃ©tecte automatiquement votre systÃ¨me et utilise le bon gestionnaire parmi :
+#### 3. Vérification du gestionnaire de paquets
+Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
 - **apt** (Debian, Ubuntu)
 - **dnf/yum** (Red Hat, Fedora, CentOS)
 - **zypper** (openSUSE)
@@ -55,15 +55,15 @@ Le script dÃ©tecte automatiquement votre systÃ¨me et utilise le bon gestionn
 
 #### 4. Installation des packages
 L'installation inclut automatiquement :
-- Toutes les dÃ©pendances requises
-- Les services systÃ¨me
+- Toutes les dépendances requises
+- Les services système
 - La configuration de base
 - Les autorisations firewall
 
-## Services InstallÃ©s
+## Services Installés
 
-Les services suivants seront crÃ©Ã©s et activÃ©s :
-- **minio** - Service systÃ¨me avec dÃ©marrage automatique
+Les services suivants seront créés et activés :
+- **minio** - Service système avec démarrage automatique
 
 ## Ports Requis
 
@@ -75,47 +75,47 @@ Les services suivants seront crÃ©Ã©s et activÃ©s :
 
 ### Configuration de Base
 
-Les fichiers de configuration se trouvent gÃ©nÃ©ralement dans :
+Les fichiers de configuration se trouvent généralement dans :
 - /etc/minio/ - Configuration de l'application
 - /etc/systemd/system/ - Configuration des services
-- /var/lib/minio/ - DonnÃ©es de l'application
+- /var/lib/minio/ - Données de l'application
 - /var/log/minio/ - Logs de l'application
 
-### Configuration AvancÃ©e
+### Configuration Avancée
 
 Consultez la documentation officielle pour :
 - Configuration SSL/TLS
-- IntÃ©gration avec d'autres services
+- Intégration avec d'autres services
 - Optimisation des performances
-- Haute disponibilitÃ©
+- Haute disponibilité
 
-## VÃ©rification de l'Installation
+## Vérification de l'Installation
 
-### VÃ©rifier l'Ã©tat des services
-`ash
-# VÃ©rifier tous les services
+### Vérifier l'état des services
+`ash
+# Vérifier tous les services
 systemctl status
 
-# VÃ©rifier les services spÃ©cifiques
+# Vérifier les services spécifiques
 systemctl status minio
-# VÃ©rifier que le service dÃ©marre au boot
+# Vérifier que le service démarre au boot
 systemctl is-enabled True
 `
 
-### VÃ©rifier les ports
-`ash
-# Afficher les ports Ã©coutants
+### Vérifier les ports
+`ash
+# Afficher les ports écoutants
 ss -tlnp
 # ou
 netstat -tlnp
 
-# VÃ©rifier un port spÃ©cifique
+# Vérifier un port spécifique
 ss -tlnp | grep :$PORT_NUMBER
 `
 
 ### Logs et Debugging
-`ash
-# Voir les logs en temps rÃ©el
+`ash
+# Voir les logs en temps réel
 journalctl -u True -f
 
 # Voir les derniers logs
@@ -124,70 +124,70 @@ journalctl -u True -n 50
 # Voir tous les logs du service
 journalctl -u True
 `
-### Test d'accÃ¨s Web
+### Test d'accès Web
 
-`ash
-# VÃ©rifier la connectivitÃ© HTTP
+`ash
+# Vérifier la connectivité HTTP
 curl -v http://localhost:
 
-# Ou accÃ©dez via votre navigateur
+# Ou accédez via votre navigateur
 # http://votre-serveur:
 `
 ## Configuration du Firewall
 
 ### Avec UFW (Debian/Ubuntu)
-`ash
+`ash
 # Autoriser les ports
 sudo ufw allow 9001/tcp
-# VÃ©rifier les rÃ¨gles
+# Vérifier les règles
 sudo ufw status numbered
 `
 
 ### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de maniÃ¨re permanente
+`ash
+# Autoriser les ports de manière permanente
 sudo firewall-cmd --permanent --add-port=9001/tcp
 # Recharger le firewall
 sudo firewall-cmd --reload
 `
 
-## DÃ©pannage
+## Dépannage
 
-### ProblÃ¨mes Courants
+### Problèmes Courants
 
-#### Le service ne dÃ©marre pas
-`ash
-# VÃ©rifier les erreurs
+#### Le service ne démarre pas
+`ash
+# Vérifier les erreurs
 sudo journalctl -u True -n 50
 
-# VÃ©rifier la syntaxe de configuration
+# Vérifier la syntaxe de configuration
 sudo True --version
 
-# RedÃ©marrer le service
+# Redémarrer le service
 sudo systemctl restart True
 
-# RÃ©appliquer les permissions
+# Réappliquer les permissions
 sudo chown -R $(whoami):$(whoami) /var/lib/minio/
 `
 
-#### Port dÃ©jÃ  utilisÃ©
-`ash
+#### Port déjà utilisé
+`ash
 # Trouver quel processus utilise le port
 sudo ss -tlnp | grep :True
 
 # Ou
 sudo lsof -i :True
 
-# ArrÃªter le processus conflictuel
+# Arrêter le processus conflictuel
 sudo kill -9 PID
 
-# RedÃ©marrer le service
+# Redémarrer le service
 sudo systemctl restart True
 `
 
 #### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nÃ©cessaire
+`ash
+# Ajouter l'utilisateur au groupe nécessaire
 sudo usermod -aG True $USER
 
 # Appliquer les permissions
@@ -197,21 +197,21 @@ sudo chown -R True:True /var/lib/minio/
 exit
 `
 
-#### Firewall bloque l'accÃ¨s
-`ash
-# VÃ©rifier les rÃ¨gles firewall
+#### Firewall bloque l'accès
+`ash
+# Vérifier les règles firewall
 sudo ufw status numbered
 
-# Ajouter le port si nÃ©cessaire
+# Ajouter le port si nécessaire
 sudo ufw allow True
 
-# Rechec de la connectivitÃ©
+# Rechec de la connectivité
 curl -v http://localhost:True
 `
 
-### VÃ©rification du Log Principal
-`ash
-# Pour les erreurs systÃ¨me
+### Vérification du Log Principal
+`ash
+# Pour les erreurs système
 tail -f /var/log/syslog  # Debian/Ubuntu
 tail -f /var/log/messages  # RedHat/Fedora
 
@@ -219,14 +219,14 @@ tail -f /var/log/messages  # RedHat/Fedora
 tail -f /var/log/minio/*.log
 `
 
-### RÃ©initialisation ComplÃ¨te
+### Réinitialisation Complète
 
-Si vous devez rÃ©initialiser l'installation :
-`ash
-# 1. ArrÃªter le service
+Si vous devez réinitialiser l'installation :
+`ash
+# 1. Arrêter le service
 sudo systemctl stop True
 
-# 2. DÃ©sactiver le service
+# 2. Désactiver le service
 sudo systemctl disable True
 
 # 3. Supprimez l'application (adapter selon les besoins)
@@ -238,7 +238,7 @@ sudo rm -rf /etc/minio
 sudo rm /etc/systemd/system/True.service
 sudo systemctl daemon-reload
 
-# 5. RÃ©exÃ©cutez le script d'installation
+# 5. Réexécutez le script d'installation
 bash install_minio.sh
 `
 
@@ -251,69 +251,69 @@ bash install_minio.sh
 
 ### Guides Connexes
 - Configuration SSL/TLS
-- Haute disponibilitÃ©
+- Haute disponibilité
 - Optimisation des performances
-- IntÃ©gration avec Kubernetes
+- Intégration avec Kubernetes
 
-### CommunautÃ©
+### Communauté
 - Forums de support
 - Discord/Slack
 - Stack Overflow (tag: minio)
 
-## Notes SupplÃ©mentaires
+## Notes Supplémentaires
 
-### ConsidÃ©rations de SÃ©curitÃ©
+### Considérations de Sécurité
 1. Utilisez toujours HTTPS en production
 2. Configurez les pare-feu correctement
 3. Utilisez les mots de passe forts
-4. Mettez Ã  jour rÃ©guliÃ¨rement
-5. Faites des sauvegardes rÃ©guliÃ¨res
-6. Limitez l'accÃ¨s administrateur
+4. Mettez à jour régulièrement
+5. Faites des sauvegardes régulières
+6. Limitez l'accès administrateur
 7. Utilisez des certificats SSL valides
 
 ### Optimisation des Performances
 1. Configurez les limites de ressources
-2. Ajustez les paramÃ¨tres de cache
+2. Ajustez les paramètres de cache
 3. Utilisez un load balancer en production
-4. Surveillez les mÃ©triques
-5. Optimisez la base de donnÃ©es
+4. Surveillez les métriques
+5. Optimisez la base de données
 
-### Sauvegarde et RÃ©cupÃ©ration
-`ash
-# CrÃ©er une sauvegarde complÃ¨te
+### Sauvegarde et Récupération
+`ash
+# Créer une sauvegarde complète
 sudo tar -czf backup-minio-$(date +%Y%m%d).tar.gz /var/lib/minio/
 
 # Restaurer une sauvegarde
 sudo tar -xzf backup-minio-20240101.tar.gz -C /
 `
 
-### Mise Ã  Jour
-`ash
-# VÃ©rifier les mises Ã  jour disponibles
+### Mise à Jour
+`ash
+# Vérifier les mises à jour disponibles
 apt list --upgradable  # Debian/Ubuntu
 dnf check-update  # RedHat/Fedora
 
-# Mettre Ã  jour
+# Mettre à jour
 sudo apt upgrade minio  # Debian/Ubuntu
 sudo dnf upgrade minio  # RedHat/Fedora
 
-# RedÃ©marrer le service
+# Redémarrer le service
 sudo systemctl restart True
 `
 
-### Restauration de la Configuration par DÃ©faut
-`ash
+### Restauration de la Configuration par Défaut
+`ash
 # Sauvegarder la configuration actuelle
 sudo cp /etc/minio/config /etc/minio/config.bak
 
-# RÃ©installer depuis les sources
+# Réinstaller depuis les sources
 sudo apt install --reinstall minio  # Debian/Ubuntu
 
 # Ou, restaurer depuis le paquet
 sudo apt-file extract minio /etc/
 `
 
-### IntÃ©gration avec Autres Services
+### Intégration avec Autres Services
 - Reverse Proxy (Nginx, Apache, HAProxy)
 - Load Balancer
 - Monitoring (Prometheus, Grafana)
@@ -321,18 +321,18 @@ sudo apt-file extract minio /etc/
 - Orchestration (Docker, Kubernetes)
 
 ### Contacts et Support
-Pour toute question ou problÃ¨me :
+Pour toute question ou problème :
 - Consultez la documentation officielle
-- VÃ©rifiez les logs d'erreur
+- Vérifiez les logs d'erreur
 - Contactez le support communautaire
 - Ouvrez une issue sur GitHub
 
 ---
 
-**DerniÃ¨re mise Ã  jour** : 03/05/2026
+**Dernière mise à jour** : 03/05/2026
 
 **Version du script d'installation** : 1.0
 
-**TestÃ© sur** : 
+**Testé sur** : 
 
-**Statut** : Production Ready âœ…
+**Statut** : Production Ready ✅

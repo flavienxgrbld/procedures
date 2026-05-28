@@ -1,10 +1,10 @@
-﻿# Installation GLPI
+# Installation GLPI
 
 ## Description
-Description non trouvÃ©e
+Description non trouvée
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
+- Ubuntu/Debian Linux (ou autre distribution supportée)
 - Acces root ou sudo
 - Connexion Internet
 
@@ -16,86 +16,86 @@ Exécutez le script d'installation :
 bash install_GLPI.sh
 `
 
-### Ã‰tapes dÃ©taillÃ©es
-### Mise Ã  jour du systÃ¨me
+### Étapes détaillées
+### Mise à jour du système
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### VÃ©rification et installation de PHP 8.2+
+### Vérification et installation de PHP 8.2+
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Installation d'Apache2, PHP 8.2+ et extensions
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Installation de MariaDB
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Configuration de MariaDB
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### SÃ©curisation automatique de MySQL
+### Sécurisation automatique de MySQL
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### CrÃ©ation de la base de donnÃ©es GLPI
+### Création de la base de données GLPI
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Chargement des fuseaux horaires MySQL
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### TÃ©lÃ©chargement et extraction de GLPI
+### Téléchargement et extraction de GLPI
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### CrÃ©ation des rÃ©pertoires de configuration
+### Création des répertoires de configuration
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### CrÃ©ation du fichier downstream.php
+### Création du fichier downstream.php
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### DÃ©placement des rÃ©pertoires
+### Déplacement des répertoires
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### CrÃ©ation du fichier local_define.php
+### Création du fichier local_define.php
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Configuration des permissions
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Configuration du VirtualHost Apache
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Activation du site GLPI
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Configuration de PHP
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
-### RedÃ©marrage d'Apache
+### Redémarrage d'Apache
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 
 ## Configuration
-[Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]
+[Ajouter les étapes de configuration manuelle si nécessaire]
 
-## VÃ©rification
-- VÃ©rifiez que le service est actif : systemctl status [service]
-- AccÃ©dez Ã  l'URL si applicable
+## Vérification
+- Vérifiez que le service est actif : systemctl status [service]
+- Accédez à l'URL si applicable
 
 ## Documentation
 - [Site officiel]()

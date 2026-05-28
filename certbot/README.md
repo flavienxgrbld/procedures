@@ -1,4 +1,4 @@
-﻿# Installation de Certbot
+# Installation de Certbot
 
 ## Description
 Certbot est un outil permettant de générer et renouveler automatiquement des certificats SSL/TLS gratuits via Let's Encrypt afin de sécuriser les services web en HTTPS.
@@ -46,7 +46,7 @@ sudo snap install --classic certbot
 sudo ln -s /snap/bin/certbot /usr/bin/certbot
 ```
 
-#### 3. Génération d’un certificat SSL
+#### 3. Génération d'un certificat SSL
 
 ##### Avec Apache
 ```bash

@@ -1,4 +1,4 @@
-﻿# Installation de Docker
+# Installation de Docker
 
 ## Description
 Docker est une plateforme de conteneurisation open source permettant de créer, déployer et exécuter des applications dans des conteneurs isolés. Elle facilite le développement, les tests et la mise en production.

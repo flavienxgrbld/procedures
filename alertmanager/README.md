@@ -1,4 +1,4 @@
-﻿# Installation d'Alertmanager
+# Installation d'Alertmanager
 
 ## Description
 

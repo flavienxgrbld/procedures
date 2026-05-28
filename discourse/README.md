@@ -1,4 +1,4 @@
-﻿# Installation de Discourse
+# Installation de Discourse
 
 ## Description
 Discourse est une plateforme de forum moderne, open source, conçue pour faciliter les discussions en ligne avec une interface intuitive et des fonctionnalités avancées (notifications, modération, SSO, etc.).

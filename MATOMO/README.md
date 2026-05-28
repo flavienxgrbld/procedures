@@ -1,37 +1,37 @@
-﻿# Installation MATOMO
+# Installation MATOMO
 
 ## Description
-Matomo - Analytics alternative Ã  Google Analytics
+Matomo - Analytics alternative à Google Analytics
 
-## PrÃ©requis
-- Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
-- AccÃ¨s root ou sudo
+## Prérequis
+- Ubuntu/Debian Linux (ou autre distribution supportée)
+- Accès root ou sudo
 - Connexion Internet
 
 ## Installation
 
-ExÃ©cutez le script d'installation :
+Exécutez le script d'installation :
 
-`ash
+`ash
 bash install_MATOMO.sh
 `
 
-### Ã‰tapes dÃ©taillÃ©es
-### Mise Ã  jour du systÃ¨me
+### Étapes détaillées
+### Mise à jour du système
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 ### Installation de Matomo
 
-- [DÃ©tails Ã  ajouter]
+- [Détails à ajouter]
 
 
 ## Configuration
-[Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]
+[Ajouter les étapes de configuration manuelle si nécessaire]
 
-## VÃ©rification
-- VÃ©rifiez que le service est actif : systemctl status [service]
-- AccÃ©dez Ã  l'URL si applicable
+## Vérification
+- Vérifiez que le service est actif : systemctl status [service]
+- Accédez à l'URL si applicable
 
 ## Documentation
 - [Site officiel]()

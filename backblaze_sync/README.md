@@ -1,4 +1,4 @@
-﻿# Installation de backblaze_sync
+# Installation de backblaze_sync
 
 ## Description
 

@@ -1,4 +1,4 @@
-﻿# Installation de Dolibarr
+# Installation de Dolibarr
 
 ## Description
 Dolibarr est un ERP/CRM open source destiné aux PME, permettant de gérer la facturation, les clients, les stocks, les projets et la comptabilité.
@@ -96,7 +96,7 @@ Accédez à :
 http://votre-serveur/dolibarr
 ```
 
-Puis suivez l’assistant :
+Puis suivez l'assistant :
 - Configuration base de données
 - Création utilisateur admin
 - Paramètres société
@@ -139,4 +139,4 @@ sudo systemctl restart mysql
 ## Notes
 - Dolibarr est très modulaire (CRM, ERP, facturation, stock)
 - Peut être utilisé en mode SaaS ou local
-- Pensez à sécuriser l’accès (HTTPS recommandé)
+- Pensez à sécuriser l'accès (HTTPS recommandé)

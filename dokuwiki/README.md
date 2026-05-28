@@ -1,4 +1,4 @@
-﻿# Installation de DokuWiki
+# Installation de DokuWiki
 
 ## Description
 DokuWiki est un wiki léger, open source et facile à utiliser, ne nécessitant pas de base de données. Il est souvent utilisé pour la documentation interne et les petites équipes.
@@ -76,8 +76,8 @@ Une fois installé, accédez à :
 http://votre-serveur/dokuwiki/install.php
 ```
 
-Suivez l’assistant pour :
-- Créer l’administrateur
+Suivez l'assistant pour :
+- Créer l'administrateur
 - Configurer le wiki
 - Définir les permissions
 

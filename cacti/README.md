@@ -1,4 +1,4 @@
-﻿# Installation de Cacti
+# Installation de Cacti
 
 ## Description
 Cacti est un outil de supervision qui permet de collecter, stocker et afficher des données sous forme de graphiques. Il s'appuie généralement sur RRDTool et SNMP pour la collecte de données.

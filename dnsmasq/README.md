@@ -1,4 +1,4 @@
-﻿# Installation de dnsmasq
+# Installation de dnsmasq
 
 ## Description
 

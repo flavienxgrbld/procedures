@@ -1,29 +1,29 @@
-﻿# Installation ZABBIX
+# Installation ZABBIX
 
 ## Description
-VÃ©rification de la connectivitÃ© HTTPS vers repo.zabbix.com
+Vérification de la connectivité HTTPS vers repo.zabbix.com
 
-## PrÃ©requis
-- Ubuntu/Debian Linux (ou autre distribution supportÃ©e)
-- AccÃ¨s root ou sudo
+## Prérequis
+- Ubuntu/Debian Linux (ou autre distribution supportée)
+- Accès root ou sudo
 - Connexion Internet
 
 ## Installation
 
-ExÃ©cutez le script d'installation :
+Exécutez le script d'installation :
 
-`ash
+`ash
 bash install_ZABBIX.sh
 `
 
-### Ã‰tapes dÃ©taillÃ©es
+### Étapes détaillées
 
 ## Configuration
-[Ajouter les Ã©tapes de configuration manuelle si nÃ©cessaire]
+[Ajouter les étapes de configuration manuelle si nécessaire]
 
-## VÃ©rification
-- VÃ©rifiez que le service est actif : systemctl status [service]
-- AccÃ©dez Ã  l'URL si applicable
+## Vérification
+- Vérifiez que le service est actif : systemctl status [service]
+- Accédez à l'URL si applicable
 
 ## Documentation
 - [Site officiel]()

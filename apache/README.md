@@ -1,4 +1,4 @@
-﻿# Installation d'Apache
+# Installation d'Apache
 
 ## Description
 Apache HTTP Server est un serveur web modulaire open source largement utilisé pour servir des pages web. Il est connu pour sa fiabilité, sa flexibilité et ses nombreuses fonctionnalités.

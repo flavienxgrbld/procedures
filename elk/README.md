@@ -1,7 +1,7 @@
-﻿# Installation de ELK (Elastic Stack)
+# Installation de ELK (Elastic Stack)
 
 ## Description
-ELK (Elasticsearch, Logstash, Kibana) est une suite open source utilisée pour la collecte, l’analyse et la visualisation de logs et de données.
+ELK (Elasticsearch, Logstash, Kibana) est une suite open source utilisée pour la collecte, l'analyse et la visualisation de logs et de données.
 
 ### Type
 Stack de monitoring et analytics
@@ -174,5 +174,5 @@ http://IP_DU_SERVEUR:5601
 ## Notes
 - ELK est très gourmand en ressources (RAM et CPU)
 - Elasticsearch doit être correctement dimensionné pour la production
-- Il est recommandé d’utiliser HTTPS en production
+- Il est recommandé d'utiliser HTTPS en production
 - Peut être remplacé ou complété par Grafana/Loki dans certains cas

@@ -1,4 +1,4 @@
-﻿# Installation de Duplicati
+# Installation de Duplicati
 
 ## Description
 Duplicati est une solution de sauvegarde open source permettant de réaliser des backups chiffrés, compressés et stockés localement ou dans le cloud.
@@ -144,6 +144,6 @@ Duplicati permet de sauvegarder vers :
 - Documentation : https://docs.duplicati.com/
 
 ## Notes
-- L’interface web fonctionne par défaut sur le port 8200
-- Pensez à sécuriser l’accès (reverse proxy + HTTPS recommandé)
+- L'interface web fonctionne par défaut sur le port 8200
+- Pensez à sécuriser l'accès (reverse proxy + HTTPS recommandé)
 - Solution idéale pour backups automatisés et chiffrés

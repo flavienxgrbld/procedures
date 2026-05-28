@@ -1,4 +1,4 @@
-﻿# Installation de Bacula
+# Installation de Bacula
 
 ## Description
 Bacula est un système de sauvegarde d'entreprise permettant de gérer la sauvegarde, la restauration et la vérification des données sur un réseau.

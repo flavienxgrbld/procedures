@@ -117,6 +117,15 @@ Télécharger l'agent :
 https://cdn.zabbix.com/zabbix/binaries/stable/7.4/7.4.6/zabbix_agent2-7.4.6-windows-amd64-openssl.msi
 ```
 
+# Installation de l'agent Zabbix sur Linux
+
+Exécutez le script d'installation de l'agent :
+
+```bash
+bash install_zabbix_agent.sh
+```
+
+
 Lors de l'installation, renseigner :
 
 - l'IP du serveur Zabbix  

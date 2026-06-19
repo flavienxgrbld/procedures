@@ -34,7 +34,8 @@ trap cleanup EXIT
 [ "$EUID" -eq 0 ] || error_exit "Ce script doit être exécuté en root"
 
 grep -q "trixie" /etc/os-release || error_exit "Ce script est prévu pour Debian 13 (trixie)"
-
+info "Installation des outils nécessaires"
+apt install curl wget -y
 info "Vérification de la connectivité HTTPS vers repo.zabbix.com"
 curl -fs https://repo.zabbix.com >/dev/null || error_exit "Accès HTTPS à repo.zabbix.com impossible"
 

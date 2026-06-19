@@ -7,10 +7,13 @@ Taiga - Plateforme de gestion de projets
 - Ubuntu/Debian Linux (ou autre distribution supportée)
 - Accès root ou sudo
 - Connexion Internet
+- Docker installé si le script utilise des conteneurs
+- Serveur de base de données ou support local selon le service
+- Certificat SSL ou accès Internet pour HTTPS
 
 ## Installation
 
-Exécutez le script d'installation :
+Exécutez le script d’installation :
 
 `ash
 bash install_taiga.sh
@@ -19,19 +22,28 @@ bash install_taiga.sh
 ### Étapes détaillées
 ### Installation de Taiga
 
-- [Détails à ajouter]
-
+Le script `install_taiga.sh` installe les dépendances nécessaires et déploie Taiga.
+- Mise à jour du système et installation des paquets requis.
+- Déploiement de conteneurs Docker via `docker-compose` ou `docker run`.
+- Création et configuration d’une base de données si nécessaire.
+- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
+- Création d’un utilisateur système dédié si nécessaire.
+- Création éventuelle des répertoires de données et de configuration.
+- Ajustement manuel des paramètres de configuration après installation.
 
 ## Configuration
-[Ajouter les étapes de configuration manuelle si nécessaire]
+Consultez la documentation du service pour adapter les paramètres après installation.
 
 ## Vérification
-- Vérifiez que le service est actif : systemctl status [service]
-- Accédez à l'URL si applicable
+- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
+- Accédez à l’URL si applicable.
 
 ## Documentation
-- [Site officiel]()
-- [Documentation]()
+- [Site officiel](https://taiga.io)
+- [Documentation](https://taiga.io/documentation/)
 
 ## Notes
-[Ajouter vos notes ici]
+- Configurez un certificat SSL valide pour l’accès HTTPS.
+- Adaptez la configuration à votre environnement avant la mise en production.
+- Vérifiez les permissions et l’accès aux fichiers de configuration.
+- Mettez à jour régulièrement le service et les dépendances.

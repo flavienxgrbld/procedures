@@ -7,31 +7,43 @@ Uptime Kuma - Surveillance de services web
 - Ubuntu/Debian Linux (ou autre distribution supportée)
 - Accès root ou sudo
 - Connexion Internet
+- Docker installé si le script utilise des conteneurs
+- Certificat SSL ou accès Internet pour HTTPS
 
 ## Installation
 
-Exécutez le script d'installation :
+Exécutez le script d’installation :
 
 `ash
 bash install_uptime_kuma.sh
 `
 
 ### Étapes détaillées
-### Installation d'Uptime Kuma
+### Installation de Uptime Kuma
 
-- [Détails à ajouter]
-
+Le script `install_uptime_kuma.sh` installe les dépendances nécessaires et déploie Uptime Kuma.
+- Mise à jour du système et installation des paquets requis.
+- Exécution de conteneurs Docker via `docker run`.
+- Ouverture automatique des ports requis dans UFW si disponible.
+- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
+- Création d’un utilisateur système dédié si nécessaire.
+- Vérification des ports exposés : 3001.
+- Création éventuelle des répertoires de données et de configuration.
+- Ajustement manuel des paramètres de configuration après installation.
 
 ## Configuration
-[Ajouter les étapes de configuration manuelle si nécessaire]
+Consultez la documentation du service pour adapter les paramètres après installation.
 
 ## Vérification
-- Vérifiez que le service est actif : systemctl status [service]
-- Accédez à l'URL si applicable
+- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
+- Accédez à l’URL si applicable.
 
 ## Documentation
-- [Site officiel]()
-- [Documentation]()
+- [Site officiel](https://uptime.kuma.pet)
+- [Documentation](https://github.com/louislam/uptime-kuma)
 
 ## Notes
-[Ajouter vos notes ici]
+- Configurez un certificat SSL valide pour l’accès HTTPS.
+- Adaptez la configuration à votre environnement avant la mise en production.
+- Vérifiez les permissions et l’accès aux fichiers de configuration.
+- Mettez à jour régulièrement le service et les dépendances.

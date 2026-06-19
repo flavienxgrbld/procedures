@@ -7,35 +7,40 @@ Invoice Ninja - Plateforme de facturation
 - Ubuntu/Debian Linux (ou autre distribution supportée)
 - Accès root ou sudo
 - Connexion Internet
+- Serveur de base de données ou support local selon le service
+- Certificat SSL ou accès Internet pour HTTPS
 
 ## Installation
 
-Exécutez le script d'installation :
+Exécutez le script d’installation :
 
 `ash
 bash install_invoice_ninja.sh
 `
 
 ### Étapes détaillées
-### Mise à jour du système
+### Installation de Invoice Ninja
 
-- [Détails à ajouter]
-
-### Installation d'Invoice Ninja
-
-- [Détails à ajouter]
-
+Le script `install_invoice_ninja.sh` installe les dépendances nécessaires et déploie Invoice Ninja.
+- Mise à jour du système et installation des paquets requis.
+- Activation et démarrage des services systemd pour le démarrage automatique.
+- Création et configuration d’une base de données si nécessaire.
+- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
+- Ajustement manuel des paramètres de configuration après installation.
 
 ## Configuration
-[Ajouter les étapes de configuration manuelle si nécessaire]
+Consultez la documentation du service pour adapter les paramètres après installation.
 
 ## Vérification
-- Vérifiez que le service est actif : systemctl status [service]
-- Accédez à l'URL si applicable
+- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
+- Accédez à l’URL si applicable.
 
 ## Documentation
-- [Site officiel]()
-- [Documentation]()
+- [Site officiel](https://www.invoiceninja.com)
+- [Documentation](https://docs.invoiceninja.com/)
 
 ## Notes
-[Ajouter vos notes ici]
+- Configurez un certificat SSL valide pour l’accès HTTPS.
+- Adaptez la configuration à votre environnement avant la mise en production.
+- Vérifiez les permissions et l’accès aux fichiers de configuration.
+- Mettez à jour régulièrement le service et les dépendances.

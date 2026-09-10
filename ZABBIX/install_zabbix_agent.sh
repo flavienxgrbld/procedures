@@ -90,32 +90,39 @@ add_zabbix_repo() {
             fi
 
             . /etc/os-release
+
             case "$OS_ID" in
                 ubuntu)
-                    RELEASE_NAME="ubuntu${VERSION_ID//./}"
-                    ZABBIX_PATH="ubuntu"
+                    ZABBIX_REPO_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/ubuntu"
+                    ZABBIX_SUITE="${UBUNTU_CODENAME:-${VERSION_CODENAME:-noble}}"
                     ;;
                 debian)
-                    RELEASE_NAME="debian${VERSION_ID}"
-                    ZABBIX_PATH="debian"
+                    ZABBIX_REPO_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/debian"
+                    ZABBIX_SUITE="${VERSION_CODENAME:-bookworm}"
                     ;;
                 *)
-                    RELEASE_NAME="debian${VERSION_ID}"
-                    ZABBIX_PATH="debian"
+                    ZABBIX_REPO_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/debian"
+                    ZABBIX_SUITE="${VERSION_CODENAME:-bookworm}"
                     ;;
             esac
 
-            # Zabbix publie des paquets de type zabbix-release_7.4-1+ubuntu24.04_all.deb
-            ZABBIX_DEB="zabbix-release_${ZABBIX_VERSION}-1+${RELEASE_NAME}_all.deb"
-            ZABBIX_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/release/${ZABBIX_PATH}/pool/main/z/zabbix-release/${ZABBIX_DEB}"
+            if ! grep -q "repo.zabbix.com" /etc/apt/sources.list.d/zabbix.sources 2>/dev/null; then
+                mkdir -p /etc/apt/keyrings
+                wget -qO /tmp/zabbix-official-repo.key https://repo.zabbix.com/zabbix-official-repo.key || error_exit "Téléchargement de la clé du dépôt Zabbix échoué"
+                gpg --dearmor -o /etc/apt/keyrings/zabbix-official-repo.gpg /tmp/zabbix-official-repo.key || error_exit "Import de la clé du dépôt Zabbix échoué"
 
-            if ! dpkg -l | grep -qw zabbix-release; then
-                mkdir -p "$TMP_DIR"
-                wget -q "$ZABBIX_URL" -O "${TMP_DIR}/${ZABBIX_DEB}" || error_exit "Téléchargement du dépôt Zabbix échoué"
-                dpkg -i "${TMP_DIR}/${ZABBIX_DEB}" || error_exit "Installation du dépôt Zabbix échouée"
+                cat > /etc/apt/sources.list.d/zabbix.sources <<EOF
+Types: deb
+URIs: ${ZABBIX_REPO_URL}
+Suites: ${ZABBIX_SUITE}
+Components: main
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/zabbix-official-repo.gpg
+EOF
+
                 apt update
             else
-                info "Dépôt Zabbix déjà installé"
+                info "Dépôt Zabbix déjà configuré"
             fi
             ;;
         dnf|yum)

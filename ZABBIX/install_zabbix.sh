@@ -101,16 +101,24 @@ add_zabbix_repo() {
             fi
 
             . /etc/os-release
-            if [ "$OS_ID" = "ubuntu" ]; then
-                RELEASE_NAME="ubuntu${VERSION_ID//./}"
-            elif [ "$OS_ID" = "debian" ]; then
-                RELEASE_NAME="debian${VERSION_ID}"
-            else
-                RELEASE_NAME="debian${VERSION_ID}"
-            fi
+            case "$OS_ID" in
+                ubuntu)
+                    RELEASE_NAME="ubuntu${VERSION_ID//./}"
+                    ZABBIX_PATH="ubuntu"
+                    ;;
+                debian)
+                    RELEASE_NAME="debian${VERSION_ID}"
+                    ZABBIX_PATH="debian"
+                    ;;
+                *)
+                    RELEASE_NAME="debian${VERSION_ID}"
+                    ZABBIX_PATH="debian"
+                    ;;
+            esac
 
-            ZABBIX_DEB="zabbix-release_latest_${ZABBIX_VERSION}+${RELEASE_NAME}_all.deb"
-            ZABBIX_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/release/debian/pool/main/z/zabbix-release/${ZABBIX_DEB}"
+            # Zabbix publie des paquets de type zabbix-release_7.4-1+ubuntu24.04_all.deb
+            ZABBIX_DEB="zabbix-release_${ZABBIX_VERSION}-1+${RELEASE_NAME}_all.deb"
+            ZABBIX_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/release/${ZABBIX_PATH}/pool/main/z/zabbix-release/${ZABBIX_DEB}"
 
             if ! dpkg -l | grep -qw zabbix-release; then
                 mkdir -p "$TMP_DIR"

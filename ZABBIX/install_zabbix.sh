@@ -93,6 +93,22 @@ detect_distro() {
     info "Gestionnaire de paquets : $PKG_MANAGER"
 }
 
+cleanup_stale_zabbix_repo() {
+    # Supprime toute configuration de dépôt Zabbix résiduelle (ex: tentative
+    # précédente échouée avec une URL de dépôt obsolète/cassée), pour ne pas
+    # faire échouer le tout premier "apt update" du script.
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        if [ -f /etc/apt/sources.list.d/zabbix.sources ] || [ -f /etc/apt/sources.list.d/zabbix.list ]; then
+            info "Nettoyage d'une configuration de dépôt Zabbix résiduelle"
+            rm -f /etc/apt/sources.list.d/zabbix.sources
+            rm -f /etc/apt/sources.list.d/zabbix.list
+            rm -f /etc/apt/keyrings/zabbix-official-repo.gpg
+            rm -f /etc/apt/trusted.gpg.d/zabbix-official-repo.gpg
+            dpkg -r zabbix-release 2>/dev/null || true
+        fi
+    fi
+}
+
 add_zabbix_repo() {
     case "$PKG_MANAGER" in
         apt)
@@ -100,8 +116,11 @@ add_zabbix_repo() {
                 error_exit "dpkg introuvable, impossible d'installer le dépôt Zabbix"
             fi
 
-            . /etc/os-release
+            # NB: on n'utilise pas ". /etc/os-release" ici pour ne pas écraser
+            # la variable globale VERSION_ID déjà tronquée par detect_distro().
 
+            # Détermine la distro et la version au format attendu par les paquets
+            # zabbix-release (ex: ubuntu24.04, debian12)
             case "$OS_ID" in
                 ubuntu)
                     ZABBIX_DISTRO="ubuntu"
@@ -112,25 +131,28 @@ add_zabbix_repo() {
                     ZABBIX_OSVER="${VERSION_ID}"
                     ;;
                 *)
+                    info "Distribution '$OS_ID' non explicitement supportée, tentative avec Debian"
                     ZABBIX_DISTRO="debian"
                     ZABBIX_OSVER="12"
                     ;;
             esac
 
-            if ! dpkg -l | grep -qw zabbix-release; then
+            if ! dpkg -l zabbix-release 2>/dev/null | grep -q '^ii'; then
                 mkdir -p "$TMP_DIR"
                 ZABBIX_DEB="zabbix-release_latest_${ZABBIX_VERSION}+${ZABBIX_DISTRO}${ZABBIX_OSVER}_all.deb"
                 ZABBIX_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/release/${ZABBIX_DISTRO}/pool/main/z/zabbix-release/${ZABBIX_DEB}"
 
+                info "Téléchargement de ${ZABBIX_DEB}"
                 wget -q "$ZABBIX_URL" -O "${TMP_DIR}/${ZABBIX_DEB}" || error_exit "Téléchargement du paquet zabbix-release échoué (URL: ${ZABBIX_URL})"
                 dpkg -i "${TMP_DIR}/${ZABBIX_DEB}" || error_exit "Installation du paquet zabbix-release échouée"
-                apt update
+                apt update || error_exit "Échec de 'apt update' après ajout du dépôt Zabbix"
             else
-                info "Dépôt Zabbix déjà installé"
+                info "Dépôt Zabbix déjà configuré"
             fi
             ;;
         dnf|yum)
-            . /etc/os-release
+            # NB: pas de re-source de /etc/os-release, VERSION_ID (tronqué) et
+            # OS_ID sont déjà disponibles en variables globales.
             if [ "$OS_ID" = "fedora" ]; then
                 ZABBIX_RPM="zabbix-release-${ZABBIX_VERSION}-1.fc${VERSION_ID}.noarch.rpm"
                 ZABBIX_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/release/fedora/${VERSION_ID}/x86_64/${ZABBIX_RPM}"
@@ -151,7 +173,8 @@ add_zabbix_repo() {
             fi
             ;;
         zypper)
-            . /etc/os-release
+            # NB: pas de re-source de /etc/os-release, VERSION_ID (tronqué) et
+            # OS_ID sont déjà disponibles en variables globales.
             ZABBIX_RPM="zabbix-release-${ZABBIX_VERSION}-1.sles${VERSION_ID}.noarch.rpm"
             ZABBIX_URL="https://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/release/sles/${VERSION_ID}/x86_64/${ZABBIX_RPM}"
 
@@ -214,6 +237,7 @@ trap cleanup EXIT
 [ "$EUID" -eq 0 ] || error_exit "Ce script doit être exécuté en root"
 
 detect_distro
+cleanup_stale_zabbix_repo
 
 info "Installation des outils nécessaires"
 pkg_update
@@ -251,9 +275,6 @@ success "Environnement validé"
 info "Mise à jour du système"
 pkg_update
 export PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin
-
-
-
 
 
 info "Installation du dépôt Zabbix ${ZABBIX_VERSION}"

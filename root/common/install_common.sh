@@ -250,27 +250,32 @@ pkg_install() {
     debug "Installation des packages: $*"
     case "$PKG_MANAGER" in
         apt)
-            if ! DEBIAN_FRONTEND=noninteractive apt-get install -y "$@" 2>&1; then
+            if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"; then
+                echo "❌ Échec de l'installation des paquets: $*" >&2
                 return 1
             fi
             ;;
         dnf)
             if ! dnf install -y "$@" 2>&1; then
+                echo "❌ Échec de l'installation des paquets: $*" >&2
                 return 1
             fi
             ;;
         yum)
             if ! yum install -y "$@" 2>&1; then
+                echo "❌ Échec de l'installation des paquets: $*" >&2
                 return 1
             fi
             ;;
         zypper)
             if ! zypper install -y "$@" 2>&1; then
+                echo "❌ Échec de l'installation des paquets: $*" >&2
                 return 1
             fi
             ;;
         pacman)
             if ! pacman -S --noconfirm "$@" 2>&1; then
+                echo "❌ Échec de l'installation des paquets: $*" >&2
                 return 1
             fi
             ;;

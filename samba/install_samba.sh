@@ -171,7 +171,11 @@ echo "Chemin du partage : $SMB_SHARE_PATH"
 
 case "$PKG_MANAGER" in
     apt)
-        pkg_install samba samba-common
+        if ! pkg_install samba; then
+            if ! pkg_install samba-common samba-common-bin; then
+                error_exit "Impossible d'installer Samba via les paquets Debian (vérifiez les dépôts APT et la distribution)."
+            fi
+        fi
         ;;
     dnf|yum)
         pkg_install samba samba-client

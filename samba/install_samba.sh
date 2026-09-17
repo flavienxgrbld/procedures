@@ -125,9 +125,37 @@ if [ -t 0 ]; then
 fi
 
 COMMON_SCRIPT="/tmp/install_common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for candidate in \
+    "$SCRIPT_DIR/../install_common.sh" \
+    "$SCRIPT_DIR/../root/common/install_common.sh" \
+    "$SCRIPT_DIR/../common/install_common.sh" \
+    "$COMMON_SCRIPT"; do
+    if [ -f "$candidate" ]; then
+        COMMON_SCRIPT="$candidate"
+        break
+    fi
+done
+
 if [ ! -f "$COMMON_SCRIPT" ]; then
-    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+    if ! command -v curl >/dev/null 2>&1; then
+        if command -v apt-get >/dev/null 2>&1; then
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq || true
+            apt-get install -y curl || true
+        fi
+    fi
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT" || true
+    fi
 fi
+
+if [ ! -f "$COMMON_SCRIPT" ]; then
+    echo "❌ Impossible de charger le fichier commun d'installation. Vérifiez la connexion réseau ou créez un fichier local : $COMMON_SCRIPT"
+    exit 1
+fi
+
 source "$COMMON_SCRIPT"
 
 ensure_root

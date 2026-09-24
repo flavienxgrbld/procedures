@@ -114,37 +114,46 @@ case "$PKG_MANAGER" in
 esac
 
 echo "=== Installation des paquets XiVO ==="
+XIVO_INSTALLED=0
 case "$PKG_MANAGER" in
     apt)
         if apt-cache show "$XIVO_PACKAGE" >/dev/null 2>&1; then
-            pkg_install "$XIVO_PACKAGE"
-        else
-            warn "Le paquet '$XIVO_PACKAGE' n'est pas disponible dans le dépôt configuré. Installation de la base téléphonie Asterisk."
-            if ! pkg_install asterisk; then
-                warn "Impossible d'installer Asterisk depuis les dépôts actifs. Vérifiez votre sources.list et votre accès réseau."
+            if pkg_install "$XIVO_PACKAGE"; then
+                XIVO_INSTALLED=1
             fi
+        else
+            warn "Le paquet '$XIVO_PACKAGE' n'est pas disponible dans le dépôt configuré. Le dépôt officiel XiVO est probablement incompatible avec cette distribution."
+            warn "Asterisk n'est pas un remplacement fonctionnel de XiVO : l'installation est abandonnée."
         fi
         ;;
     dnf|yum)
         if dnf list "$XIVO_PACKAGE" >/dev/null 2>&1 || yum list "$XIVO_PACKAGE" >/dev/null 2>&1; then
-            pkg_install "$XIVO_PACKAGE"
+            if pkg_install "$XIVO_PACKAGE"; then
+                XIVO_INSTALLED=1
+            fi
         else
-            warn "Le paquet '$XIVO_PACKAGE' n'est pas disponible dans le dépôt configuré. Installation de Asterisk comme base compatible."
-            pkg_install asterisk || true
+            warn "Le paquet '$XIVO_PACKAGE' n'est pas disponible dans le dépôt configuré. Le dépôt officiel XiVO est probablement incompatible avec cette distribution."
         fi
         ;;
     zypper)
         if zypper search -i "$XIVO_PACKAGE" >/dev/null 2>&1; then
-            pkg_install "$XIVO_PACKAGE"
+            if pkg_install "$XIVO_PACKAGE"; then
+                XIVO_INSTALLED=1
+            fi
         else
-            warn "Le paquet '$XIVO_PACKAGE' est indisponible. Installation de Asterisk comme base compatible."
-            pkg_install asterisk || true
+            warn "Le paquet '$XIVO_PACKAGE' est indisponible. Le dépôt officiel XiVO est probablement incompatible avec cette distribution."
         fi
         ;;
     pacman)
         warn "Aucune installation XiVO standard n'a été lancée sur cette distribution. Vérifiez la procédure officielle du projet."
         ;;
 esac
+
+if [ "$XIVO_INSTALLED" -eq 0 ]; then
+    echo "❌ XiVO n'a pas été installé : aucun paquet XiVO valide n'est disponible sur cette distribution." >&2
+    echo "Vérifiez la compatibilité du dépôt officiel XiVO pour $(. /etc/os-release; echo "${PRETTY_NAME:-${NAME:-$PKG_MANAGER}}") et choisissez une distribution supportée." >&2
+    exit 1
+fi
 
 echo "=== Démarrage du service ==="
 if systemctl list-unit-files | grep -q "^${XIVO_SERVICE}.service"; then
@@ -174,6 +183,11 @@ if command -v firewall-cmd >/dev/null 2>&1; then
 fi
 
 echo
+if ! systemctl list-unit-files | grep -q "^${XIVO_SERVICE}.service"; then
+    printf "❌ XiVO n'est pas installé et aucun service '%s' n'a été détecté.\n" "${XIVO_SERVICE}"
+    printf "Distribution compatible requise : Ubuntu/Debian supportés par le dépôt XiVO officiel.\n"
+    exit 1
+fi
 printf "✅ XiVO a été préparé sur le système.\n"
 printf "Service: %s\n" "${XIVO_SERVICE}"
 printf "URL d'administration: http://%s\n" "$(hostname -I | awk '{print $1}')"

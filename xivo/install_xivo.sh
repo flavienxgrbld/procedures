@@ -2,10 +2,27 @@
 
 set -euo pipefail
 
-COMMON_SCRIPT="/tmp/install_common.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+COMMON_SCRIPT="${REPO_ROOT}/install_common.sh"
+
 if [ ! -f "$COMMON_SCRIPT" ]; then
-    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+    COMMON_SCRIPT="/tmp/install_common.sh"
+    if [ ! -f "$COMMON_SCRIPT" ]; then
+        curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+    fi
+
+    if ! bash -n "$COMMON_SCRIPT" >/dev/null 2>&1; then
+        echo "⚠️ Le fichier commun distant est invalide syntaxiquement. Le script local du dépôt sera utilisé si disponible." >&2
+        COMMON_SCRIPT=""
+    fi
 fi
+
+if [ -z "$COMMON_SCRIPT" ] || [ ! -f "$COMMON_SCRIPT" ]; then
+    echo "❌ Impossible de charger le script commun install_common.sh. Vérifiez le dépôt ou réinstallez le projet." >&2
+    exit 1
+fi
+
 source "$COMMON_SCRIPT"
 
 ensure_root

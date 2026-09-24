@@ -119,8 +119,10 @@ case "$PKG_MANAGER" in
         if apt-cache show "$XIVO_PACKAGE" >/dev/null 2>&1; then
             pkg_install "$XIVO_PACKAGE"
         else
-            warn "Le paquet '$XIVO_PACKAGE' n'est pas disponible dans le dépôt configuré. Tentative d'installation des dépendances de base de téléphonie."
-            pkg_install asterisk
+            warn "Le paquet '$XIVO_PACKAGE' n'est pas disponible dans le dépôt configuré. Installation de la base téléphonie Asterisk."
+            if ! pkg_install asterisk; then
+                warn "Impossible d'installer Asterisk depuis les dépôts actifs. Vérifiez votre sources.list et votre accès réseau."
+            fi
         fi
         ;;
     dnf|yum)
@@ -128,7 +130,7 @@ case "$PKG_MANAGER" in
             pkg_install "$XIVO_PACKAGE"
         else
             warn "Le paquet '$XIVO_PACKAGE' n'est pas disponible dans le dépôt configuré. Installation de Asterisk comme base compatible."
-            pkg_install asterisk
+            pkg_install asterisk || true
         fi
         ;;
     zypper)
@@ -136,7 +138,7 @@ case "$PKG_MANAGER" in
             pkg_install "$XIVO_PACKAGE"
         else
             warn "Le paquet '$XIVO_PACKAGE' est indisponible. Installation de Asterisk comme base compatible."
-            pkg_install asterisk
+            pkg_install asterisk || true
         fi
         ;;
     pacman)

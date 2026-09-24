@@ -37,6 +37,33 @@ XIVO_REPO_CODENAME="${XIVO_REPO_CODENAME:-}"
 XIVO_PACKAGE="${XIVO_PACKAGE:-xivo}"
 XIVO_SERVICE="${XIVO_SERVICE:-xivo}"
 
+check_xivo_compatibility() {
+    local os_id="${OS_ID:-}"
+    local version_id="${OS_VERSION_ID:-}"
+    local codename="${VERSION_CODENAME:-${UBUNTU_CODENAME:-${DEBIAN_CODENAME:-}}}"
+
+    case "${os_id}:${version_id}" in
+        debian:11|debian:12|ubuntu:20.04|ubuntu:22.04)
+            return 0
+            ;;
+        *)
+            ;;
+    esac
+
+    case "$codename" in
+        bullseye|bookworm|focal|jammy)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+if ! check_xivo_compatibility; then
+    fatal "Distribution non supportée pour XiVO : ${OS_NAME:-$OS_ID} ${OS_VERSION_ID:-$VERSION_CODENAME}. Utilisez Debian 11/12 ou Ubuntu 20.04/22.04."
+fi
+
 echo "=== Préparation de l'environnement XiVO ==="
 case "$PKG_MANAGER" in
     apt)
@@ -52,13 +79,16 @@ case "$PKG_MANAGER" in
         if [ -z "$XIVO_REPO_CODENAME" ] && command -v lsb_release >/dev/null 2>&1; then
             XIVO_REPO_CODENAME="$(lsb_release -cs 2>/dev/null || echo bookworm)"
         fi
-        if [ -z "$XIVO_REPO_CODENAME" ]; then
-            XIVO_REPO_CODENAME="bookworm"
-        fi
-        case "$XIVO_REPO_CODENAME" in
-            jammy|noble|focal|bullseye|bookworm|buster|sid|stable|node)
+        case "${OS_ID}:${XIVO_REPO_CODENAME}" in
+            debian:bookworm|debian:bullseye|ubuntu:jammy|ubuntu:focal)
+                ;;
+            debian:trixie|ubuntu:noble|ubuntu:oracular|ubuntu:plucky)
+                fatal "XiVO n'est pas supporté sur ${OS_NAME:-${OS_ID}} ${OS_VERSION_ID:-${XIVO_REPO_CODENAME}}. Utilisez Debian 11/12 ou Ubuntu 20.04/22.04."
                 ;;
             *)
+                if [ -z "$XIVO_REPO_CODENAME" ]; then
+                    XIVO_REPO_CODENAME="bookworm"
+                fi
                 warn "Codename XiVO non pris en charge: $XIVO_REPO_CODENAME. Utilisation du codename par défaut 'bookworm'."
                 XIVO_REPO_CODENAME="bookworm"
                 ;;

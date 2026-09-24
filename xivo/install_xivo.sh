@@ -15,6 +15,7 @@ detect_package_manager
 info "XiVO - PBX / téléphonie IP"
 
 XIVO_REPO_URL="${XIVO_REPO_URL:-https://apt.xivo.io/}"
+XIVO_KEY_URL="${XIVO_KEY_URL:-${XIVO_REPO_URL%/}/xivo-release.gpg}"
 XIVO_PACKAGE="${XIVO_PACKAGE:-xivo}"
 XIVO_SERVICE="${XIVO_SERVICE:-xivo}"
 
@@ -25,12 +26,22 @@ case "$PKG_MANAGER" in
 
         mkdir -p /usr/share/keyrings
         if [ ! -f /usr/share/keyrings/xivo-archive-keyring.gpg ]; then
-            curl -fsSL "${XIVO_REPO_URL%/}/xivo-release.gpg" | gpg --dearmor -o /usr/share/keyrings/xivo-archive-keyring.gpg
+            if curl -fsSL "$XIVO_KEY_URL" -o /tmp/xivo-release.gpg 2>/dev/null; then
+                if ! gpg --dearmor -o /usr/share/keyrings/xivo-archive-keyring.gpg /tmp/xivo-release.gpg 2>/dev/null; then
+                    warn "La clé GPG XiVO a été téléchargée mais n'a pas pu être convertie dans le format attendu."
+                fi
+            else
+                warn "Le dépôt XiVO n'est pas accessible sur $XIVO_KEY_URL; le script continuera en mode de secours."
+            fi
         fi
 
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/xivo-archive-keyring.gpg] ${XIVO_REPO_URL} $(lsb_release -cs) main" \
-            | tee /etc/apt/sources.list.d/xivo.list > /dev/null
-        pkg_update
+        if [ -f /usr/share/keyrings/xivo-archive-keyring.gpg ]; then
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/xivo-archive-keyring.gpg] ${XIVO_REPO_URL} $(lsb_release -cs) main" \
+                | tee /etc/apt/sources.list.d/xivo.list > /dev/null
+            pkg_update
+        else
+            warn "Le dépôt XiVO n'a pas pu être ajouté. L'installation se fera en mode fallback sans dépôt officiel."
+        fi
         ;;
     dnf|yum)
         pkg_install ca-certificates curl gnupg wget git

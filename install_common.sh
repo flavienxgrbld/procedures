@@ -250,9 +250,17 @@ pkg_install() {
     debug "Installation des packages: $*"
     case "$PKG_MANAGER" in
         apt)
+            if ! apt-get update -qq; then
+                warn "Échec de apt-get update, poursuite avec l'installation courante..."
+            fi
             if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"; then
-                echo "❌ Échec de l'installation des paquets: $*" >&2
-                return 1
+                warn "Installation initiale des paquets échouée, tentative de réparation du dépôt APT puis retry..."
+                DEBIAN_FRONTEND=noninteractive apt-get -f install -y || true
+                apt-get update -qq || true
+                if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"; then
+                    echo "❌ Échec de l'installation des paquets: $*" >&2
+                    return 1
+                fi
             fi
             ;;
         dnf)

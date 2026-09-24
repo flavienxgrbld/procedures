@@ -39,7 +39,13 @@ XIVO_SERVICE="${XIVO_SERVICE:-xivo}"
 echo "=== Préparation de l'environnement XiVO ==="
 case "$PKG_MANAGER" in
     apt)
-        pkg_install ca-certificates curl gnupg wget lsb-release git apt-transport-https
+        pkg_update
+        if ! pkg_install ca-certificates curl gnupg wget lsb-release git apt-transport-https; then
+            warn "L'installation des dépendances XiVO a échoué. Tentative avec apt --fix-broken puis retry..."
+            DEBIAN_FRONTEND=noninteractive apt-get -f install -y || true
+            pkg_update
+            pkg_install ca-certificates curl gnupg wget lsb-release git apt-transport-https || true
+        fi
 
         mkdir -p /usr/share/keyrings
         if [ ! -f /usr/share/keyrings/xivo-archive-keyring.gpg ]; then

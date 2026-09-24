@@ -40,11 +40,9 @@ XIVO_SERVICE="${XIVO_SERVICE:-xivo}"
 echo "=== Préparation de l'environnement XiVO ==="
 case "$PKG_MANAGER" in
     apt)
-        pkg_update
         if ! pkg_install ca-certificates curl gnupg wget lsb-release git apt-transport-https; then
             warn "L'installation des dépendances XiVO a échoué. Tentative avec apt --fix-broken puis retry..."
             DEBIAN_FRONTEND=noninteractive apt-get -f install -y || true
-            pkg_update
             pkg_install ca-certificates curl gnupg wget lsb-release git apt-transport-https || true
         fi
 
@@ -52,7 +50,7 @@ case "$PKG_MANAGER" in
             XIVO_REPO_CODENAME="${VERSION_CODENAME:-${UBUNTU_CODENAME:-${DEBIAN_CODENAME:-}}}"
         fi
         if [ -z "$XIVO_REPO_CODENAME" ] && command -v lsb_release >/dev/null 2>&1; then
-            XIVO_REPO_CODENAME="$(lsb_release -cs 2>/dev/null || echo stable)"
+            XIVO_REPO_CODENAME="$(lsb_release -cs 2>/dev/null || echo bookworm)"
         fi
         if [ -z "$XIVO_REPO_CODENAME" ]; then
             XIVO_REPO_CODENAME="bookworm"
@@ -67,22 +65,28 @@ case "$PKG_MANAGER" in
         esac
 
         mkdir -p /usr/share/keyrings
+        repo_added=0
         if [ ! -f /usr/share/keyrings/xivo-archive-keyring.gpg ]; then
             if curl -fsSL "$XIVO_KEY_URL" -o /tmp/xivo-release.gpg 2>/dev/null; then
-                if ! gpg --batch --yes --dearmor -o /usr/share/keyrings/xivo-archive-keyring.gpg /tmp/xivo-release.gpg 2>/dev/null; then
+                if gpg --batch --yes --dearmor -o /usr/share/keyrings/xivo-archive-keyring.gpg /tmp/xivo-release.gpg 2>/dev/null; then
+                    repo_added=1
+                else
                     warn "La clé GPG XiVO a été téléchargée mais n'a pas pu être convertie dans le format attendu."
                 fi
             else
                 warn "Le dépôt XiVO n'est pas accessible sur $XIVO_KEY_URL; le script continuera en mode de secours."
             fi
+        else
+            repo_added=1
         fi
 
-        if [ -f /usr/share/keyrings/xivo-archive-keyring.gpg ]; then
+        if [ "$repo_added" -eq 1 ]; then
             rm -f /etc/apt/sources.list.d/xivo.list
             printf '%s\n' "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/xivo-archive-keyring.gpg] ${XIVO_REPO_URL} ${XIVO_REPO_CODENAME} main" > /etc/apt/sources.list.d/xivo.list
-            if ! pkg_update; then
+            if ! apt-get update -qq; then
                 warn "Le dépôt XiVO est invalide ou indisponible pour le codename ${XIVO_REPO_CODENAME}. Suppression du dépôt et basculement en mode fallback."
                 rm -f /etc/apt/sources.list.d/xivo.list
+                rm -f /usr/share/keyrings/xivo-archive-keyring.gpg
             fi
         else
             warn "Le dépôt XiVO n'a pas pu être ajouté. L'installation se fera en mode fallback sans dépôt officiel."

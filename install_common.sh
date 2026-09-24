@@ -365,7 +365,9 @@ install_php() {
     local php_version="${1:-8.2}"
     case "$PKG_MANAGER" in
         apt)
-            pkg_install "php${php_version}" "php${php_version}-cli" "php${php_version}-common" "php${php_version}-mysql" "php${php_version}-zip" "php${php_version}-gd" "php${php_version}-mbstring" "php${php_version}-curl" "php${php_version}-xml" "php${php_version}-bcmath" "php${php_version}-json" "php${php_version}-intl" "php${php_version}-fpm" || pkg_install "php" "php-cli" "php-common" "php-mysql" "php-zip" "php-gd" "php-mbstring" "php-curl" "php-xml" "php-bcmath" "php-json" "php-intl" "php-fpm"
+            if ! pkg_install "php${php_version}" "php${php_version}-cli" "php${php_version}-common" "php${php_version}-mysql" "php${php_version}-zip" "php${php_version}-gd" "php${php_version}-mbstring" "php${php_version}-curl" "php${php_version}-xml" "php${php_version}-bcmath" "php${php_version}-json" "php${php_version}-intl" "php${php_version}-fpm"; then
+                pkg_install "php" "php-cli" "php-common" "php-mysql" "php-zip" "php-gd" "php-mbstring" "php-curl" "php-xml" "php-bcmath" "php-json" "php-intl" "php-fpm"
+            fi
             ;;
         dnf|yum)
             pkg_install "php" "php-cli" "php-common" "php-mysqlnd" "php-zip" "php-gd" "php-mbstring" "php-curl" "php-xml" "php-bcmath" "php-json" "php-intl" "php-fpm"

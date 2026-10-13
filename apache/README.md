@@ -1,142 +1,118 @@
-# Installation d'Apache
+# Apache — procédure d'installation
 
 ## Description
-Apache HTTP Server est un serveur web modulaire open source largement utilisé pour servir des pages web. Il est connu pour sa fiabilité, sa flexibilité et ses nombreuses fonctionnalités.
+
+Apache HTTP Server est le serveur web libre le plus répandu. Il sert des sites statiques ou dynamiques (PHP) et peut faire office de proxy inverse. Cette procédure installe Apache depuis les dépôts de la distribution et ouvre les ports HTTP et HTTPS.
+
+| | |
+|---|---|
+| **Systèmes** | Debian/Ubuntu (`apache2`), RHEL/Fedora (`httpd`), openSUSE, Arch |
+| **Méthode** | Paquets de la distribution |
+| **Ports** | 80/tcp (HTTP), 443/tcp (HTTPS) |
+| **Script** | `install_apache.sh` |
 
 ## Prérequis
-- Système d'exploitation : Ubuntu/Debian, CentOS/RHEL, SUSE, Arch Linux ou autres distributions Linux compatibles
-- Accès : root ou sudo
-- Connexion Internet pour télécharger les paquets
 
-## Installation
+- Un accès root (`sudo`) et une connexion Internet.
+- Aucun autre service n'écoutant déjà sur les ports 80 et 443 (Nginx par exemple).
 
-### Méthode automatique (recommandée)
-Exécutez le script d'installation fourni :
+## Installation automatique
 
 ```bash
-bash install_apache.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/apache
+sudo bash install_apache.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+## Installation manuelle
 
-#### 1. Installation d'Apache
+### 1. Installer le paquet
 
-- **Ubuntu/Debian**
 ```bash
 sudo apt update
-sudo apt install apache2 apache2-utils -y
+sudo apt install -y apache2 apache2-utils
 ```
 
-- **CentOS/RHEL**
+Sur RHEL/Fedora : `sudo dnf install -y httpd httpd-tools` (le service s'appelle alors `httpd`).
+
+### 2. Démarrer le service au boot
+
 ```bash
-sudo yum install httpd httpd-utils -y  # ou dnf pour CentOS 8+
+sudo systemctl enable --now apache2
 ```
 
-- **SUSE**
-```bash
-sudo zypper install apache2 apache2-utils -y
-```
+### 3. Ouvrir le pare-feu
 
-- **Arch Linux**
-```bash
-sudo pacman -S apache
-```
-
-#### 2. Activation et démarrage du service
-```bash
-sudo systemctl enable apache2  # ou httpd selon la distribution
-sudo systemctl start apache2
-```
-
-#### 3. Configuration du firewall (si UFW est installé)
 ```bash
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 ```
 
-## Configuration
+### 4. Créer un site (hôte virtuel)
 
-### Fichiers de configuration principaux
-- Ubuntu/Debian : `/etc/apache2/apache2.conf`
-- CentOS/RHEL : `/etc/httpd/conf/httpd.conf`
-- SUSE : `/etc/apache2/httpd.conf`
-
-### Répertoires importants
-- Sites disponibles : `/etc/apache2/sites-available/` (Ubuntu/Debian)
-- Sites activés : `/etc/apache2/sites-enabled/` (Ubuntu/Debian)
-- Répertoire web par défaut : `/var/www/html`
-
-### Exemple de configuration d'un site virtuel (Ubuntu/Debian)
-
-Créez un fichier de configuration :
 ```bash
-sudo nano /etc/apache2/sites-available/mon-site.conf
+sudo mkdir -p /var/www/monsite
+echo "<h1>Ça marche</h1>" | sudo tee /var/www/monsite/index.html
+sudo nano /etc/apache2/sites-available/monsite.conf
 ```
 
-Contenu :
-```
+```apache
 <VirtualHost *:80>
-    ServerName mon-domaine.com
-    DocumentRoot /var/www/mon-site
-
-    <Directory /var/www/mon-site>
-        AllowOverride All
-        Require all granted
-    </Directory>
+    ServerName monsite.exemple.local
+    DocumentRoot /var/www/monsite
+    ErrorLog ${APACHE_LOG_DIR}/monsite_error.log
+    CustomLog ${APACHE_LOG_DIR}/monsite_access.log combined
 </VirtualHost>
 ```
 
-Activez le site :
 ```bash
-sudo a2ensite mon-site.conf
+sudo a2ensite monsite
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+```
+
+### 5. (Optionnel) Activer HTTPS
+
+Avec un nom de domaine public, utiliser la procédure `certbot`. Sinon, activer le module SSL avec un certificat autosigné :
+
+```bash
+sudo a2enmod ssl
+sudo a2ensite default-ssl
 sudo systemctl reload apache2
 ```
 
 ## Vérification
 
 ```bash
-# Vérifier que le service est actif
-sudo systemctl status apache2  # ou httpd
-
-# Tester l'accès (depuis le serveur)
+systemctl status apache2
+apache2 -v
 curl -I http://localhost
-
-# Voir les logs d'erreur
-sudo tail -f /var/log/apache2/error.log
 ```
 
-## Modules utiles
+La page par défaut « Apache2 Debian Default Page » doit s'afficher sur `http://<adresse-du-serveur>`.
 
-```bash
-# Réécriture d'URL
-sudo a2enmod rewrite
+## Fichiers importants
 
-# HTTPS
-sudo a2enmod ssl
-
-# Rechargement
-sudo systemctl reload apache2
-```
+| Chemin | Rôle |
+|---|---|
+| `/etc/apache2/apache2.conf` | Configuration principale |
+| `/etc/apache2/sites-available/` | Sites disponibles (`a2ensite` / `a2dissite`) |
+| `/etc/apache2/mods-available/` | Modules (`a2enmod` / `a2dismod`) |
+| `/var/www/` | Racine des sites |
+| `/var/log/apache2/` | Journaux d'accès et d'erreurs |
 
 ## Dépannage
 
-```bash
-# Port 80 déjà utilisé
-sudo netstat -tlnp | grep :80
+- Tester la syntaxe avant de recharger : `sudo apache2ctl configtest`.
+- Port déjà utilisé : `sudo ss -tlnp | grep ':80'`.
+- Erreurs : `sudo tail -f /var/log/apache2/error.log`.
 
-# Modules chargés
-sudo apache2ctl -M
+## Points d'attention
 
-# Vérification configuration
-sudo apache2ctl configtest
-```
+- Les chemins affichés en fin de script (`/etc/apache2/...`) valent pour Debian et Ubuntu. Sur RHEL/Fedora, la configuration se trouve dans `/etc/httpd/`.
+- Le script ouvre les ports uniquement si `ufw` est installé. Avec `firewalld`, lancer `sudo firewall-cmd --permanent --add-service={http,https} && sudo firewall-cmd --reload`.
 
-## Documentation
-- Site officiel : https://httpd.apache.org/
-- Documentation Ubuntu : https://ubuntu.com/server/docs/web-servers-apache
-- Documentation CentOS : https://docs.centos.org/en-US/centos/install-guide/Web_Servers/
+## Sources
 
-## Notes
-- Apache est hautement configurable via les fichiers `.htaccess`
-- Pensez à sécuriser votre serveur avec HTTPS (Let's Encrypt recommandé)
-- Pour de meilleures performances, vous pouvez utiliser des modules comme `mod_pagespeed`
+- [Documentation Apache 2.4](https://httpd.apache.org/docs/2.4/fr/)
+- [Apache sur Debian (wiki)](https://wiki.debian.org/Apache)

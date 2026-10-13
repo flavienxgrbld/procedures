@@ -1,313 +1,129 @@
-# Installation d'Alertmanager
+# Alertmanager — procédure d'installation
 
 ## Description
 
-Alertmanager - Gestionnaire d'alertes pour Prometheus
+Alertmanager reçoit les alertes envoyées par Prometheus, les regroupe, supprime les doublons et les transmet aux bons destinataires (e-mail, Slack, webhook…). Cette procédure l'installe à partir du binaire officiel, sous forme de service systemd.
 
-### Type
-Monitoring
+| | |
+|---|---|
+| **Systèmes** | Linux x86_64 avec systemd (Debian, Ubuntu, RHEL, openSUSE, Arch) |
+| **Méthode** | Binaire officiel (GitHub) |
+| **Version** | 0.26.0 |
+| **Ports** | 9093/tcp (interface web et API) |
+| **Script** | `install_alertmanager.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : accès root ou sudo
-- **Ressources** : RAM minimale 2 Go, espace disque selon l'application
-- **Réseau** : connexion Internet stable
-- **Ports** : ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Une machine Linux 64 bits avec systemd et un accès root.
+- Une connexion Internet (bibliothèque commune et archive GitHub).
+- Idéalement, un serveur Prometheus déjà installé (voir la procédure `prometheus`).
 
-## Installation
-
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-# 1. Rendez le script exécutable
-chmod +x install_alertmanager.sh
-
-# 2. Exécutez le script d'installation
-bash install_alertmanager.sh
-
-# 3. Répondez aux questions interactives si nécessaire
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/alertmanager
+sudo bash install_alertmanager.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+## Installation manuelle
 
-#### 1. Mise à jour du système
+### 1. Créer l'utilisateur de service
+
 ```bash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
+sudo useradd -r -s /bin/bash -m -c "Alertmanager Service" alertmanager
 ```
 
-#### 2. Installation des dépendances de base
+### 2. Télécharger et installer le binaire
+
 ```bash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
+cd /tmp
+wget https://github.com/prometheus/alertmanager/releases/download/v0.26.0/alertmanager-0.26.0.linux-amd64.tar.gz
+tar -xzf alertmanager-0.26.0.linux-amd64.tar.gz
+cd alertmanager-0.26.0.linux-amd64
+sudo cp alertmanager amtool /usr/local/bin/
+sudo mkdir -p /etc/alertmanager
+sudo cp alertmanager.yml /etc/alertmanager/
+sudo chown -R alertmanager:alertmanager /etc/alertmanager
 ```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+### 3. Créer le service systemd
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
-
-## Services installés
-
-Les services suivants seront créés et activés :
-- **alertmanager** — service système avec démarrage automatique
-
-## Ports requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-| 9093 | TCP       | Interface Alertmanager |
-
-## Configuration
-
-### Configuration de base
-
-Les fichiers de configuration se trouvent généralement dans :
-- `/etc/alertmanager/` — configuration de l'application
-- `/etc/systemd/system/` — services systemd
-- `/var/lib/alertmanager/` — données de l'application
-- `/var/log/alertmanager/` — logs de l'application
-
-### Configuration avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'installation
-
-### Vérifier l'état des services
 ```bash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier Alertmanager
-systemctl status alertmanager
-
-# Vérifier l'activation au démarrage
-systemctl is-enabled alertmanager
+sudo nano /etc/systemd/system/alertmanager.service
 ```
 
-### Vérifier les ports
-```bash
-# Afficher les ports en écoute
-ss -tlnp
-# ou
-netstat -tlnp
+```ini
+[Unit]
+Description=Alertmanager
+After=network.target
 
-# Vérifier un port spécifique
-ss -tlnp | grep :9093
+[Service]
+Type=simple
+User=alertmanager
+ExecStart=/usr/local/bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-### Logs et debugging
 ```bash
-# Logs en temps réel
-journalctl -u alertmanager -f
-
-# Derniers logs
-journalctl -u alertmanager -n 50
-
-# Tous les logs
-journalctl -u alertmanager
+sudo systemctl daemon-reload
+sudo systemctl enable --now alertmanager
 ```
 
-### Test d'accès web
+### 4. Ouvrir le port
+
 ```bash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:9093
-
-# Ou via navigateur
-# http://votre-serveur:9093
-```
-
-## Configuration du firewall
-
-### Avec UFW (Debian/Ubuntu)
-```bash
-# Autoriser le port
 sudo ufw allow 9093/tcp
-
-# Vérifier les règles
-sudo ufw status numbered
 ```
 
-### Avec firewall-cmd (RedHat/Fedora)
+### 5. Relier Prometheus à Alertmanager
+
+Dans `/etc/prometheus/prometheus.yml` :
+
+```yaml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["localhost:9093"]
+```
+
 ```bash
-# Autoriser le port
-sudo firewall-cmd --permanent --add-port=9093/tcp
-
-# Recharger
-sudo firewall-cmd --reload
+sudo systemctl restart prometheus
 ```
+
+## Vérification
+
+```bash
+systemctl status alertmanager
+amtool check-config /etc/alertmanager/alertmanager.yml
+curl -s http://localhost:9093/-/healthy
+```
+
+L'interface web est accessible sur `http://<adresse-du-serveur>:9093`.
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/usr/local/bin/alertmanager`, `/usr/local/bin/amtool` | Binaires |
+| `/etc/alertmanager/alertmanager.yml` | Configuration (routes, destinataires) |
+| `/etc/systemd/system/alertmanager.service` | Service |
 
 ## Dépannage
 
-### Problèmes courants
+- Journaux : `journalctl -u alertmanager -f`.
+- Après chaque modification de la configuration : `amtool check-config`, puis `sudo systemctl restart alertmanager`.
 
-#### Le service ne démarre pas
-```bash
-# Vérifier les erreurs
-sudo journalctl -u alertmanager -n 50
+## Points d'attention
 
-# Vérifier la version
-alertmanager --version
+- Le service écrit ses données dans le dossier courant par défaut. Ajouter `--storage.path=/var/lib/alertmanager` (dossier appartenant à `alertmanager`) pour un emplacement maîtrisé.
+- La configuration fournie dans l'archive est un exemple : il faut définir ses propres récepteurs (`receivers`) avant de recevoir des notifications.
+- La version 0.26.0 est figée dans le script : vérifier la dernière version sur GitHub.
 
-# Redémarrer
-sudo systemctl restart alertmanager
+## Sources
 
-# Permissions
-sudo chown -R alertmanager:alertmanager /var/lib/alertmanager/
-```
-
-#### Port déjà utilisé
-```bash
-# Identifier le processus
-sudo ss -tlnp | grep :9093
-
-# Ou
-sudo lsof -i :9093
-
-# Tuer le processus
-sudo kill -9 PID
-
-# Redémarrer
-sudo systemctl restart alertmanager
-```
-
-#### Permissions insuffisantes
-```bash
-# Ajouter au groupe
-sudo usermod -aG alertmanager $USER
-
-# Permissions
-sudo chown -R alertmanager:alertmanager /var/lib/alertmanager/
-
-# Reconnexion
-exit
-```
-
-#### Firewall bloque l'accès
-```bash
-# Vérifier
-sudo ufw status
-
-# Autoriser
-sudo ufw allow 9093/tcp
-
-# Tester
-curl -v http://localhost:9093
-```
-
-### Vérification des logs système
-```bash
-# Debian/Ubuntu
-tail -f /var/log/syslog
-
-# RedHat/Fedora
-tail -f /var/log/messages
-
-# Logs applicatifs
-tail -f /var/log/alertmanager/*.log
-```
-
-### Réinitialisation complète
-```bash
-# Stop
-sudo systemctl stop alertmanager
-
-# Disable
-sudo systemctl disable alertmanager
-
-# Suppression
-sudo rm -rf /opt/alertmanager
-sudo rm -rf /var/lib/alertmanager
-sudo rm -rf /etc/alertmanager
-
-# Service
-sudo rm /etc/systemd/system/alertmanager.service
-sudo systemctl daemon-reload
-
-# Réinstallation
-bash install_alertmanager.sh
-```
-
-## Documentation officielle
-
-- Site officiel : https://prometheus.io/
-- Documentation : https://prometheus.io/docs/alerting/latest/alertmanager/
-- GitHub : https://github.com/prometheus/alertmanager
-
-## Notes supplémentaires
-
-### Sécurité
-1. Utiliser HTTPS en production
-2. Configurer le firewall correctement
-3. Utiliser des mots de passe forts
-4. Mettre à jour régulièrement
-5. Faire des sauvegardes
-6. Limiter les accès
-7. Utiliser des certificats SSL valides
-
-### Optimisation
-1. Limiter les ressources
-2. Ajuster le cache
-3. Utiliser un load balancer
-4. Surveiller les métriques
-5. Optimiser le stockage
-
-### Sauvegarde
-```bash
-# Sauvegarde
-sudo tar -czf backup-alertmanager-$(date +%Y%m%d).tar.gz /var/lib/alertmanager/
-
-# Restauration
-sudo tar -xzf backup-alertmanager-YYYYMMDD.tar.gz -C /
-```
-
-### Mise à jour
-```bash
-# Vérifier
-apt list --upgradable
-
-# Mettre à jour
-sudo apt upgrade alertmanager
-
-# Redémarrer
-sudo systemctl restart alertmanager
-```
-
-### Restauration configuration
-```bash
-# Backup
-sudo cp /etc/alertmanager/config.yml /etc/alertmanager/config.yml.bak
-
-# Réinstallation
-sudo apt install --reinstall alertmanager
-```
-
-## Intégrations possibles
-- Nginx / Apache / HAProxy
-- Prometheus / Grafana
-- ELK / Loki
-- Docker / Kubernetes
-
----
-
-**Dernière mise à jour** : 03/05/2026  
-**Version du script** : 1.0  
-**Statut** : Production Ready ✅
+- [Documentation Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
+- [Versions publiées](https://github.com/prometheus/alertmanager/releases)

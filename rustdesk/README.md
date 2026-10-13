@@ -1,47 +1,110 @@
-# Installation rustdesk
+# RustDesk Server — procédure d'installation
 
 ## Description
-Rustdesk - Logiciel de bureaux distants
+
+RustDesk est un logiciel libre de prise en main à distance, alternative à TeamViewer ou AnyDesk. Auto-hébergé, son serveur assure la mise en relation des postes (**hbbs**) et le relais du trafic quand une connexion directe est impossible (**hbbr**), sans passer par les serveurs publics. Cette procédure installe le serveur avec Docker Compose et configure les clients.
+
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Image officielle `rustdesk/rustdesk-server` (services hbbs et hbbr) |
+| **Dossier** | `/opt/rustdesk` |
+| **Ports** | 21115-21117/tcp, 21116/udp (21118-21119/tcp pour le client web, optionnel) |
+| **Script** | `install_rustdesk.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Docker installé si le script utilise des conteneurs
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Docker et Docker Compose (procédure `docker`).
+- Une adresse IP fixe ou un nom de domaine (ici `rustdesk.exemple.fr`), avec les ports ouverts depuis Internet si des postes extérieurs doivent se connecter.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_rustdesk.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/rustdesk
+sudo bash install_rustdesk.sh
+```
 
-### Étapes détaillées
-### Installation de Rustdesk
+Lire les points d'attention : le conteneur créé par le script ne lance aucun des deux services.
 
-Le script `install_rustdesk.sh` installe les dépendances nécessaires et déploie Rustdesk.
-- Mise à jour du système et installation des paquets requis.
-- Exécution de conteneurs Docker via `docker run`.
-- Ouverture automatique des ports requis dans UFW si disponible.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Vérification des ports exposés : 8000, 21115, 21116, 21117.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### 1. Décrire les services
+
+```bash
+sudo mkdir -p /opt/rustdesk
+cd /opt/rustdesk
+```
+
+`/opt/rustdesk/compose.yaml` :
+
+```yaml
+services:
+  hbbs:
+    container_name: hbbs
+    image: rustdesk/rustdesk-server:latest
+    command: hbbs -r rustdesk.exemple.fr:21117
+    ports:
+      - "21115:21115"
+      - "21116:21116"
+      - "21116:21116/udp"
+    volumes:
+      - ./data:/root
+    depends_on: [hbbr]
+    restart: unless-stopped
+
+  hbbr:
+    container_name: hbbr
+    image: rustdesk/rustdesk-server:latest
+    command: hbbr
+    ports:
+      - "21117:21117"
+    volumes:
+      - ./data:/root
+    restart: unless-stopped
+```
+
+### 2. Démarrer et ouvrir les ports
+
+```bash
+sudo docker compose up -d
+sudo ufw allow 21115:21117/tcp
+sudo ufw allow 21116/udp
+```
+
+### 3. Récupérer la clé publique
+
+Au premier démarrage, le serveur génère une paire de clés :
+
+```bash
+sudo cat /opt/rustdesk/data/id_ed25519.pub
+```
+
+### 4. Configurer les clients
+
+Dans RustDesk sur chaque poste : *Paramètres → Réseau → Serveur ID/Relais* :
+
+- **Serveur ID** : `rustdesk.exemple.fr`
+- **Clé** : le contenu de `id_ed25519.pub`
+
+Avec la clé renseignée, le serveur refuse les clients qui ne la connaissent pas, et les connexions sont chiffrées.
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://rustdesk.com)
-- [Documentation](https://rustdesk.com/docs/)
+```bash
+sudo docker compose ps
+sudo docker compose logs hbbs
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+Sur un client configuré, l'état « Prêt » s'affiche en bas de la fenêtre ; une connexion vers un autre poste du même serveur doit aboutir.
+
+## Points d'attention
+
+- Le script lance un seul conteneur `rustdesk/rustdesk-server` sans commande. Cette image doit être démarrée avec `hbbs` ou `hbbr` : sans commande, aucun service n'écoute.
+- Il publie et ouvre le port 8000, qui n'est pas utilisé par RustDesk.
+- Ne jamais diffuser le fichier privé `id_ed25519` : seul `id_ed25519.pub` se partage avec les clients.
+
+## Sources
+
+- [Installer le serveur RustDesk avec Docker](https://rustdesk.com/docs/en/self-host/rustdesk-server-oss/docker/)
+- [Dépôt rustdesk-server](https://github.com/rustdesk/rustdesk-server)

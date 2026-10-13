@@ -1,117 +1,138 @@
-# Installation Samba (Serveur SMB)
+# Samba — procédure d'installation
 
 ## Description
-Samba est un serveur SMB/CIFS qui permet de partager des fichiers entre systèmes Linux, Windows et macOS.
+
+Samba permet à un serveur Linux de partager des dossiers avec les postes Windows, macOS et Linux via le protocole SMB/CIFS, avec des droits par utilisateur et par groupe. Cette procédure installe un serveur de fichiers autonome, avec le script interactif du dépôt, puis une configuration sécurisée par comptes.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, RHEL/Fedora, openSUSE, Arch |
+| **Méthode** | Paquets de la distribution + configuration `smb.conf` |
+| **Ports** | 445/tcp (SMB) ; 137-138/udp et 139/tcp (NetBIOS, anciens clients) |
+| **Script** | `install_samba.sh` |
 
 ## Prérequis
-- Ubuntu/Debian ou autre distribution Linux prise en charge
-- Accès root ou sudo
-- Connexion Internet
-- Firewall configuré selon votre réseau
 
-## Installation
+- Un accès root et une adresse IP fixe.
+- Les comptes et groupes des personnes qui accéderont aux partages.
 
-Exécutez le script d’installation :
+## Installation automatique
 
 ```bash
-bash install_samba.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/samba
+sudo bash install_samba.sh
 ```
 
-### Étapes détaillées
-Le script `install_samba.sh` :
-- met à jour les paquets nécessaires ;
-- installe le paquet Samba ;
-- crée un dossier de partage `/srv/samba/public` ;
-- génère une configuration minimale dans `/etc/samba/smb.conf` ;
-- active et démarre le service `smbd` ;
-- ouvre les ports SMB dans UFW si le firewall est présent.
+Le script propose trois profils :
 
-## Configuration du partage
+| Profil | Contenu |
+|---|---|
+| 1 — Basique (par défaut) | Partage `public` dans `/srv/samba/public`, accès invité en écriture |
+| 2 — Standard | Nom et chemin du partage demandés, mêmes droits que le profil basique |
+| 3 — Avancé | Toutes les valeurs demandées une à une |
 
-### Choix du niveau de configuration
-Le script propose un menu interactif au lancement :
+Sans terminal interactif, il utilise les variables d'environnement, par exemple :
 
 ```bash
-=== Niveau de configuration SMB ===
-1) Basique - partage public simple
-2) Standard - nom et chemin personnalisés
-3) Avancé - configuration détaillée
-Choisissez un niveau [1] :
+sudo SMB_SHARE_NAME=commun SMB_SHARE_PATH=/srv/samba/commun SMB_GUEST_OK=no SMB_FORCE_USER=nobody bash install_samba.sh < /dev/null
 ```
 
-- Niveau 1 : configuration minimaliste, idéal pour un partage public rapide.
-- Niveau 2 : nom et chemin de partage personnalisés, sans trop de détails.
-- Niveau 3 : personnalisation complète pour les paramètres SMB.
+Variables disponibles : `SMB_WORKGROUP`, `SMB_SERVER_STRING`, `SMB_SECURITY`, `SMB_SHARE_NAME`, `SMB_SHARE_PATH`, `SMB_READ_ONLY`, `SMB_GUEST_OK`, `SMB_BROWSEABLE`, `SMB_FORCE_USER`, `SMB_DIR_OWNER`, `SMB_DIR_GROUP`, `SMB_DIR_PERMS`, `SMB_FILE_PERMS`.
 
-### Permissions du dossier partagé
-Le script permet aussi de personnaliser les permissions directement pendant l’installation.
+Lire les points d'attention avant d'utiliser le profil par défaut.
 
-Par exemple :
+## Installation manuelle (partage sécurisé par groupe)
+
+### 1. Installer Samba
 
 ```bash
-Propriétaire du dossier [root] :
-Groupe du dossier [root] :
-Permissions du dossier (chmod) [0775] :
-Permissions des fichiers (chmod) [0664] :
+sudo apt update
+sudo apt install -y samba smbclient
 ```
 
-Ces valeurs sont appliquées au dossier partagé avec `chown` et `chmod`, puis réutilisées dans `smb.conf` pour les masques de fichiers et de dossiers.
-
-Tu peux aussi conserver les variables d’environnement si besoin :
+### 2. Créer le groupe, les comptes et le dossier
 
 ```bash
-SMB_SHARE_NAME="partages"
-SMB_SHARE_PATH="/srv/partages"
-SMB_GUEST_OK="no"
-SMB_READ_ONLY="no"
-SMB_DIR_PERMS="0777"
-SMB_FILE_PERMS="0666"
+sudo groupadd compta
+sudo useradd -M -s /usr/sbin/nologin -G compta alice
+sudo smbpasswd -a alice            # mot de passe Samba de l'utilisateur
+sudo mkdir -p /srv/samba/compta
+sudo chown root:compta /srv/samba/compta
+sudo chmod 2770 /srv/samba/compta  # le bit setgid garde le groupe sur les nouveaux fichiers
 ```
 
-Pour ajouter un utilisateur Samba sécurisé :
+### 3. Configurer le partage
 
 ```bash
-sudo useradd -m monuser
-sudo smbpasswd -a monuser
+sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.orig
+sudo nano /etc/samba/smb.conf
 ```
 
-Ensuite, modifiez `/etc/samba/smb.conf` pour adapter les droits et l’authentification selon votre besoin.
+Dans `[global]`, vérifier :
+
+```ini
+[global]
+   workgroup = WORKGROUP
+   server string = Serveur de fichiers
+   security = user
+   map to guest = never
+   server min protocol = SMB2
+```
+
+Puis ajouter le partage à la fin du fichier :
+
+```ini
+[compta]
+   path = /srv/samba/compta
+   valid users = @compta
+   read only = no
+   browseable = yes
+   create mask = 0660
+   directory mask = 2770
+```
+
+### 4. Vérifier et redémarrer
+
+```bash
+testparm -s
+sudo systemctl enable --now smbd
+sudo systemctl restart smbd
+sudo ufw allow from 192.168.1.0/24 to any app Samba
+```
+
+### 5. Se connecter depuis un poste
+
+- **Windows** : `\\<adresse-du-serveur>\compta` dans l'Explorateur, puis le compte `alice`.
+- **Linux** : `smbclient //<adresse-du-serveur>/compta -U alice`, ou monter avec `sudo mount -t cifs //<serveur>/compta /mnt/compta -o username=alice`.
 
 ## Vérification
 
-Vérifiez que le service est actif :
-
 ```bash
-sudo systemctl status smbd
-sudo testparm -s
-smbclient -L localhost
+systemctl status smbd
+smbclient -L localhost -U alice
+sudo smbstatus
 ```
 
-Test de connexion à un partage :
+## Fichiers importants
 
-```bash
-smbclient //localhost/public -U monuser
-```
+| Chemin | Rôle |
+|---|---|
+| `/etc/samba/smb.conf` | Configuration (global et partages) |
+| `/var/log/samba/` | Journaux par client |
 
-## Exemple d’accès réseau
-Sur un client Windows :
+## Dépannage
 
-```text
-\\serveur-ip\public
-```
+- **Accès refusé** : vérifier que l'utilisateur a bien un mot de passe Samba (`sudo pdbedit -L`), qu'il est dans le groupe, et les droits Linux du dossier.
+- Windows ne voit pas le serveur dans « Réseau » : la découverte réseau de Windows 10/11 ne liste plus les serveurs SMB. Saisir directement le chemin `\\serveur\partage`.
 
-Sur Linux :
+## Points d'attention
 
-```bash
-mount -t cifs //serveur-ip/public /mnt/samba -o username=monuser
-```
+- Le profil par défaut du script crée un partage **accessible sans mot de passe, en écriture, avec `force user = root`** : tout fichier déposé appartient à root, et n'importe qui sur le réseau peut lire, modifier ou supprimer le contenu. À réserver à un test isolé ; sinon utiliser `SMB_GUEST_OK=no` et un utilisateur non privilégié, ou la configuration manuelle ci-dessus.
+- Le script remplace tout `smb.conf` (une copie datée est conservée) et ouvre aussi les ports 139/udp et 445/udp, inutiles.
+- Pour un **contrôleur de domaine Active Directory** sous Samba (`samba-tool domain provision`), suivre une procédure dédiée : ce script installe seulement un serveur de fichiers.
 
-## Documentation
-- [Site officiel Samba](https://www.samba.org/)
-- [Documentation Samba](https://wiki.samba.org/index.php/Main_Page)
+## Sources
 
-## Notes
-- N’utilisez pas le partage public en production sans sécurisation.
-- Vérifiez les permissions du dossier de partage avant de l’exposer.
-- Adaptez le fichier `/etc/samba/smb.conf` selon votre environnement.
-- Mettez régulièrement le système et Samba à jour.
+- [Samba en serveur autonome](https://wiki.samba.org/index.php/Setting_up_Samba_as_a_Standalone_Server)
+- [Page de manuel smb.conf](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html)

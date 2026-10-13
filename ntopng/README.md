@@ -1,338 +1,100 @@
-# Installation de ntopng
+# ntopng — procédure d'installation
 
 ## Description
 
-Ntopng - Moniteur de trafic réseau
+ntopng est un outil d'analyse du trafic réseau en temps réel : il affiche, dans une interface web, les machines actives, les protocoles et applications utilisés (grâce à nDPI), les volumes échangés et les flux suspects. Cette procédure l'installe depuis le dépôt officiel de ntop.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (dépôt ntop) ; version plus ancienne dans les dépôts Debian |
+| **Méthode** | Dépôt officiel `packages.ntop.org` |
+| **Ports** | 3000/tcp (interface web) |
+| **Script** | `install_ntopng.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
+- Pour voir tout le trafic d'un réseau : placer le serveur sur un **port miroir** du commutateur (SPAN), ou l'installer sur la passerelle.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/ntopng
+sudo bash install_ntopng.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_ntopng.sh
+Lire les points d'attention : le script demande un paquet qui n'existe pas.
 
-# 2. Exécutez le script d'installation
-bash install_ntopng.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Ajouter le dépôt ntop
 
-### Étapes Manuelles Détaillées
+La page `packages.ntop.org` fournit un paquet `apt-ntop.deb` par distribution. Par exemple pour Debian 12 :
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+```bash
+cd /tmp
+wget https://packages.ntop.org/apt-stable/bookworm/all/apt-ntop-stable.deb
+sudo apt install -y ./apt-ntop-stable.deb
+sudo apt update
+```
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+Pour Ubuntu, prendre le paquet correspondant à sa version (dossier `24.04`, `22.04`…).
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+### 2. Installer ntopng
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+```bash
+sudo apt install -y ntopng
+```
 
-## Services Installés
+### 3. Choisir l'interface à analyser
 
-Les services suivants seront créés et activés :
-- **ntopng** - Service système avec démarrage automatique
+`/etc/ntopng/ntopng.conf` :
 
-## Ports Requis
+```ini
+-i=eth0
+-w=3000
+```
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+Remplacer `eth0` par l'interface voulue (`ip a`).
 
-| 3000 | tcp | Grafana Web UI |
-## Configuration
+```bash
+sudo systemctl enable --now ntopng
+sudo systemctl restart ntopng
+sudo ufw allow from 192.168.1.0/24 to any port 3000 proto tcp
+```
 
-### Configuration de Base
+### 4. Première connexion
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/ntopng/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/ntopng/ - Données de l'application
-- /var/log/ntopng/ - Logs de l'application
+Ouvrir `http://<adresse-du-serveur>:3000` avec `admin` / `admin` : ntopng impose de changer le mot de passe à la première connexion.
 
-### Configuration Avancée
+## Vérification
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+```bash
+systemctl status ntopng redis-server
+```
 
-## Vérification de l'Installation
+Dans l'interface, *Tableau de bord* et *Hôtes* doivent afficher du trafic quelques secondes après le démarrage.
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+## Fichiers importants
 
-# Vérifier les services spécifiques
-systemctl status ntopng
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 3000/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=3000/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+| Chemin | Rôle |
+|---|---|
+| `/etc/ntopng/ntopng.conf` | Options de démarrage |
+| `/var/lib/ntopng/` | Données et historiques |
 
 ## Dépannage
 
-### Problèmes Courants
+- Peu de trafic visible : ntopng ne voit que ce qui passe par son interface. Utiliser un port miroir ou l'installer sur la passerelle.
+- Journal : `journalctl -u ntopng -f`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script installe `ntopng` et `ntopngd` : ce second paquet n'existe pas, donc l'installation échoue.
+- Sans dépôt ntop, il ne pourrait installer que la version fournie par la distribution, souvent ancienne.
+- L'édition Community est gratuite ; certaines fonctions (rapports, intégrations avancées) demandent une licence Pro ou Enterprise.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/ntopng/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/ntopng/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/ntopng/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/ntopng
-sudo rm -rf /var/lib/ntopng
-sudo rm -rf /etc/ntopng
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_ntopng.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: ntopng)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-ntopng-$(date +%Y%m%d).tar.gz /var/lib/ntopng/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-ntopng-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade ntopng  # Debian/Ubuntu
-sudo dnf upgrade ntopng  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/ntopng/config /etc/ntopng/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall ntopng  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract ntopng /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Installation de ntopng](https://www.ntop.org/guides/ntopng/installation.html)
+- [Dépôts de paquets ntop](https://packages.ntop.org/)

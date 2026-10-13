@@ -1,338 +1,127 @@
-# Installation de wireguard
+# WireGuard — procédure d'installation
 
 ## Description
 
-WireGuard - VPN moderne et performant
+WireGuard est un VPN moderne, simple et très rapide, intégré au noyau Linux : chaque machine possède une paire de clés, et la configuration tient en quelques lignes. Cette procédure installe un serveur WireGuard qui donne aux clients distants l'accès au réseau local, et crée un premier client.
 
-### Type
-VPN
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (WireGuard intégré au noyau depuis Linux 5.6) |
+| **Méthode** | Paquet `wireguard` |
+| **Réseau VPN** | `10.10.0.0/24` |
+| **Ports** | 51820/udp |
+| **Script** | `install_wireguard.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un serveur avec une adresse IP publique ou une redirection du port 51820/udp sur la box.
+- Le nom de l'interface réseau du serveur (`ip a`, ici `eth0`) et le réseau local à rendre accessible (ici `192.168.1.0/24`).
+- Un accès root.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/wireguard
+sudo bash install_wireguard.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_wireguard.sh
+Lire les points d'attention : le script échoue au démarrage de l'interface.
 
-# 2. Exécutez le script d'installation
-bash install_wireguard.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer WireGuard
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y wireguard
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Générer les clés du serveur
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+cd /etc/wireguard
+umask 077
+wg genkey | sudo tee serveur.key | wg pubkey | sudo tee serveur.pub
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+### 3. Générer les clés d'un client
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+```bash
+wg genkey | sudo tee alice.key | wg pubkey | sudo tee alice.pub
+```
 
-## Services Installés
+### 4. Écrire la configuration du serveur
 
-Les services suivants seront créés et activés :
-- **wg-quick@wg0** - Service système avec démarrage automatique
+`/etc/wireguard/wg0.conf` :
 
-## Ports Requis
+```ini
+[Interface]
+Address = 10.10.0.1/24
+ListenPort = 51820
+PrivateKey = <contenu de serveur.key>
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+[Peer]
+# alice
+PublicKey = <contenu de alice.pub>
+AllowedIPs = 10.10.0.2/32
+```
 
-| 51820 | udp | Application |
-## Configuration
+Remplacer `eth0` par l'interface du serveur. Ajouter un bloc `[Peer]` par client, chacun avec sa propre adresse (`10.10.0.3/32`, etc.).
 
-### Configuration de Base
+### 5. Activer le routage et démarrer
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/wireguard/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/wireguard/ - Données de l'application
-- /var/log/wireguard/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status wg-quick@wg0
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
+echo 'net.ipv4.ip_forward=1' | sudo tee /etc/sysctl.d/99-wireguard.conf
+sudo sysctl --system
+sudo chmod 600 /etc/wireguard/*.key /etc/wireguard/wg0.conf
+sudo systemctl enable --now wg-quick@wg0
 sudo ufw allow 51820/udp
-# Vérifier les règles
-sudo ufw status numbered
-`
+sudo ufw route allow in on wg0 out on eth0
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=51820/udp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+### 6. Écrire la configuration du client
+
+`alice.conf` (à importer dans l'application WireGuard sur le poste ou le téléphone) :
+
+```ini
+[Interface]
+PrivateKey = <contenu de alice.key>
+Address = 10.10.0.2/32
+DNS = 192.168.1.1
+
+[Peer]
+PublicKey = <contenu de serveur.pub>
+Endpoint = vpn.exemple.fr:51820
+AllowedIPs = 10.10.0.0/24, 192.168.1.0/24
+PersistentKeepalive = 25
+```
+
+`AllowedIPs` liste les réseaux joints par le tunnel. Avec `0.0.0.0/0`, tout le trafic du client passe par le VPN. Sur un téléphone, `qrencode -t ansiutf8 < alice.conf` affiche un QR code à scanner.
+
+## Vérification
+
+```bash
+sudo wg show
+```
+
+Après connexion du client, la ligne `latest handshake` apparaît pour son *peer*. Depuis le client : `ping 10.10.0.1`, puis une machine du réseau local.
 
 ## Dépannage
 
-### Problèmes Courants
+- **Pas de handshake** : port 51820/udp fermé ou non redirigé, ou clés publiques inversées entre client et serveur.
+- **Tunnel établi mais réseau local injoignable** : routage IP désactivé, mauvaise interface dans `PostUp`, ou règle `ufw route` manquante.
+- Ajouter un client sans couper les autres : `sudo wg syncconf wg0 <(sudo wg-quick strip wg0)`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script écrit `PrivateKey = [YOUR_PRIVATE_KEY_HERE]` dans `wg0.conf`, puis lance `wg-quick up wg0` : la clé est invalide, donc la commande échoue et le script s'arrête. Il faut y copier le contenu de `/etc/wireguard/privatekey`.
+- Il installe `wireguard-dkms` et les en-têtes du noyau, inutiles sur les noyaux récents qui intègrent WireGuard. Il ne génère aucune configuration client et n'active pas le routage IP.
+- Il affiche la **clé privée** du serveur à l'écran en fin d'installation : elle ne doit jamais être communiquée.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/wireguard/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/wireguard/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/wireguard/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/wireguard
-sudo rm -rf /var/lib/wireguard
-sudo rm -rf /etc/wireguard
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_wireguard.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: wireguard)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-wireguard-$(date +%Y%m%d).tar.gz /var/lib/wireguard/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-wireguard-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade wireguard  # Debian/Ubuntu
-sudo dnf upgrade wireguard  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/wireguard/config /etc/wireguard/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall wireguard  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract wireguard /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora), zypper (openSUSE), pacman (Arch)
-
-**Statut** : Production Ready ✅
+- [WireGuard — démarrage rapide](https://www.wireguard.com/quickstart/)
+- [WireGuard sur Debian (wiki)](https://wiki.debian.org/WireGuard)

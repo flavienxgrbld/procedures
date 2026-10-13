@@ -1,49 +1,137 @@
-# Installation woodpecker_ci
+# Woodpecker CI — procédure d'installation
 
 ## Description
-Woodpecker CI - Pipeline CI/CD décentralisée
+
+Woodpecker CI est un moteur d'intégration continue libre et léger : il exécute des pipelines décrits dans un fichier `.woodpecker.yaml` du dépôt, chaque étape tournant dans un conteneur. Il se connecte à une forge Git (Gitea, Forgejo, GitHub, GitLab…). Cette procédure installe le serveur et un agent avec Docker Compose, reliés à une instance Gitea.
+
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Images officielles `woodpeckerci/woodpecker-server` et `woodpecker-agent` (v3) |
+| **Dossier** | `/opt/woodpecker` |
+| **Ports** | 8000/tcp (interface web), 9000/tcp (communication agents) |
+| **Script** | `install_woodpecker_ci.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Docker installé si le script utilise des conteneurs
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Docker et Docker Compose (procédure `docker`).
+- Une forge Git : ici Gitea (procédure `gitea_self_hosted`), accessible depuis le serveur Woodpecker.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_woodpecker_ci.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/woodpecker_ci
+sudo bash install_woodpecker_ci.sh
+```
 
-### Étapes détaillées
-### Installation de Woodpecker Ci
+Lire les points d'attention : sans forge configurée, le serveur ne démarre pas.
 
-Le script `install_woodpecker_ci.sh` installe les dépendances nécessaires et déploie Woodpecker Ci.
-- Mise à jour du système et installation des paquets requis.
-- Exécution de conteneurs Docker via `docker run`.
-- Activation et démarrage des services systemd pour le démarrage automatique.
-- Ouverture automatique des ports requis dans UFW si disponible.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Vérification des ports exposés : 8000, 9000.
-- Création éventuelle des répertoires de données et de configuration.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### 1. Créer l'application OAuth dans Gitea
+
+Dans Gitea : *Paramètres → Applications → Créer une nouvelle application OAuth2* :
+
+- nom : `Woodpecker` ;
+- URL de redirection : `http://<adresse-woodpecker>:8000/authorize`.
+
+Noter l'**identifiant client** et le **secret client**.
+
+### 2. Générer le secret partagé avec les agents
+
+```bash
+openssl rand -hex 32
+```
+
+### 3. Décrire les services
+
+```bash
+sudo mkdir -p /opt/woodpecker
+cd /opt/woodpecker
+```
+
+`/opt/woodpecker/compose.yaml` :
+
+```yaml
+services:
+  woodpecker-server:
+    image: woodpeckerci/woodpecker-server:v3
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - woodpecker-server-data:/var/lib/woodpecker/
+    environment:
+      WOODPECKER_HOST: http://<adresse-woodpecker>:8000
+      WOODPECKER_OPEN: "false"
+      WOODPECKER_ADMIN: flavien
+      WOODPECKER_GITEA: "true"
+      WOODPECKER_GITEA_URL: http://<adresse-gitea>:3000
+      WOODPECKER_GITEA_CLIENT: <identifiant client>
+      WOODPECKER_GITEA_SECRET: <secret client>
+      WOODPECKER_AGENT_SECRET: <secret de l'étape 2>
+
+  woodpecker-agent:
+    image: woodpeckerci/woodpecker-agent:v3
+    restart: unless-stopped
+    command: agent
+    depends_on: [woodpecker-server]
+    volumes:
+      - woodpecker-agent-config:/etc/woodpecker
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WOODPECKER_SERVER: woodpecker-server:9000
+      WOODPECKER_AGENT_SECRET: <secret de l'étape 2>
+
+volumes:
+  woodpecker-server-data:
+  woodpecker-agent-config:
+```
+
+`WOODPECKER_ADMIN` désigne le compte Gitea qui administre Woodpecker.
+
+### 4. Démarrer
+
+```bash
+sudo docker compose up -d
+sudo ufw allow 8000/tcp
+```
+
+### 5. Activer un dépôt et lancer un pipeline
+
+1. Ouvrir `http://<adresse-woodpecker>:8000`, se connecter avec Gitea et autoriser l'application.
+2. **Ajouter un dépôt** et l'activer.
+3. Ajouter à la racine du dépôt un fichier `.woodpecker.yaml` :
+
+```yaml
+steps:
+  - name: test
+    image: alpine
+    commands:
+      - echo "Woodpecker fonctionne"
+      - uname -a
+```
+
+Chaque `git push` déclenche le pipeline, visible dans Woodpecker.
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://woodpecker-ci.org)
-- [Documentation](https://woodpecker-ci.org/docs/)
+```bash
+sudo docker compose ps
+sudo docker compose logs woodpecker-agent | tail
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+L'agent apparaît dans *Paramètres → Agents* de Woodpecker.
+
+## Points d'attention
+
+- Le script démarre le serveur sans aucune forge (`WOODPECKER_GITEA`, `WOODPECKER_GITHUB`…) ni `WOODPECKER_HOST` : le serveur refuse de démarrer, et l'on ne peut pas s'y connecter.
+- Il n'installe aucun agent : aucun pipeline ne peut s'exécuter. Il monte aussi le socket Docker dans le serveur, ce qui ne sert qu'à l'agent.
+- `WOODPECKER_OPEN=true` (script) autorise n'importe quel utilisateur de la forge à s'inscrire : le désactiver, sauf besoin explicite.
+- L'agent a accès au socket Docker, donc aux droits root sur l'hôte : n'activer que des dépôts de confiance.
+
+## Sources
+
+- [Installer Woodpecker avec Docker Compose](https://woodpecker-ci.org/docs/administration/installation/docker-compose)
+- [Configurer la forge Gitea](https://woodpecker-ci.org/docs/administration/configuration/forges/gitea)

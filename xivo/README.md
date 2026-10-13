@@ -1,186 +1,97 @@
-# Installation de XiVO
+# XiVO — procédure d'installation
 
 ## Description
 
-XiVO est une solution de téléphonie IP / PBX open source basée sur Asterisk, conçue pour gérer les appels, les utilisateurs, les groupes, les files d'attente et l'administration centralisée d'un environnement vocal.
+XiVO est une solution libre de téléphonie IP (IPBX) basée sur Asterisk : comptes SIP des utilisateurs, postes téléphoniques, groupes, files d'attente, messagerie vocale, serveur vocal interactif et administration web. Cette procédure installe la version LTS actuelle de XiVO avec le script officiel de l'éditeur, sur une Debian 13 dédiée.
+
+| | |
+|---|---|
+| **Systèmes** | Debian 13 « Trixie » 64 bits, installation propre et minimale (pour la LTS 2026.05) |
+| **Méthode** | Script officiel `xivo_install.sh` (`mirror.xivo.solutions`) |
+| **Ports** | 80/443 (interface web), 5060/udp+tcp (SIP), 10000-20000/udp (flux audio RTP) |
+| **Script** | `install_xivo.sh` (voir les points d'attention) |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : root ou sudo
-- **Réseau** : connexion Internet stable et ports réseau ouverts
-- **Dépendances** : curl, wget, gnupg, git, et service système
-- **Ressources** : 2 Go de RAM minimum recommandés pour une installation légère, davantage selon le nombre d'utilisateurs et de lignes SIP
+- Une machine **dédiée** sous Debian 13 minimale, à jour, avec une adresse IP fixe et un nom d'hôte. L'éditeur conseille du matériel physique : Asterisk est sensible aux latences de la virtualisation.
+- 4 Go de RAM au minimum.
+- Un accès root et une connexion Internet.
 
 ## Installation
 
-### Méthode automatique (recommandée)
+### 1. Préparer la Debian
 
 ```bash
-chmod +x install_xivo.sh
-bash install_xivo.sh
+apt update && apt full-upgrade -y
+apt install -y wget
+hostnamectl set-hostname xivo.lab.local
 ```
 
-### Installation manuelle (étapes détaillées)
-
-#### 1. Mise à jour du système
+### 2. Télécharger et lancer l'installateur officiel
 
 ```bash
-sudo apt update && sudo apt upgrade -y  # Ubuntu/Debian
-# ou
-sudo dnf upgrade -y  # CentOS/RHEL/Fedora
-# ou
-sudo zypper update -y  # openSUSE
+cd /root
+wget http://mirror.xivo.solutions/xivo_install.sh
+chmod +x xivo_install.sh
+./xivo_install.sh
 ```
 
-#### 2. Installation des dépendances de base
+Sans argument, le script installe la version de production actuelle. Pour une version précise :
 
 ```bash
-sudo apt install -y ca-certificates curl gnupg wget lsb-release git  # Ubuntu/Debian
-# ou
-sudo dnf install -y ca-certificates curl gnupg wget git  # CentOS/RHEL/Fedora
-# ou
-sudo zypper install -y ca-certificates curl gnupg wget git  # openSUSE
+./xivo_install.sh -a 2026.05-latest     # LTS 2026.05
+./xivo_install.sh -h                    # aide
 ```
 
-#### 3. Ajout du dépôt officiel XiVO
+Le script vérifie la version de Debian, ajoute les dépôts XiVO, Docker et PostgreSQL, puis installe l'ensemble des composants (Asterisk, base de données, services XiVO en conteneurs). Compter 15 à 30 minutes.
+
+### 3. Assistant de configuration
+
+Ouvrir `https://<adresse-du-serveur>` (accepter le certificat autosigné). L'assistant demande :
+
+- la langue et le mot de passe du compte `root` de l'interface ;
+- le nom d'hôte, le domaine et la configuration réseau ;
+- l'entité (nom de l'organisation) et les plages de numéros internes (par exemple `1000` à `1999`).
+
+### 4. Créer des utilisateurs et des lignes
+
+*Services → IPBX → Utilisateurs → Ajouter* : nom, prénom, numéro interne, puis, dans l'onglet *Lignes*, une ligne **SIP**. XiVO génère l'identifiant et le mot de passe SIP à saisir dans le téléphone ou le softphone (Linphone, Zoiper…).
+
+### 5. Ouvrir le pare-feu
+
+Si un pare-feu est actif sur le serveur ou en amont :
 
 ```bash
-# Exemple de configuration classique pour les distributions Debian/Ubuntu
-curl -fsSL https://apt.xivo.io/xivo-release.gpg | sudo gpg --dearmor -o /usr/share/keyrings/xivo-archive-keyring.gpg
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/xivo-archive-keyring.gpg] https://apt.xivo.io/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/xivo.list > /dev/null
-
-sudo apt update
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 5060/udp
+ufw allow 5060/tcp
+ufw allow 10000:20000/udp
 ```
-
-> Si le dépôt officiel a changé ou si l'URL de votre distribution diffère, adaptez-la en fonction de la documentation de votre environnement.
-
-#### 4. Installation du paquet XiVO
-
-```bash
-sudo apt install -y xivo
-```
-
-#### 5. Démarrage et activation du service
-
-```bash
-sudo systemctl enable --now xivo
-sudo systemctl status xivo
-```
-
-## Configuration
-
-### Fichiers de configuration principaux
-
-- `/etc/xivo/` : configuration générale XiVO
-- `/etc/asterisk/` : configuration Asterisk
-- `/var/log/xivo/` : logs de l'application
-- `/var/lib/xivo/` : données de l'instance
-
-### Paramétrage réseau et voix
-
-- Vérifier les interfaces réseau et la configuration de l'IP statique
-- Configurer les trunks SIP ou ISDN selon le besoin
-- Vérifier le bon fonctionnement des codecs et des numéros externes
-- Créer les utilisateurs, groupes, files d'attente et plans de numérotation
-
-## Ports requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-| 80 | TCP | Web admin (si activé) |
-| 443 | TCP | HTTPS admin |
-| 5060 | UDP/TCP | SIP |
-| 5061 | TCP | SIP sécurisé |
-| 10000-20000 | UDP | RTP / voix |
 
 ## Vérification
 
 ```bash
-# Vérifier l'état du service
-sudo systemctl status xivo
-
-# Vérifier les ports ouverts
-ss -tulpn | grep -E ':(80|443|5060|5061|10000)'
-
-# Vérifier les logs
-sudo journalctl -u xivo -n 100 --no-pager
+xivo-service status
+asterisk -rx "pjsip show endpoints"
 ```
 
-### Test rapide
-
-```bash
-curl -I http://localhost
-curl -I https://localhost
-```
-
-## Sécurité
-
-- Limiter l'accès admin à l'IP du bureau ou au VPN
-- Activer HTTPS / TLS si possible
-- Utiliser des mots de passe forts pour les comptes admin
-- Vérifier les règles du firewall
-- Mettre à jour régulièrement le système et les paquets
-
-## Configuration du Firewall
-
-### UFW
-
-```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 5060/tcp
-sudo ufw allow 5060/udp
-sudo ufw allow 5061/tcp
-sudo ufw allow 10000:20000/udp
-sudo ufw status numbered
-```
-
-### firewalld
-
-```bash
-sudo firewall-cmd --permanent --add-port=80/tcp
-sudo firewall-cmd --permanent --add-port=443/tcp
-sudo firewall-cmd --permanent --add-port=5060/udp
-sudo firewall-cmd --permanent --add-port=5060/tcp
-sudo firewall-cmd --permanent --add-port=5061/tcp
-sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" port port="10000-20000" protocol="udp" accept'
-sudo firewall-cmd --reload
-```
+Enregistrer deux softphones sur deux comptes, puis appeler le numéro interne de l'un depuis l'autre : la sonnerie et le son doivent passer dans les deux sens.
 
 ## Dépannage
 
-### Le service ne démarre pas
+- **Le téléphone ne s'enregistre pas** : vérifier l'identifiant, le mot de passe SIP et l'accès au port 5060 (`asterisk -rx "pjsip show endpoints"`).
+- **Appel établi sans son** : les ports RTP (10000-20000/udp) sont bloqués ou une box fait du NAT entre le téléphone et le serveur.
+- Journaux : `/var/log/asterisk/full` et `/var/log/xivo-*`.
 
-```bash
-sudo journalctl -u xivo -n 200 --no-pager
-sudo systemctl restart xivo
-```
+## Points d'attention
 
-### Port SIP déjà utilisé
+- Le script `install_xivo.sh` du dépôt utilise le dépôt `https://apt.xivo.io/`, qui ne répond pas (vérifié le 13/10/2026) : il ne peut pas installer XiVO et s'arrête en signalant l'absence du paquet.
+- Il n'accepte que Debian 11/12 et Ubuntu 20.04/22.04, et refuse Debian 13. Or la LTS actuelle (2026.05) exige Debian 13. Ubuntu n'est pas pris en charge par l'éditeur.
+- Sur une distribution non prise en charge, il appelle la fonction `fatal`, qui n'existe pas dans la bibliothèque commune : il s'arrête avec « command not found ».
+- `xivo_install.sh` reconfigure entièrement la machine (dépôts, Docker, PostgreSQL) : ne jamais le lancer sur un serveur qui héberge déjà d'autres services.
 
-```bash
-sudo ss -tulpn | grep :5060
-sudo lsof -i :5060
-```
+## Sources
 
-### Asterisk ne répond pas correctement
-
-```bash
-sudo asterisk -rvvv
-core show channels
-pjsip show endpoints
-```
-
-## Documentation
-
-- Site officiel XiVO : https://xivo.io/
-- Documentation Asterisk : https://www.asterisk.org/
-- Guide de déploiement SIP : https://www.rfc-editor.org/
-
-## Notes
-
-- XiVO est une solution de téléphonie, donc il faut tenir compte du plan de numérotation, des droits d'accès et de la sécurité des flux SIP.
-- Faites toujours un test en environnement de préproduction avant un déploiement complet.
-- En production, veillez à la qualité de service réseau ainsi qu'aux sauvegardes régulières.
+- [Documentation XiVO](https://documentation.xivo.solutions/)
+- [Installation du système XiVO](https://documentation.xivo.solutions/en/2026.05/installation/xivo/installation/installsystem.html)

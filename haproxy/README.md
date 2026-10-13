@@ -1,338 +1,128 @@
-# Installation de haproxy
+# HAProxy — procédure d'installation
 
 ## Description
 
-HAProxy - Load balancer haute performance
+HAProxy est un répartiteur de charge et un proxy inverse très performant, pour HTTP et TCP. Il distribue les requêtes entre plusieurs serveurs, vérifie leur état et retire automatiquement ceux qui sont hors service. Cette procédure l'installe et le configure devant deux serveurs web, avec une page de statistiques protégée.
 
-### Type
-Load Balancer
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, RHEL/Fedora, openSUSE, Arch |
+| **Méthode** | Paquet de la distribution |
+| **Ports** | 80/tcp (service), 8404/tcp (statistiques) |
+| **Script** | `install_haproxy.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root.
+- Au moins deux serveurs web à répartir (ici `192.168.1.21` et `192.168.1.22`, port 80).
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/haproxy
+sudo bash install_haproxy.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_haproxy.sh
+Le script écrit une configuration d'exemple pointant vers `127.0.0.1:8001` et `127.0.0.1:8002`. Remplacer ces serveurs par les vrais avant usage (étape 2).
 
-# 2. Exécutez le script d'installation
-bash install_haproxy.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer HAProxy
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y haproxy
+haproxy -v
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Écrire la configuration
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+sudo cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.orig
+sudo nano /etc/haproxy/haproxy.cfg
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+```haproxy
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    chroot /var/lib/haproxy
+    stats socket /run/haproxy/admin.sock mode 660 level admin
+    user haproxy
+    group haproxy
+    daemon
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+defaults
+    log     global
+    mode    http
+    option  httplog
+    option  dontlognull
+    option  forwardfor
+    timeout connect 5s
+    timeout client  50s
+    timeout server  50s
 
-## Services Installés
+frontend web
+    bind *:80
+    default_backend serveurs_web
 
-Les services suivants seront créés et activés :
-- **haproxy** - Service système avec démarrage automatique
+backend serveurs_web
+    balance roundrobin
+    option httpchk GET /
+    server web1 192.168.1.21:80 check
+    server web2 192.168.1.22:80 check
 
-## Ports Requis
+listen stats
+    bind *:8404
+    stats enable
+    stats uri /stats
+    stats refresh 10s
+    stats auth admin:MotDePasseFort
+```
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+### 3. Vérifier puis appliquer
 
-| 80 | tcp | HTTP - Accès web |
-## Configuration
+```bash
+sudo haproxy -c -f /etc/haproxy/haproxy.cfg
+sudo systemctl enable haproxy
+sudo systemctl restart haproxy
+```
 
-### Configuration de Base
+### 4. Ouvrir le pare-feu
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/haproxy/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/haproxy/ - Données de l'application
-- /var/log/haproxy/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status haproxy
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
 sudo ufw allow 80/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
+sudo ufw allow 8404/tcp
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=80/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+## Vérification
+
+```bash
+systemctl status haproxy
+for i in 1 2 3 4; do curl -s http://localhost/ | head -1; done
+```
+
+Avec deux pages d'accueil différentes sur les serveurs, les réponses alternent. La page `http://<adresse-du-serveur>:8404/stats` affiche l'état de chaque serveur (vert : disponible, rouge : hors service).
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/haproxy/haproxy.cfg` | Configuration |
+| `/var/log/haproxy.log` | Journal (via rsyslog sur Debian et Ubuntu) |
 
 ## Dépannage
 
-### Problèmes Courants
+- **Erreur 503** : aucun serveur du backend ne répond au contrôle `check`. Vérifier sur la page de statistiques.
+- Recharger sans couper les connexions : `sudo systemctl reload haproxy`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- La configuration du script envoie les journaux vers `stdout`, alors qu'HAProxy tourne en tâche de fond (`daemon`) : les journaux sont perdus. Elle répartit aussi vers deux serveurs locaux fictifs (ports 8001 et 8002), ce qui donne une erreur 503 tant qu'ils n'existent pas.
+- Le script publie la page `/stats` sur le site lui-même, sans mot de passe : n'importe quel visiteur voit l'architecture. La configuration ci-dessus la place sur un port séparé, protégée par un mot de passe.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/haproxy/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/haproxy/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/haproxy/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/haproxy
-sudo rm -rf /var/lib/haproxy
-sudo rm -rf /etc/haproxy
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_haproxy.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: haproxy)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-haproxy-$(date +%Y%m%d).tar.gz /var/lib/haproxy/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-haproxy-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade haproxy  # Debian/Ubuntu
-sudo dnf upgrade haproxy  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/haproxy/config /etc/haproxy/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall haproxy  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract haproxy /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Documentation HAProxy](https://docs.haproxy.org/)
+- [Tutoriels de configuration](https://www.haproxy.com/documentation/haproxy-configuration-tutorials/)

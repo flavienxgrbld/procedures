@@ -1,338 +1,135 @@
-# Installation de gitea_self_hosted
+# Gitea — procédure d'installation
 
 ## Description
 
-Gitea - Service Git auto-hébergé simplifié
+Gitea est un service Git auto-hébergé léger, comparable à GitHub ou GitLab : dépôts, tickets, demandes de fusion, wiki, gestion des équipes et intégration continue (Gitea Actions). Cette procédure l'installe à partir du binaire officiel, sous forme de service systemd.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Linux 64 bits avec systemd |
+| **Méthode** | Binaire officiel |
+| **Ports** | 3000/tcp (web) ; 22/tcp (SSH, via le serveur SSH du système) |
+| **Script** | `install_gitea_self_hosted.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
+- `git` installé sur le serveur.
+- Optionnel : une base MariaDB ou PostgreSQL. SQLite convient pour un usage personnel ou un labo.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/gitea_self_hosted
+sudo bash install_gitea_self_hosted.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_gitea_self_hosted.sh
+Le script crée l'utilisateur `git`, installe le binaire Gitea 1.20.0 et démarre le service. L'installation se termine dans le navigateur (étape 5).
 
-# 2. Exécutez le script d'installation
-bash install_gitea_self_hosted.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer Git et créer l'utilisateur
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y git
+sudo adduser --system --shell /bin/bash --group --disabled-password --home /home/git git
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Créer les dossiers
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+sudo mkdir -p /var/lib/gitea/{custom,data,log}
+sudo chown -R git:git /var/lib/gitea
+sudo chmod -R 750 /var/lib/gitea
+sudo mkdir -p /etc/gitea
+sudo chown root:git /etc/gitea
+sudo chmod 770 /etc/gitea
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+### 3. Installer le binaire
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+Prendre la dernière version sur la page des versions (ici la 28.1.0) :
 
-## Services Installés
+```bash
+sudo wget -O /usr/local/bin/gitea https://github.com/go-gitea/gitea/releases/download/v28.1.0/gitea-28.1.0-linux-amd64
+sudo chmod +x /usr/local/bin/gitea
+gitea --version
+```
 
-Les services suivants seront créés et activés :
-- **gitea** - Service système avec démarrage automatique
+### 4. Créer le service systemd
 
-## Ports Requis
+`/etc/systemd/system/gitea.service` :
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+```ini
+[Unit]
+Description=Gitea
+After=network.target
 
-| 22 | tcp | Application |
-## Configuration
+[Service]
+Type=simple
+User=git
+Group=git
+WorkingDirectory=/var/lib/gitea
+ExecStart=/usr/local/bin/gitea web --config /etc/gitea/app.ini
+Restart=always
+Environment=USER=git HOME=/home/git GITEA_WORK_DIR=/var/lib/gitea
 
-### Configuration de Base
+[Install]
+WantedBy=multi-user.target
+```
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/gitea_self_hosted/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/gitea_self_hosted/ - Données de l'application
-- /var/log/gitea_self_hosted/ - Logs de l'application
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now gitea
+sudo ufw allow 3000/tcp
+```
 
-### Configuration Avancée
+### 5. Assistant de configuration
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+Ouvrir `http://<adresse-du-serveur>:3000` :
 
-## Vérification de l'Installation
+- type de base : **SQLite3** (ou MySQL/PostgreSQL) ;
+- **URL de base du site** : `http://<adresse-du-serveur>:3000/` ;
+- créer le **compte administrateur** dans la section « Paramètres de l'administrateur ».
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+Gitea écrit alors sa configuration dans `/etc/gitea/app.ini`. Ensuite, verrouiller les droits sur le dossier :
 
-# Vérifier les services spécifiques
+```bash
+sudo chmod 750 /etc/gitea
+sudo chmod 640 /etc/gitea/app.ini
+```
+
+## Vérification
+
+```bash
 systemctl status gitea
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
+curl -I http://localhost:3000
+```
 
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
+Créer un dépôt, puis le cloner en HTTP et en SSH (`git@<serveur>:utilisateur/depot.git`) après avoir ajouté sa clé SSH dans *Paramètres → Clés SSH / GPG*.
 
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
+## Fichiers importants
 
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 22/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=22/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+| Chemin | Rôle |
+|---|---|
+| `/etc/gitea/app.ini` | Configuration |
+| `/var/lib/gitea/data/` | Dépôts, base SQLite, pièces jointes |
+| `/var/lib/gitea/log/` | Journaux |
 
 ## Dépannage
 
-### Problèmes Courants
+- Sauvegarde complète : `sudo -u git gitea dump -c /etc/gitea/app.ini`.
+- Journal : `journalctl -u gitea -f`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script n'installe pas `git`, dont Gitea a besoin pour fonctionner.
+- Le script installe Gitea 1.20.0, une version ancienne qui ne reçoit plus de correctifs de sécurité. Le fichier de service qu'il crée contient la clé `RestartPolicy=always`, qui n'existe pas dans systemd (ignorée avec un avertissement).
+- Après l'assistant, `/etc/gitea` reste modifiable par l'utilisateur `git`. Remettre des droits plus stricts (étape 5).
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/gitea_self_hosted/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/gitea_self_hosted/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/gitea_self_hosted/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/gitea_self_hosted
-sudo rm -rf /var/lib/gitea_self_hosted
-sudo rm -rf /etc/gitea_self_hosted
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_gitea_self_hosted.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: gitea_self_hosted)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-gitea_self_hosted-$(date +%Y%m%d).tar.gz /var/lib/gitea_self_hosted/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-gitea_self_hosted-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade gitea_self_hosted  # Debian/Ubuntu
-sudo dnf upgrade gitea_self_hosted  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/gitea_self_hosted/config /etc/gitea_self_hosted/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall gitea_self_hosted  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract gitea_self_hosted /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Installer Gitea depuis le binaire](https://docs.gitea.com/installation/install-from-binary)
+- [Versions publiées](https://github.com/go-gitea/gitea/releases)

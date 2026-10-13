@@ -1,95 +1,123 @@
-# Installation Jitsi Meet
+# Jitsi Meet — procédure d'installation
 
 ## Description
-Jitsi Meet - Plateforme de visioconférence open source.
+
+Jitsi Meet est une solution de visioconférence libre, utilisable directement dans le navigateur sans compte : salles à la volée, partage d'écran, discussion, enregistrement en option. Cette procédure installe un serveur Jitsi Meet complet (Prosody, Jicofo, Jitsi Videobridge et Nginx) depuis le dépôt officiel.
+
+| | |
+|---|---|
+| **Systèmes** | Debian 11/12, Ubuntu 22.04/24.04 |
+| **Méthode** | Dépôt officiel `download.jitsi.org` |
+| **Ports** | 80/tcp, 443/tcp, 10000/udp (flux audio/vidéo) |
+| **Script** | `install_jitsi_meet.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux.
-- Accès root ou sudo.
-- Connexion Internet.
-- Un nom de domaine pointant vers le serveur.
-- Ports 80/tcp, 443/tcp et 10000-20000/udp ouverts.
 
-## Installation
+- Un serveur dédié avec 4 Go de RAM et 2 cœurs au minimum.
+- Un **nom de domaine** (par exemple `visio.exemple.fr`) pointant vers le serveur, ports 80, 443 et 10000/udp accessibles depuis Internet.
+- Le nom d'hôte de la machine réglé sur ce domaine.
 
-### 1. Mettre à jour le système
+## Installation automatique
 
-`sudo apt update && sudo apt upgrade -y`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/jitsi_meet
+sudo bash install_jitsi_meet.sh
+```
 
-### 2. Installer les dépendances
+L'installation du paquet `jitsi-meet` pose les questions décrites à l'étape 4.
 
-`sudo apt install -y curl gnupg2 apt-transport-https ca-certificates nginx-full`
+## Installation manuelle
 
-### 3. Ajouter le dépôt Jitsi
+### 1. Régler le nom d'hôte
 
-`curl https://download.jitsi.org/jitsi-key.gpg.key | sudo apt-key add -`
+```bash
+sudo hostnamectl set-hostname visio.exemple.fr
+echo "127.0.0.1 visio.exemple.fr" | sudo tee -a /etc/hosts
+```
 
-`echo "deb https://download.jitsi.org stable/" | sudo tee /etc/apt/sources.list.d/jitsi-stable.list`
+### 2. Ouvrir le pare-feu
 
-`sudo apt update`
+```bash
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 10000/udp
+sudo ufw allow 22/tcp
+sudo ufw enable
+```
+
+### 3. Ajouter les dépôts
+
+Dépôt Jitsi :
+
+```bash
+sudo apt update
+sudo apt install -y curl gnupg2 apt-transport-https nginx-full
+curl -fsSL https://download.jitsi.org/jitsi-key.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/jitsi-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/jitsi-keyring.gpg] https://download.jitsi.org stable/" \
+  | sudo tee /etc/apt/sources.list.d/jitsi-stable.list
+```
+
+Sur Ubuntu, ajouter aussi le dépôt Prosody, dont Jitsi a besoin d'une version récente :
+
+```bash
+curl -fsSL https://prosody.im/files/prosody-debian-packages.key | sudo gpg --dearmor -o /usr/share/keyrings/prosody-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/prosody-keyring.gpg] http://packages.prosody.im/debian $(lsb_release -sc) main" \
+  | sudo tee /etc/apt/sources.list.d/prosody.list
+sudo apt install -y lua5.2
+```
+
+```bash
+sudo apt update
+```
 
 ### 4. Installer Jitsi Meet
 
-`sudo apt install -y jitsi-meet`
+```bash
+sudo apt install -y jitsi-meet
+```
 
-Pendant l’installation, indiquez le nom de domaine principal du service lorsque le prompt le demande.
+Réponses :
 
-### 5. Ouvrir les ports
+| Question | Réponse |
+|---|---|
+| Nom d'hôte | `visio.exemple.fr` |
+| Certificat SSL | **Let's Encrypt** (avec une adresse e-mail) |
+| Numéro de téléphone (Jigasi) | laisser vide |
 
-Si vous utilisez UFW :
+### 5. Réserver la création de salles (recommandé)
 
-`sudo ufw allow 80/tcp`
-
-`sudo ufw allow 443/tcp`
-
-`sudo ufw allow 10000:20000/udp`
-
-`sudo ufw reload`
-
-### 6. Installer TLS/SSL
-
-Recommandé : créer un certificat Let's Encrypt :
-
-`sudo /usr/share/jitsi-meet/scripts/install-letsencrypt-cert.sh`
-
-Sinon, installez un certificat manuellement dans `/etc/jitsi/meet/`.
-
-## Étapes détaillées
-### Configuration manuelle de Jitsi Meet
-
-1. Vérifiez le fichier de configuration principal : `/etc/jitsi/meet/<votre-domaine>-config.js`.
-2. Vérifiez la configuration `prosody` dans `/etc/prosody/conf.d/<votre-domaine>.cfg.lua`.
-3. Vérifiez la configuration de Jicofo dans `/etc/jitsi/jicofo/config.groovy`.
-4. Vérifiez la configuration de Jitsi Videobridge dans `/etc/jitsi/videobridge/sip-communicator.properties`.
-5. Si vous utilisez un proxy, configurez le reverse proxy correctement pour `https://<votre-domaine>`.
-
-## Configuration
-- Adaptez le domaine dans les fichiers de configuration de Jitsi.
-- Vérifiez la présence des certificats TLS dans `/etc/jitsi/meet/`.
-- Redémarrez les services après chaque modification :
-
-`sudo systemctl restart prosody`
-
-`sudo systemctl restart jicofo`
-
-`sudo systemctl restart jitsi-videobridge2`
+Par défaut, n'importe qui peut créer une réunion. Pour l'exiger d'utilisateurs connus, suivre la section « Secure domain » de la documentation officielle (authentification Prosody pour les organisateurs, accès invité pour les participants).
 
 ## Vérification
-- `sudo systemctl status prosody`
-- `sudo systemctl status jicofo`
-- `sudo systemctl status jitsi-videobridge2`
-- Vérifiez l’accès via `https://<votre-domaine>`.
-- Contrôlez les logs :
-  - `/var/log/prosody/prosody.log`
-  - `/var/log/jitsi/jicofo.log`
-  - `/var/log/jitsi/jvb.log`
 
-## Documentation
-- [Site officiel](https://jitsi.org/jitsi-meet/)
-- [Documentation](https://jitsi.org/qi/)
+```bash
+systemctl status prosody jicofo jitsi-videobridge2 nginx
+```
 
-## Notes
-- Utilisez un certificat SSL valide pour un bon fonctionnement des appels.
-- Vérifiez les règles de pare-feu et de NAT pour les flux UDP.
-- En production, surveillez l’utilisation CPU et RAM selon la charge.
-- Pour des installations avancées, consultez la documentation de Jitsi Meet et des composants Prosody, Jicofo et JVB.
+Ouvrir `https://visio.exemple.fr`, créer une salle et la rejoindre depuis deux appareils : le son et la vidéo doivent passer dans les deux sens.
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/jitsi/meet/<domaine>-config.js` | Options de l'interface et des réunions |
+| `/etc/prosody/conf.avail/<domaine>.cfg.lua` | Authentification (Prosody) |
+| `/etc/jitsi/videobridge/` | Configuration du pont vidéo |
+
+## Dépannage
+
+- **Réunion coupée dès qu'un troisième participant arrive** : le port 10000/udp n'est pas joignable (pare-feu ou redirection de port).
+- Derrière une box (NAT) : renseigner les adresses privée et publique dans `/etc/jitsi/videobridge/sip-communicator.properties` (`NAT_HARVESTER_LOCAL_ADDRESS`, `NAT_HARVESTER_PUBLIC_ADDRESS`).
+- Journaux : `/var/log/jitsi/`.
+
+## Points d'attention
+
+- Le script ajoute la clé du dépôt avec `apt-key`, retiré des versions récentes de Debian et Ubuntu, et ne règle ni le nom d'hôte ni le dépôt Prosody nécessaire sur Ubuntu.
+- Il ouvre toute la plage 10000-20000/udp, alors que Jitsi Videobridge n'utilise que le port 10000/udp.
+- Sur RHEL/Fedora, il tente d'installer `jitsi-meet` sans ajouter de dépôt : ce paquet n'existe pas pour ces distributions.
+
+## Sources
+
+- [Guide d'installation Debian/Ubuntu](https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-quickstart)
+- [Sécuriser l'accès (Secure domain)](https://jitsi.github.io/handbook/docs/devops-guide/secure-domain)

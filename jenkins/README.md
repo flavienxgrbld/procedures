@@ -1,338 +1,119 @@
-# Installation de jenkins
+# Jenkins — procédure d'installation
 
 ## Description
 
-Jenkins - Automation serveur pour CI/CD
+Jenkins est un serveur d'automatisation libre, très utilisé pour l'intégration et le déploiement continus (CI/CD) : il récupère le code, compile, teste et déploie à chaque modification, grâce à des pipelines et à des milliers d'extensions. Cette procédure installe la version LTS depuis le dépôt officiel.
 
-### Type
-Serveur Web
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, RHEL/Fedora |
+| **Méthode** | Dépôt officiel `pkg.jenkins.io` (version LTS) |
+| **Ports** | 8080/tcp |
+| **Script** | `install_jenkins.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Java 17 ou 21 (OpenJDK).
+- 2 Go de RAM au minimum, 10 Go de disque.
+- Un accès root et une connexion Internet.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/jenkins
+sudo bash install_jenkins.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_jenkins.sh
+Lire les points d'attention : le script utilise une clé de dépôt obsolète.
 
-# 2. Exécutez le script d'installation
-bash install_jenkins.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer Java
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y fontconfig openjdk-17-jre
+java -version
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+Sur Debian 13 ou Ubuntu 24.04, `openjdk-21-jre` convient aussi.
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+### 2. Ajouter le dépôt Jenkins
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+```bash
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+  | sudo tee /etc/apt/sources.list.d/jenkins.list
+sudo apt update
+```
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+### 3. Installer et démarrer Jenkins
 
-## Services Installés
-
-Les services suivants seront créés et activés :
-- **jenkins** - Service système avec démarrage automatique
-
-## Ports Requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-
-| 8080 | tcp | HTTP alternatif |
-## Configuration
-
-### Configuration de Base
-
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/jenkins/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/jenkins/ - Données de l'application
-- /var/log/jenkins/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status jenkins
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
+sudo apt install -y jenkins
+sudo systemctl enable --now jenkins
 sudo ufw allow 8080/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=8080/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+### 4. Déverrouiller Jenkins
+
+Récupérer le mot de passe initial :
+
+```bash
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
+
+Ouvrir `http://<adresse-du-serveur>:8080`, coller ce mot de passe, puis :
+
+1. choisir **Installer les plugins suggérés** ;
+2. créer le compte administrateur ;
+3. valider l'URL de Jenkins.
+
+### 5. Créer un premier pipeline
+
+*Nouvel item → Pipeline*, puis dans la section Pipeline :
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Test') {
+            steps {
+                sh 'echo "Jenkins fonctionne"'
+                sh 'uname -a'
+            }
+        }
+    }
+}
+```
+
+## Vérification
+
+```bash
+systemctl status jenkins
+curl -I http://localhost:8080/login
+```
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/var/lib/jenkins/` | Données : tâches, plugins, configuration (`JENKINS_HOME`) |
+| `/var/log/jenkins/` ou `journalctl -u jenkins` | Journaux |
 
 ## Dépannage
 
-### Problèmes Courants
+- **Jenkins ne démarre pas** : souvent une version de Java trop ancienne. Vérifier avec `journalctl -u jenkins -n 50`.
+- Changer le port : `sudo systemctl edit jenkins`, puis ajouter `Environment="JENKINS_PORT=8081"` dans la section `[Service]`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script importe `jenkins.io.key`, l'ancienne clé du dépôt, avec `apt-key` (retiré des distributions récentes). Les paquets actuels sont signés avec la clé 2026 (`jenkins.io-2026.key`) ; la clé 2023 a elle aussi expiré en mars 2026 : `apt update` refuse le dépôt.
+- Le script installe `default-jre`, qui correspond à Java 11 sur Ubuntu 22.04 et Debian 11 : les versions actuelles de Jenkins demandent Java 17 et ne démarrent pas. Sur RHEL, il installe explicitement Java 11.
+- Le script lit le mot de passe initial 10 secondes après le démarrage, alors que Jenkins peut mettre plus longtemps à créer le fichier : il s'arrête alors en erreur. Le mot de passe se récupère ensuite avec la commande de l'étape 4.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/jenkins/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/jenkins/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/jenkins/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/jenkins
-sudo rm -rf /var/lib/jenkins
-sudo rm -rf /etc/jenkins
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_jenkins.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: jenkins)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-jenkins-$(date +%Y%m%d).tar.gz /var/lib/jenkins/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-jenkins-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade jenkins  # Debian/Ubuntu
-sudo dnf upgrade jenkins  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/jenkins/config /etc/jenkins/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall jenkins  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract jenkins /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready ✅
+- [Installer Jenkins sur Linux](https://www.jenkins.io/doc/book/installing/linux/)
+- [Prise en charge de Java](https://www.jenkins.io/doc/book/platform-information/support-policy-java/)

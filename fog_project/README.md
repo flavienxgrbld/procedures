@@ -1,191 +1,107 @@
-# Installation de FOG Project
+# FOG Project — procédure d'installation
 
 ## Description
 
-FOG Project est un serveur de déploiement d'images système open source, largement utilisé pour cloner, restaurer et déployer des postes de travail sur des machines physiques ou virtuelles. Il permet un déploiement rapide et centralisé des systèmes, avec gestion de l'imaging, de la capture d'images, de la restauration et du provisioning.
+FOG Project est une solution libre de clonage et de déploiement d'images de postes par le réseau (démarrage PXE). Elle sert à capturer l'image d'un poste de référence, puis à la déployer sur un parc entier, et fait aussi l'inventaire et le suivi des postes. Cette procédure installe le serveur FOG avec son installateur officiel.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, Rocky/AlmaLinux (voir la liste de l'installateur) |
+| **Méthode** | Installateur officiel `bin/installfog.sh` (dépôt GitHub) |
+| **Dossier** | `/opt/fogproject` |
+| **Ports** | 80/443 (interface), 69/udp (TFTP), 67/udp (DHCP si FOG le fournit), 21 (FTP) |
+| **Script** | `install_fog_project.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : root ou sudo
-- **Réseau** : connexion Internet stable, adresse IP fixe recommandée, ports réseau ouverts
-- **Dépendances** : curl, wget, git, ca-certificates, tar, gzip
-- **Ressources** : 2 Go de RAM minimum recommandés ; plus selon le nombre de machines à imager
-- **Services réseau** : DHCP, TFTP, PXE, éventuellement NFS/SMB selon votre architecture
+- Un serveur dédié avec une **adresse IP fixe** sur le réseau des postes à déployer.
+- Un disque assez grand pour stocker les images (plusieurs dizaines de Go par image).
+- Décider qui fournit le DHCP : **FOG lui-même**, ou le **serveur DHCP existant** configuré avec les options PXE (options 66 et 67).
 
-## Installation
-
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-chmod +x install_fog_project.sh
-bash install_fog_project.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/fog_project
+sudo bash install_fog_project.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Le script installe les outils de base, clone le dépôt officiel dans `/opt/fogproject`, ouvre les ports, puis lance l'installateur officiel. Ce dernier pose les questions de l'étape 3.
 
-#### 1. Mise à jour du système
+Variables disponibles : `FOG_REPO_URL`, `FOG_INSTALLER` et `FOG_BASE_DIR` (par défaut `/opt/fogproject`).
+
+## Installation manuelle
+
+### 1. Fixer l'adresse IP du serveur
+
+Configurer une IP statique (par exemple `192.168.10.5/24`) dans `/etc/network/interfaces` ou Netplan, puis redémarrer le réseau.
+
+### 2. Récupérer FOG
 
 ```bash
-sudo apt update && sudo apt upgrade -y  # Ubuntu/Debian
-# ou
-sudo dnf upgrade -y  # CentOS/RHEL/Fedora
-# ou
-sudo zypper update -y  # openSUSE
+sudo apt update
+sudo apt install -y git
+sudo git clone https://github.com/FOGProject/fogproject.git /opt/fogproject
+cd /opt/fogproject/bin
 ```
 
-#### 2. Installation des dépendances de base
+### 3. Lancer l'installateur officiel
 
 ```bash
-sudo apt install -y ca-certificates curl gnupg wget git tar gzip lsb-release  # Ubuntu/Debian
-# ou
-sudo dnf install -y ca-certificates curl gnupg wget git tar gzip  # CentOS/RHEL/Fedora
-# ou
-sudo zypper install -y ca-certificates curl gnupg wget git tar gzip  # openSUSE
+sudo ./installfog.sh
 ```
 
-#### 3. Préparation du serveur
+Réponses habituelles :
 
-Avant le déploiement FOG, il est recommandé de :
+| Question | Réponse |
+|---|---|
+| Distribution | celle détectée |
+| Installation type | `N` (Normal Server) |
+| Interface réseau | l'interface sur le réseau des postes |
+| Router address for DHCP | `y`, l'adresse de la passerelle |
+| DNS for DHCP | `y`, l'adresse du DNS |
+| Use FOG as DHCP server | `y` s'il n'y a pas d'autre DHCP, sinon `n` |
+| Additional language packs | `n` |
+| HTTPS | `n` pour un labo |
 
-- attribuer une IP statique au serveur
-- vérifier le bon fonctionnement du service DHCP
-- prévoir un réseau PXE accessible
-- préparer un accès web sur le port de gestion de FOG
+L'installateur installe Apache, PHP, MariaDB, TFTP, NFS et FTP. Il demande ensuite d'ouvrir l'interface web pour mettre à jour le schéma de la base, puis de revenir valider dans le terminal.
 
-#### 4. Téléchargement du code officiel FOG
+### 4. Si un autre serveur DHCP est utilisé
 
-```bash
-cd /opt
-sudo git clone https://github.com/FOGProject/fogproject.git
-cd fogproject
-```
+Sur ce serveur DHCP, ajouter les options PXE :
 
-#### 5. Lancement de l'installeur FOG
+- option 66 (*next-server*) : adresse du serveur FOG ;
+- option 67 (*filename*) : `undionly.kpxe` pour les postes en BIOS, `ipxe.efi` pour les postes en UEFI.
 
-```bash
-sudo bash bin/installfog.sh
-```
+### 5. Première connexion
 
-> Le script officiel de FOG est généralement interactif. Il faudra valider les options du serveur (DHCP, PXE, web, stockage, etc.) selon votre architecture.
-
-## Configuration
-
-### Fichiers principaux
-
-- `/opt/fogproject/` : code source du serveur FOG
-- `/var/www/html/` : interface web et fichiers de gestion
-- `/tftpboot/` : fichiers PXE et images de démarrage
-- `/var/lib/tftpboot/` : fichiers TFTP de boot
-- `/srv/fog/` : stockage principal des images et fichiers de déploiement
-
-### Paramétrage recommandé
-
-- utiliser une IP statique dédiée au serveur de déploiement
-- sécuriser l'interface web avec HTTPS ou un reverse proxy
-- configurer les options DHCP / PXE sur le réseau client
-- préparer le stockage pour les images de postes
-- effectuer un test de capture/restauration sur un poste de référence
-
-## Ports requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-| 80 | TCP | Interface web FOG |
-| 443 | TCP | HTTPS / interface web sécurisée |
-| 67 | UDP | DHCP |
-| 69 | UDP | TFTP |
-| 8080 | TCP | Interface alternative si configurée |
-| 2049 | TCP/UDP | NFS (si utilisé) |
+Ouvrir `http://<adresse-du-serveur>/fog/management`. L'identifiant par défaut est `fog`, avec le mot de passe `password`, **à changer immédiatement**.
 
 ## Vérification
 
 ```bash
-# Vérifier les services FOG / web / dhcp
-sudo systemctl status apache2
-sudo systemctl status dhcpd
-sudo systemctl status tftpd-hpa
-
-# Vérifier les ports
-ss -tulpn | grep -E ':(80|443|67|69|8080|2049)'
-
-# Vérifier le log du serveur FOG
-sudo journalctl -u apache2 -n 50 --no-pager
+systemctl status apache2 mariadb tftpd-hpa nfs-kernel-server vsftpd
 ```
 
-### Test d'accès web
+Démarrer un poste en PXE sur le réseau : le menu FOG doit apparaître. Choisir *Perform Full Host Registration* pour inscrire le poste.
 
-```bash
-curl -I http://localhost
-curl -I https://localhost
-```
+## Utilisation type
 
-## Sécurité
-
-- Limiter l'accès à l'interface web à des réseaux de confiance
-- Utiliser HTTPS ou un reverse proxy devant FOG
-- Ne pas exposer le service sans filtrage du réseau
-- Gérer les droits d'accès et la séparation du stockage images
-- Réaliser des sauvegardes régulières du stockage de données FOG
-
-## Configuration du Firewall
-
-### UFW
-
-```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 67/udp
-sudo ufw allow 69/udp
-sudo ufw status numbered
-```
-
-### firewalld
-
-```bash
-sudo firewall-cmd --permanent --add-port=80/tcp
-sudo firewall-cmd --permanent --add-port=443/tcp
-sudo firewall-cmd --permanent --add-port=67/udp
-sudo firewall-cmd --permanent --add-port=69/udp
-sudo firewall-cmd --reload
-```
+1. Créer une **image** (*Image Management → Create New Image*).
+2. Associer le poste de référence à cette image, puis lancer une tâche **Capture**.
+3. Pour déployer, associer les postes cibles à l'image, puis lancer une tâche **Deploy** (individuelle ou sur un groupe).
 
 ## Dépannage
 
-### Le serveur n'est pas accessible
+- **« PXE-E32 TFTP open timeout »** : le TFTP n'est pas joignable, ou l'option 66 pointe vers une mauvaise adresse.
+- Journaux : `/var/log/fog/` et `/var/log/apache2/error.log`.
 
-```bash
-sudo ss -tulpn | grep -E ':(80|443|67|69)'
-sudo journalctl -n 100 --no-pager
-```
+## Points d'attention
 
-### Le service DHCP / PXE ne démarre pas
+- Si le gestionnaire de paquets n'est pas géré, ou si l'installateur est introuvable, le script appelle la fonction `fatal`, qui n'existe pas dans la bibliothèque commune : il s'arrête avec « command not found » au lieu d'un message clair.
+- Deux serveurs DHCP actifs sur le même réseau provoquent des conflits : choisir l'un ou l'autre à l'étape 3.
 
-```bash
-sudo systemctl status dhcpd
-sudo systemctl status tftpd-hpa
-sudo journalctl -u dhcpd -n 100 --no-pager
-```
+## Sources
 
-### Les clients ne démarrent pas en PXE
-
-```bash
-# Vérifier la présence des fichiers de boot
-ls -l /tftpboot/
-ls -l /var/lib/tftpboot/
-
-# Vérifier le réseau et les options DHCP
-sudo tcpdump -i eth0 port 67 or port 68
-```
-
-## Documentation
-
-- Site officiel FOG Project : https://fogproject.org/
-- Documentation officielle : https://wiki.fogproject.org/
-- Déploiement réseau / PXE : https://wiki.fogproject.org/wiki/index.php/FOG_Installation
-
-## Notes
-
-- FOG est avant tout un serveur de déploiement réseau. Il est essentiel d’avoir un bon plan de réseau, une IP fixe, des règles DHCP/PXE et un stockage suffisant.
-- La meilleure manière de l’installer est souvent via le script officiel FOG, puis de valider le service sur un petit nombre de machines de test.
-- En production, vérifiez bien la compatibilité de votre environnement avant d’imager des postes de travail importants.
+- [Documentation FOG Project](https://docs.fogproject.org/)
+- [Dépôt FOG Project](https://github.com/FOGProject/fogproject)

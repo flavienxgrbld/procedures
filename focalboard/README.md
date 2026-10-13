@@ -1,47 +1,98 @@
-# Installation focalboard
+# Focalboard — procédure d'installation
 
 ## Description
-Focalboard - Tableau blanc collaboratif
+
+Focalboard est un outil libre de gestion de projets et de tâches en tableaux (kanban, tables, galeries, calendrier), alternative auto-hébergée à Trello, Notion ou Asana. Cette procédure installe la version serveur autonome avec l'image Docker officielle.
+
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Image Docker `mattermost/focalboard` |
+| **Ports** | 8000/tcp |
+| **Script** | `install_focalboard.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Docker installé si le script utilise des conteneurs
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Docker installé (voir la procédure `docker`).
+- Un accès root et une connexion Internet.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_focalboard.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/focalboard
+sudo bash install_focalboard.sh
+```
 
-### Étapes détaillées
-### Installation de Focalboard
+Le script installe `docker.io`, puis démarre le conteneur `focalboard` sur le port 8000.
 
-Le script `install_focalboard.sh` installe les dépendances nécessaires et déploie Focalboard.
-- Mise à jour du système et installation des paquets requis.
-- Exécution de conteneurs Docker via `docker run`.
-- Ouverture automatique des ports requis dans UFW si disponible.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Vérification des ports exposés : 8000.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### 1. Créer le dossier du service
+
+```bash
+sudo mkdir -p /opt/focalboard
+cd /opt/focalboard
+```
+
+### 2. Décrire le service
+
+`/opt/focalboard/compose.yaml` :
+
+```yaml
+services:
+  focalboard:
+    image: mattermost/focalboard:latest
+    container_name: focalboard
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - focalboard_data:/opt/focalboard/data
+
+volumes:
+  focalboard_data:
+```
+
+### 3. Démarrer
+
+```bash
+sudo docker compose up -d
+sudo ufw allow 8000/tcp
+```
+
+### 4. Première connexion
+
+Ouvrir `http://<adresse-du-serveur>:8000` et créer un compte avec le lien d'inscription (*Register*), puis créer un premier tableau à partir d'un modèle.
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://www.focalboard.com)
-- [Documentation](https://www.focalboard.com/docs/)
+```bash
+sudo docker compose ps
+sudo docker compose logs focalboard
+curl -I http://localhost:8000
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+## Sauvegarde
+
+Les données (base SQLite et fichiers joints) se trouvent dans le volume `focalboard_data` :
+
+```bash
+sudo docker run --rm -v focalboard_focalboard_data:/data -v "$PWD":/backup alpine tar czf /backup/focalboard.tgz -C /data .
+```
+
+## Dépannage
+
+- Mise à jour : `sudo docker compose pull && sudo docker compose up -d`.
+- Après une mise à jour, vérifier avec `docker compose logs` que la base a bien été migrée.
+
+## Points d'attention
+
+- Le script monte son volume sur `/data` dans le conteneur, alors que l'image enregistre ses données dans `/opt/focalboard/data` (d'après le `Dockerfile` officiel). Les tableaux finissent dans un volume anonyme et sont perdus si le conteneur est recréé. Il crée aussi le volume après avoir démarré le conteneur, ce qui est inutile car Docker le crée automatiquement.
+- Le script affiche des identifiants par défaut (`admin@example.com` / `Password1!`) qui ne figurent pas dans la documentation du projet : à la première visite, il faut créer son compte.
+- Focalboard est maintenu par la communauté (organisation `mattermost-community` sur GitHub). Pour une équipe qui utilise déjà Mattermost, l'équivalent intégré est le module *Boards*.
+
+## Sources
+
+- [Dépôt Focalboard](https://github.com/mattermost-community/focalboard)
+- [Image Docker](https://hub.docker.com/r/mattermost/focalboard)

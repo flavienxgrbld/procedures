@@ -1,48 +1,87 @@
-# Installation penpot
+# Penpot — procédure d'installation
 
 ## Description
-Penpot - Plateforme de design collaborative
+
+Penpot est un outil libre de design d'interfaces et de prototypage, utilisé dans le navigateur, alternative à Figma : maquettes, composants, prototypes interactifs et inspection du code pour les développeurs. Cette procédure l'installe avec le fichier Docker Compose officiel.
+
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Docker Compose officiel (frontend, backend, exporter, PostgreSQL, Valkey) |
+| **Dossier** | `/opt/penpot` |
+| **Ports** | 9001/tcp |
+| **Script** | `install_penpot.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Docker installé si le script utilise des conteneurs
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Docker et Docker Compose (procédure `docker`).
+- 4 Go de RAM au minimum.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_penpot.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/penpot
+sudo bash install_penpot.sh
+```
 
-### Étapes détaillées
-### Installation de Penpot
+Lire les points d'attention : l'image utilisée par le script n'existe pas.
 
-Le script `install_penpot.sh` installe les dépendances nécessaires et déploie Penpot.
-- Mise à jour du système et installation des paquets requis.
-- Déploiement de conteneurs Docker via `docker-compose` ou `docker run`.
-- Ouverture automatique des ports requis dans UFW si disponible.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Vérification des ports exposés : 80.
-- Création éventuelle des répertoires de données et de configuration.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### 1. Télécharger le fichier Compose officiel
+
+```bash
+sudo mkdir -p /opt/penpot
+cd /opt/penpot
+sudo wget -O docker-compose.yaml https://raw.githubusercontent.com/penpot/penpot/main/docker/images/docker-compose.yaml
+```
+
+### 2. Adapter l'adresse publique
+
+Dans `docker-compose.yaml`, remplacer la valeur de `PENPOT_PUBLIC_URI` par l'adresse utilisée dans le navigateur :
+
+```yaml
+PENPOT_PUBLIC_URI: http://<adresse-du-serveur>:9001
+```
+
+Le fichier officiel contient déjà l'option `disable-secure-session-cookies` dans `PENPOT_FLAGS`, nécessaire tant que Penpot est servi en HTTP. La retirer une fois HTTPS en place.
+
+### 3. Démarrer
+
+```bash
+sudo docker compose -p penpot -f docker-compose.yaml up -d
+sudo ufw allow 9001/tcp
+```
+
+### 4. Créer un compte
+
+Ouvrir `http://<adresse-du-serveur>:9001` et créer un compte. La vérification par e-mail est désactivée dans le fichier officiel (`disable-email-verification`), ce qui permet de commencer sans serveur SMTP.
+
+Une fois les comptes de l'équipe créés, interdire les nouvelles inscriptions en ajoutant `disable-registration` à `PENPOT_FLAGS` (services frontend et backend), puis redémarrer.
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://penpot.app)
-- [Documentation](https://help.penpot.app)
+```bash
+sudo docker compose -p penpot ps
+sudo docker compose -p penpot logs -f penpot-backend
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+## Mise à jour
+
+```bash
+cd /opt/penpot
+sudo docker compose -p penpot pull
+sudo docker compose -p penpot up -d
+```
+
+## Points d'attention
+
+- Le script lance l'image `penpotapp/penpot`, qui n'existe pas sur Docker Hub (vérifié le 13/10/2026) : le téléchargement échoue. Penpot se compose de plusieurs services (frontend, backend, exporter) avec PostgreSQL et Valkey, décrits dans le Compose officiel.
+- Il publie Penpot sur le port 80 de l'hôte, en conflit avec un éventuel serveur web.
+- En production, placer Penpot derrière un proxy HTTPS (procédures `nginx` et `certbot`), avec la prise en charge des WebSockets.
+
+## Sources
+
+- [Installer Penpot avec Docker](https://help.penpot.app/technical-guide/getting-started/docker/)
+- [Configuration de Penpot](https://help.penpot.app/technical-guide/configuration/)

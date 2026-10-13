@@ -1,338 +1,94 @@
-# Installation de plex
+# Plex Media Server — procédure d'installation
 
 ## Description
 
-Plex Media Server - Serveur multimédia
+Plex Media Server organise films, séries, musique et photos, puis les diffuse vers les applications Plex (télévision, téléphone, navigateur), à la maison ou à distance. Le serveur est gratuit ; certaines fonctions demandent l'abonnement Plex Pass. Cette procédure l'installe depuis le dépôt officiel de Plex.
 
-### Type
-Serveur Web
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (dépôt APT) ; RHEL/Fedora (dépôt RPM) |
+| **Méthode** | Dépôt officiel `repo.plex.tv` |
+| **Ports** | 32400/tcp |
+| **Script** | `install_plex.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un compte Plex (gratuit).
+- Les médias accessibles depuis le serveur.
+- Un accès root et une connexion Internet.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/plex
+sudo bash install_plex.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_plex.sh
+Lire les points d'attention : le script utilise l'ancienne clé et l'ancien dépôt.
 
-# 2. Exécutez le script d'installation
-bash install_plex.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Ajouter le dépôt Plex
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y curl gpg
+curl -fsSL https://downloads.plex.tv/plex-keys/PlexSign.v2.key | sudo gpg --dearmor -o /usr/share/keyrings/plexmediaserver.v2.gpg
+echo "deb [signed-by=/usr/share/keyrings/plexmediaserver.v2.gpg] https://repo.plex.tv/deb/ public main" \
+  | sudo tee /etc/apt/sources.list.d/plexmediaserver.list
+sudo apt update
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Installer et démarrer
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
-
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
-
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
-
-## Services Installés
-
-Les services suivants seront créés et activés :
-- **plexmediaserver** - Service système avec démarrage automatique
-
-## Ports Requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-
-| 32400 | tcp | Application |
-## Configuration
-
-### Configuration de Base
-
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/plex/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/plex/ - Données de l'application
-- /var/log/plex/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status plexmediaserver
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
+sudo apt install -y plexmediaserver
+sudo systemctl enable --now plexmediaserver
 sudo ufw allow 32400/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=32400/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+### 3. Donner accès aux médias
 
-## Dépannage
+Plex tourne sous l'utilisateur `plex` :
 
-### Problèmes Courants
+```bash
+sudo setfacl -R -m u:plex:rx /srv/medias
+```
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+### 4. Configurer le serveur
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+La première configuration doit se faire **depuis le réseau local**. Ouvrir `http://<adresse-du-serveur>:32400/web`, se connecter avec son compte Plex, nommer le serveur, puis ajouter les bibliothèques (Films, Séries, Musique) et leurs dossiers.
 
-# Redémarrer le service
-sudo systemctl restart True
+Si le serveur est distant (sans navigateur sur le même réseau), passer par un tunnel SSH :
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/plex/
-`
+```bash
+ssh -L 8888:localhost:32400 utilisateur@serveur
+```
 
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
+puis ouvrir `http://localhost:8888/web`.
 
-# Ou
-sudo lsof -i :True
+## Vérification
 
-# Arrêter le processus conflictuel
-sudo kill -9 PID
+```bash
+systemctl status plexmediaserver
+curl -s http://localhost:32400/identity
+```
 
-# Redémarrer le service
-sudo systemctl restart True
-`
+## Fichiers importants
 
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
+| Chemin | Rôle |
+|---|---|
+| `/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/` | Base de données, métadonnées, préférences |
+| `.../Plex Media Server/Logs/` | Journaux |
 
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/plex/
+## Points d'attention
 
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
+- Le script importe l'ancienne clé `PlexSign.key` avec `apt-key` (retiré des distributions récentes) et utilise l'ancien dépôt `downloads.plex.tv/repo/deb`. Le dépôt actuel `repo.plex.tv` est signé avec la clé `PlexSign.v2.key` (vérifié le 13/10/2026).
+- Sur RHEL, il passe la clé à `rpm -Uvh` au lieu de `rpm --import`, ce qui échoue (erreur ignorée).
+- L'accès à distance depuis Internet demande de rediriger le port 32400 sur la box, ou l'option de relais de Plex.
 
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
+## Sources
 
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/plex/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/plex
-sudo rm -rf /var/lib/plex
-sudo rm -rf /etc/plex
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_plex.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: plex)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-plex-$(date +%Y%m%d).tar.gz /var/lib/plex/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-plex-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade plex  # Debian/Ubuntu
-sudo dnf upgrade plex  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/plex/config /etc/plex/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall plex  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract plex /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready ✅
+- [Installer Plex Media Server](https://support.plex.tv/articles/200288586-installation/)
+- [Dépôt Linux de Plex](https://support.plex.tv/articles/235974187-enable-repository-updating-for-supported-linux-server-distributions/)

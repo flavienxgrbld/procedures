@@ -1,43 +1,94 @@
-# Installation kodi
+# Kodi — procédure d'installation
 
 ## Description
-Kodi - Centre multimédia personnel
+
+Kodi est un centre multimédia libre qui transforme un ordinateur, un mini-PC ou un Raspberry Pi en lecteur pour la télévision : films, séries, musique, photos, télévision en direct et extensions. C'est une application cliente avec interface graphique, pas un service serveur.
+
+| | |
+|---|---|
+| **Systèmes** | Ubuntu (PPA officiel), Debian, Fedora (RPM Fusion), Arch |
+| **Méthode** | Paquets de la distribution ou PPA `team-xbmc` |
+| **Ports** | 8080/tcp (télécommande web, si activée) |
+| **Script** | `install_kodi.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Un environnement graphique (bureau) et un écran.
+- Un accès root pour l'installation.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_kodi.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/kodi
+sudo bash install_kodi.sh
+```
 
-### Étapes détaillées
-### Installation de Kodi
+## Installation manuelle
 
-Le script `install_kodi.sh` installe les dépendances nécessaires et déploie Kodi.
-- Mise à jour du système et installation des paquets requis.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Ajustement manuel des paramètres de configuration après installation.
+### Ubuntu (dernière version via le PPA officiel)
+
+```bash
+sudo apt update
+sudo apt install -y software-properties-common
+sudo add-apt-repository -y ppa:team-xbmc/ppa
+sudo apt update
+sudo apt install -y kodi
+```
+
+### Debian
+
+Kodi est dans les dépôts officiels :
+
+```bash
+sudo apt update
+sudo apt install -y kodi
+```
+
+### Fedora
+
+Kodi est fourni par RPM Fusion :
+
+```bash
+sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+sudo dnf install -y kodi
+```
+
+### Lancer Kodi
+
+Depuis le menu des applications, ou :
+
+```bash
+kodi
+```
 
 ## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+
+1. **Ajouter des médias** : *Vidéos → Fichiers → Ajouter des vidéos*, puis choisir le dossier local ou le partage réseau (SMB, NFS) et le type de contenu (Films, Séries) pour récupérer les métadonnées.
+2. **Langue** : *Paramètres → Interface → Région → Langue*.
+3. **Télécommande depuis un téléphone** : *Paramètres → Services → Contrôle*, activer « Autoriser le contrôle à distance via HTTP » avec un identifiant et un mot de passe, puis utiliser l'application Kore (Android) ou Official Kodi Remote (iOS).
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://kodi.tv)
-- [Documentation](https://kodi.tv/guide)
+```bash
+kodi --version
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `~/.kodi/userdata/` | Paramètres, bibliothèque, sources |
+| `~/.kodi/addons/` | Extensions installées |
+| `~/.kodi/temp/kodi.log` | Journal |
+
+## Points d'attention
+
+- Le PPA `team-xbmc` utilisé par le script n'existe que pour Ubuntu : sur Debian, `add-apt-repository` échoue. Installer alors le paquet des dépôts Debian.
+- Sur Fedora, le paquet `kodi` n'est pas dans les dépôts de base : il faut activer RPM Fusion avant.
+- Pour un serveur multimédia sans écran, qui diffuse vers plusieurs appareils, voir plutôt les procédures `jellyfin`, `emby` ou `plex`.
+
+## Sources
+
+- [Wiki Kodi — installation sous Linux](https://kodi.wiki/view/HOW-TO:Install_Kodi_for_Linux)
+- [PPA team-xbmc](https://launchpad.net/~team-xbmc/+archive/ubuntu/ppa)

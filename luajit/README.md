@@ -1,43 +1,91 @@
-# Installation luajit
+# LuaJIT — procédure d'installation
 
 ## Description
-LuaJIT - Compilateur Just-In-Time Lua
+
+LuaJIT est un compilateur à la volée (*Just-In-Time*) pour le langage Lua, beaucoup plus rapide que l'interpréteur standard. Il est utilisé par OpenResty (Nginx scriptable), par certains jeux, et pour écrire des scripts ou des extensions performants. Cette procédure l'installe depuis les dépôts, ou le compile depuis les sources officielles.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (paquet `luajit`) ; toute distribution par compilation |
+| **Méthode** | Paquet de la distribution, ou compilation depuis le dépôt officiel |
+| **Ports** | Aucun (outil local) |
+| **Script** | `install_luajit.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Un accès root pour l'installation.
+- Pour compiler : `gcc`, `make` et `git`.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_luajit.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/luajit
+sudo bash install_luajit.sh
+```
 
-### Étapes détaillées
-### Installation de Luajit
+Le script compile LuaJIT depuis les sources et l'installe dans `/usr/local`.
 
-Le script `install_luajit.sh` installe les dépendances nécessaires et déploie Luajit.
-- Mise à jour du système et installation des paquets requis.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### Méthode 1 : paquet de la distribution (le plus simple)
+
+```bash
+sudo apt update
+sudo apt install -y luajit libluajit-5.1-dev
+luajit -v
+```
+
+### Méthode 2 : compilation depuis les sources (dernière version)
+
+```bash
+sudo apt update
+sudo apt install -y build-essential git
+cd /tmp
+git clone https://luajit.org/git/luajit.git
+cd luajit
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
+luajit -v
+```
+
+LuaJIT est installé dans `/usr/local/bin/luajit`, et ses en-têtes dans `/usr/local/include/luajit-2.1`.
+
+## Premier essai
+
+`bonjour.lua` :
+
+```lua
+local debut = os.clock()
+local somme = 0
+for i = 1, 1e8 do somme = somme + i end
+print("Somme :", somme, string.format("en %.2f s", os.clock() - debut))
+```
+
+```bash
+luajit bonjour.lua
+```
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://luajit.org)
-- [Documentation](https://luajit.org/)
+```bash
+luajit -v
+luajit -e 'print(jit.version, jit.status())'
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+## Dépannage
+
+- **`luajit: command not found` après compilation** : `/usr/local/bin` n'est pas dans le `PATH`, ou il faut relancer le terminal.
+- **Erreur de bibliothèque partagée** : lancer `sudo ldconfig`.
+
+## Points d'attention
+
+- Le script n'installe pas `git`, qu'il utilise pour récupérer les sources : sur une machine minimale, il s'arrête au clonage.
+- Il installe `libreadline-dev`, inutile pour LuaJIT.
+- LuaJIT est compatible avec Lua 5.1 (et quelques ajouts de 5.2), pas avec les versions plus récentes du langage.
+
+## Sources
+
+- [Installation de LuaJIT](https://luajit.org/install.html)
+- [Site officiel LuaJIT](https://luajit.org/)

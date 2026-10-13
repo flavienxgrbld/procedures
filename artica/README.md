@@ -39,47 +39,29 @@ sudo ARTICA_HTTP_PORT=80 ARTICA_PROXY_PORT=3128 ARTICA_REPO_URL=https://download
 | `ARTICA_HTTP_PORT` / `ARTICA_HTTPS_PORT` | `80` / `443` |
 | `ARTICA_PROXY_PORT` | `3128` |
 
-## Installation manuelle
+## Installation manuelle (image ISO officielle, recommandée)
 
-### 1. Installer les outils nécessaires
+L'éditeur distribue Artica sous forme d'image ISO prête à l'emploi, basée sur Debian : c'est la méthode la plus fiable, en particulier en machine virtuelle (Proxmox, VirtualBox, VMware).
 
-```bash
-sudo apt update
-sudo apt install -y ca-certificates curl gnupg wget lsb-release git apt-transport-https
-```
+### 1. Télécharger l'ISO
 
-### 2. Ajouter la clé et le dépôt Artica
+Depuis le site officiel (rubrique *Download*), récupérer la dernière image ISO d'Artica.
 
-```bash
-sudo mkdir -p /usr/share/keyrings
-curl -fsSL https://download.artica.fr/artica.gpg | sudo gpg --dearmor -o /usr/share/keyrings/artica-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/artica-archive-keyring.gpg] https://download.artica.fr/ stable main" \
-  | sudo tee /etc/apt/sources.list.d/artica.list
-sudo apt update
-```
+### 2. Créer la machine virtuelle
 
-### 3. Installer le paquet et activer le service
+- 4 Go de RAM et 2 vCPU au minimum, disque de 50 Go ou plus.
+- Une carte réseau sur le réseau des postes à filtrer.
+- Démarrer sur l'ISO et suivre l'installation (partitionnement automatique, puis redémarrage).
 
-```bash
-sudo apt install -y artica
-sudo systemctl enable --now artica
-```
+### 3. Configurer le réseau
 
-### 4. Ouvrir les ports
+Au premier démarrage, le menu console d'Artica permet de définir l'adresse IP fixe, la passerelle et les DNS du serveur.
 
-```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 3128/tcp
-sudo ufw allow 8080/tcp
-sudo ufw allow 8443/tcp
-```
+### 4. Première connexion à l'interface
 
-### 5. Première connexion
+Ouvrir `https://<adresse-du-serveur>:9000` ou l'URL affichée par la console, puis suivre l'assistant : nom du serveur, compte administrateur, activation du proxy.
 
-Ouvrir `http://<adresse-du-serveur>` (ou le port de console indiqué par Artica) et suivre l'assistant de configuration : réseau, nom du serveur, compte administrateur, puis activation du proxy.
-
-### 6. Configurer les postes clients
+### 5. Configurer les postes clients
 
 Sur les postes, définir le proxy `<adresse-du-serveur>:3128` (paramètres réseau, GPO ou fichier PAC).
 
@@ -93,13 +75,12 @@ curl -x http://<adresse-du-serveur>:3128 -I https://www.debian.org
 
 ## Dépannage
 
-- Paquet introuvable : le dépôt n'a pas été ajouté (clé absente). Vérifier `/etc/apt/sources.list.d/artica.list`, puis lancer `apt update`.
-- Service introuvable : le nom exact du service dépend de la version ; le rechercher avec `systemctl list-unit-files | grep -i artica`.
+- Le nom exact du service dépend de la version : le rechercher avec `systemctl list-unit-files | grep -i artica`.
 - Journal du script : `/var/log/install_script.log`.
 
 ## Points d'attention
 
-- L'URL du dépôt et le nom du paquet sont des valeurs supposées par le script : si l'ajout du dépôt échoue, le script continue sans installer Artica. Se référer à la documentation officielle pour la méthode adaptée à sa version. L'éditeur fournit aussi une image ISO prête à l'emploi, souvent plus simple en VM.
+- Le dépôt utilisé par défaut (`https://download.artica.fr/`) ne répond pas (vérifié le 13/10/2026). Le script ne peut donc pas installer Artica tel quel : il prépare le système, puis signale que le paquet est introuvable. Utiliser l'ISO officielle, ou indiquer un dépôt valide avec `ARTICA_REPO_URL`.
 - Sur une distribution sans paquets gérés (`pacman` ou autre), le script appelle la fonction `fatal`, qui n'existe pas dans la bibliothèque commune : il s'arrête avec une erreur « command not found ».
 
 ## Sources

@@ -1,121 +1,121 @@
-# Installation de DokuWiki
+# DokuWiki — procédure d'installation
 
 ## Description
-DokuWiki est un wiki léger, open source et facile à utiliser, ne nécessitant pas de base de données. Il est souvent utilisé pour la documentation interne et les petites équipes.
+
+DokuWiki est un wiki simple et léger qui stocke ses pages dans des fichiers texte, sans base de données. Il convient bien à une documentation technique interne. Cette procédure l'installe sur Apache et PHP.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu |
+| **Méthode** | Archive officielle (version stable) |
+| **Dossier** | `/var/www/dokuwiki` |
+| **Ports** | 80/tcp |
+| **Script** | `install_dokuwiki.sh` |
 
 ## Prérequis
-- Système d'exploitation : Ubuntu/Debian Linux (ou autre distribution compatible)
-- Accès : root ou sudo
-- Connexion Internet
-- Serveur web (Apache ou Nginx recommandé)
-- PHP installé (version récente recommandée)
 
-## Installation
+- Un accès root et une connexion Internet.
+- Aucune base de données nécessaire.
 
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-bash install_dokuwiki.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/dokuwiki
+sudo bash install_dokuwiki.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Lire les points d'attention : l'URL de téléchargement du script n'est plus valide.
 
-#### 1. Mise à jour du système
+## Installation manuelle
+
+### 1. Installer Apache et PHP
+
 ```bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update
+sudo apt install -y apache2 php libapache2-mod-php php-xml php-mbstring php-gd php-intl php-zip
 ```
 
-#### 2. Installation du serveur web et PHP
-```bash
-sudo apt install apache2 php libapache2-mod-php php-xml php-mbstring php-curl unzip wget -y
-```
+### 2. Télécharger DokuWiki
 
-#### 3. Téléchargement de DokuWiki
 ```bash
-cd /var/www/html
+cd /tmp
 wget https://download.dokuwiki.org/src/dokuwiki/dokuwiki-stable.tgz
-tar -xvzf dokuwiki-stable.tgz
-mv dokuwiki-* dokuwiki
+sudo mkdir -p /var/www/dokuwiki
+sudo tar -xzf dokuwiki-stable.tgz -C /var/www/dokuwiki --strip-components=1
+sudo chown -R www-data:www-data /var/www/dokuwiki
 ```
 
-#### 4. Permissions
-```bash
-sudo chown -R www-data:www-data /var/www/html/dokuwiki
-sudo chmod -R 755 /var/www/html/dokuwiki
-```
+### 3. Créer le site Apache
 
-#### 5. Configuration Apache (optionnel mais recommandé)
 ```bash
 sudo nano /etc/apache2/sites-available/dokuwiki.conf
 ```
 
-Contenu :
-```
+```apache
 <VirtualHost *:80>
-    ServerName votre-domaine.com
-    DocumentRoot /var/www/html/dokuwiki
+    ServerName wiki.exemple.local
+    DocumentRoot /var/www/dokuwiki
 
-    <Directory /var/www/html/dokuwiki>
+    <Directory /var/www/dokuwiki>
         AllowOverride All
         Require all granted
     </Directory>
+
+    # Interdire l'accès direct aux dossiers sensibles
+    <LocationMatch "/(data|conf|bin|inc|vendor)/">
+        Require all denied
+    </LocationMatch>
 </VirtualHost>
 ```
 
-Activation :
 ```bash
-sudo a2ensite dokuwiki.conf
+sudo a2enmod rewrite
+sudo a2ensite dokuwiki
+sudo a2dissite 000-default
 sudo systemctl reload apache2
 ```
 
-## Configuration
+### 4. Lancer l'assistant d'installation
 
-### Accès initial
-Une fois installé, accédez à :
+Ouvrir `http://<adresse-du-serveur>/install.php`, puis renseigner le nom du wiki, le compte super-utilisateur et la politique d'accès (ACL), par exemple « wiki fermé » pour une documentation interne.
+
+### 5. Supprimer le fichier d'installation
+
+```bash
+sudo rm /var/www/dokuwiki/install.php
 ```
-http://votre-serveur/dokuwiki/install.php
-```
-
-Suivez l'assistant pour :
-- Créer l'administrateur
-- Configurer le wiki
-- Définir les permissions
-
-### Fichiers importants
-- `/var/www/html/dokuwiki/conf/` — configuration
-- `/var/www/html/dokuwiki/data/` — contenu du wiki
 
 ## Vérification
 
 ```bash
-# Vérifier Apache
-sudo systemctl status apache2
-
-# Vérifier PHP
-php -v
-
-# Tester accès web
-curl -I http://localhost/dokuwiki
+curl -I http://localhost/doku.php
 ```
+
+Le wiki s'affiche sur `http://<adresse-du-serveur>/` et la connexion avec le super-utilisateur fonctionne.
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/var/www/dokuwiki/data/pages/` | Pages du wiki (fichiers `.txt`) |
+| `/var/www/dokuwiki/data/media/` | Images et fichiers joints |
+| `/var/www/dokuwiki/conf/` | Configuration, utilisateurs, ACL |
+
+Sauvegarder les dossiers `data/` et `conf/` suffit à sauvegarder le wiki.
 
 ## Dépannage
 
-```bash
-# Logs Apache
-sudo tail -f /var/log/apache2/error.log
+- **Avertissement « data directory not protected »** : la section `LocationMatch` ou `AllowOverride All` manque.
+- **Erreur d'écriture** : `www-data` doit être propriétaire de `data/` et `conf/`.
 
-# Vérifier permissions
-ls -l /var/www/html/dokuwiki
+## Points d'attention
 
-# Redémarrer Apache
-sudo systemctl restart apache2
-```
+- L'URL utilisée par le script (`github.com/splitbrain/dokuwiki/releases/download/release-2023-04-04/...`) renvoie une erreur 404 (vérifié le 13/10/2026) : le script s'arrête au téléchargement. Utiliser `https://download.dokuwiki.org/src/dokuwiki/dokuwiki-stable.tgz`.
+- Le site Apache du script garde le site par défaut `000-default` actif et a pour `ServerName` `localhost` : en accédant par l'adresse IP, c'est la page par défaut d'Apache qui s'affiche. Le script indique aussi l'URL `/dokuwiki`, alors que le wiki est publié à la racine.
+- Le script ne supprime pas `install.php` une fois l'installation terminée.
 
-## Documentation
-- Site officiel : https://www.dokuwiki.org/
-- Documentation : https://www.dokuwiki.org/manual
+## Sources
 
-## Notes
-- DokuWiki ne nécessite pas de base de données
-- Idéal pour la documentation interne et les projets techniques
-- Pensez à désactiver `install.php` après installation pour des raisons de sécurité
+- [Installer DokuWiki](https://www.dokuwiki.org/install)
+- [Sécuriser DokuWiki](https://www.dokuwiki.org/security)

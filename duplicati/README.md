@@ -1,149 +1,100 @@
-# Installation de Duplicati
+# Duplicati — procédure d'installation
 
 ## Description
-Duplicati est une solution de sauvegarde open source permettant de réaliser des backups chiffrés, compressés et stockés localement ou dans le cloud.
 
-### Type
-Application de sauvegarde
+Duplicati est un logiciel de sauvegarde chiffrée et incrémentale, piloté depuis une interface web. Il envoie les sauvegardes vers un disque local, un NAS, un serveur SFTP ou un stockage en ligne (S3, Backblaze B2, Google Drive…). Cette procédure installe le serveur Duplicati sur une machine Debian ou Ubuntu.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (paquet `.deb`) ; autres distributions via l'archive `.zip` |
+| **Méthode** | Paquet officiel publié sur GitHub |
+| **Ports** | 8200/tcp (interface web) |
+| **Script** | `install_duplicati.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : root ou sudo
-- **Ressources** : minimum 2 Go de RAM recommandé
-- **Réseau** : connexion Internet stable (pour installation et stockage cloud)
-- **Ports** : 8200/tcp (interface web)
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
+- Une destination de sauvegarde (disque, partage réseau ou compte de stockage en ligne).
 
-## Installation
-
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-# 1. Rendez le script exécutable
-chmod +x install_duplicati.sh
-
-# 2. Lancez l'installation
-bash install_duplicati.sh
-
-# 3. Suivez les instructions affichées
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/duplicati
+sudo bash install_duplicati.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Lire les points d'attention : le dépôt et l'archive utilisés par le script n'existent plus.
 
-#### 1. Mise à jour du système
+## Installation manuelle
+
+### 1. Télécharger le paquet
+
+Sur la page des versions de Duplicati, prendre le paquet `linux-x64-cli.deb` pour un serveur sans interface graphique (ici la version 2.4.0.1) :
+
 ```bash
-sudo apt update && sudo apt upgrade -y
+cd /tmp
+wget https://github.com/duplicati/duplicati/releases/download/v2.4.0.1_stable_2026-10-07/duplicati-2.4.0.1_stable_2026-10-07-linux-x64-cli.deb
 ```
 
-#### 2. Installation des dépendances
+Le paquet `linux-x64-gui.deb` ajoute une icône dans la barre des tâches, utile seulement sur un poste de travail.
+
+### 2. Installer
+
 ```bash
-sudo apt install wget curl unzip mono-complete -y
+sudo apt install -y ./duplicati-*-linux-x64-cli.deb
 ```
 
-#### 3. Téléchargement de Duplicati
+### 3. Démarrer le serveur au boot
+
 ```bash
-wget https://updates.duplicati.com/beta/duplicati-2.0.7.1_beta_2023-05-25.zip
-unzip duplicati-*.zip
-sudo mv Duplicati /opt/duplicati
+sudo systemctl enable --now duplicati
+systemctl list-unit-files | grep -i duplicati
 ```
 
-#### 4. Création du service systemd
+### 4. Rendre l'interface accessible depuis le réseau
+
+Par défaut, l'interface n'écoute que sur la machine elle-même. Pour y accéder depuis un autre poste, ajouter les options du serveur dans `/etc/default/duplicati` :
+
 ```bash
-sudo nano /etc/systemd/system/duplicati.service
+DAEMON_OPTS="--webservice-interface=any --webservice-password=MotDePasseFort"
 ```
 
-Contenu :
-```
-[Unit]
-Description=Duplicati Backup Service
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/mono /opt/duplicati/Duplicati.Server.exe
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
-```
-
-#### 5. Activation du service
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable duplicati
-sudo systemctl start duplicati
+sudo systemctl restart duplicati
+sudo ufw allow 8200/tcp
 ```
 
-## Configuration
+### 5. Créer une sauvegarde
 
-### Accès interface web
-```
-http://localhost:8200
-```
+Ouvrir `http://<adresse-du-serveur>:8200`, puis cliquer sur **Ajouter une sauvegarde** et renseigner :
 
-ou
-```
-http://IP_DU_SERVEUR:8200
-```
-
-### Dossier de configuration
-- `/root/.config/Duplicati/`
-- `/var/lib/duplicati/`
+1. le nom et une **phrase de passe de chiffrement**, à conserver en lieu sûr : sans elle, aucune restauration n'est possible ;
+2. la destination (dossier local, SFTP, S3, B2…), avec le bouton **Tester la connexion** ;
+3. les dossiers à sauvegarder ;
+4. la planification (par exemple chaque jour à 2 h) et la durée de conservation.
 
 ## Vérification
 
 ```bash
-# Vérifier le service
 systemctl status duplicati
-
-# Vérifier le port
 ss -tlnp | grep 8200
-
-# Logs
-journalctl -u duplicati -f
 ```
 
-## Configuration firewall
-
-### UFW
-```bash
-sudo ufw allow 8200/tcp
-```
-
-### firewall-cmd
-```bash
-sudo firewall-cmd --permanent --add-port=8200/tcp
-sudo firewall-cmd --reload
-```
+Lancer la sauvegarde une première fois avec **Exécuter maintenant**, puis tester une restauration d'un fichier depuis l'onglet **Restaurer**.
 
 ## Dépannage
 
-```bash
-# Vérifier logs
-journalctl -u duplicati -n 50
+- Interface inaccessible depuis le réseau : vérifier `--webservice-interface=any` et le pare-feu (étape 4).
+- Journaux : `journalctl -u duplicati -f` et, dans l'interface, *À propos → Afficher les journaux*.
 
-# Processus utilisant le port
-sudo lsof -i :8200
+## Points d'attention
 
-# Redémarrer service
-sudo systemctl restart duplicati
-```
+- Le script ajoute le PPA `ppa:duplicati/duplicati-releases`, qui n'existe pas (vérifié le 13/10/2026), puis tente d'installer un paquet `duplicati` absent des dépôts : l'installation échoue sur Debian et Ubuntu.
+- Sur RHEL/Fedora, l'archive `v2.0.6.3` téléchargée par le script n'est plus disponible (erreur 404). Les versions récentes de Duplicati n'utilisent plus Mono.
+- L'interface web sans mot de passe donne accès à toutes les sauvegardes : toujours définir `--webservice-password` si elle est exposée sur le réseau.
 
-## Sauvegarde avec Duplicati
+## Sources
 
-Duplicati permet de sauvegarder vers :
-- Disque local
-- FTP / SFTP
-- Google Drive
-- Amazon S3
-- OneDrive
-
-## Documentation
-- Site officiel : https://www.duplicati.com/
-- Documentation : https://docs.duplicati.com/
-
-## Notes
-- L'interface web fonctionne par défaut sur le port 8200
-- Pensez à sécuriser l'accès (reverse proxy + HTTPS recommandé)
-- Solution idéale pour backups automatisés et chiffrés
+- [Documentation Duplicati](https://docs.duplicati.com/)
+- [Versions publiées](https://github.com/duplicati/duplicati/releases)

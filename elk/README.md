@@ -1,178 +1,149 @@
-# Installation de ELK (Elastic Stack)
+# Elastic Stack (ELK) — procédure d'installation
 
 ## Description
-ELK (Elasticsearch, Logstash, Kibana) est une suite open source utilisée pour la collecte, l'analyse et la visualisation de logs et de données.
 
-### Type
-Stack de monitoring et analytics
+La suite Elastic, ou ELK, centralise et analyse les journaux. **Elasticsearch** stocke et indexe les données, **Logstash** et **Filebeat** les collectent et les transforment, **Kibana** les explore et les affiche dans des tableaux de bord. Cette procédure installe la suite sur un serveur Debian ou Ubuntu depuis le dépôt officiel d'Elastic.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (dépôt APT Elastic) ; RHEL (dépôt YUM) |
+| **Méthode** | Dépôt officiel `artifacts.elastic.co` |
+| **Ports** | 9200 (Elasticsearch), 5601 (Kibana), 5044 (Logstash / Beats) |
+| **Script** | `install_elk.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : root ou sudo
-- **Ressources** : minimum 4 Go de RAM recommandé (ELK est gourmand)
-- **Réseau** : connexion Internet stable
-- **Ports** :
-  - 5601 (Kibana)
-  - 9200 (Elasticsearch)
-  - 5044 (Logstash)
-- **Dépendances** : curl, wget, Java (OpenJDK 11+)
+- 4 Go de RAM au minimum (8 Go conseillés), 2 cœurs, 50 Go de disque.
+- Un accès root et une connexion Internet.
 
-## Installation
-
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-# 1. Rendre le script exécutable
-chmod +x install_elk.sh
-
-# 2. Lancer l'installation
-bash install_elk.sh
-
-# 3. Suivre les instructions
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/elk
+sudo bash install_elk.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Le script installe la branche **7.x**. La procédure manuelle ci-dessous utilise la branche 8.x, actuelle, dont la sécurité est activée par défaut.
 
-#### 1. Mise à jour du système
+## Installation manuelle
+
+### 1. Ajouter le dépôt Elastic
+
 ```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-#### 2. Installation de Java (obligatoire)
-```bash
-sudo apt install openjdk-11-jdk -y
-java -version
-```
-
-#### 3. Ajout du dépôt Elastic
-```bash
-wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
-
-sudo apt install apt-transport-https -y
-
-echo "deb https://artifacts.elastic.co/packages/8.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-8.x.list
-
+sudo apt update
+sudo apt install -y apt-transport-https gnupg curl
+curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /usr/share/keyrings/elasticsearch-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/elastic-8.x.list
 sudo apt update
 ```
 
-#### 4. Installation des composants
+### 2. Installer Elasticsearch
 
 ```bash
-sudo apt install elasticsearch logstash kibana -y
+sudo apt install -y elasticsearch
 ```
 
-#### 5. Activation des services
+**Noter le mot de passe du compte `elastic`** affiché à la fin de l'installation. Pour le régénérer plus tard :
 
 ```bash
-sudo systemctl enable elasticsearch
-sudo systemctl start elasticsearch
-
-sudo systemctl enable logstash
-sudo systemctl start logstash
-
-sudo systemctl enable kibana
-sudo systemctl start kibana
+sudo /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic
 ```
 
-## Configuration
+Pour que Kibana et les autres machines puissent joindre Elasticsearch, régler dans `/etc/elasticsearch/elasticsearch.yml` :
 
-### Elasticsearch
-Fichier :
-```bash
-/etc/elasticsearch/elasticsearch.yml
+```yaml
+network.host: 0.0.0.0
 ```
-
-### Kibana
-Fichier :
-```bash
-/etc/kibana/kibana.yml
-```
-
-Accès :
-```
-http://localhost:5601
-```
-
-### Logstash
-Fichiers :
-```
-/etc/logstash/conf.d/
-```
-
-## Vérification de l'installation
 
 ```bash
-# Statut Elasticsearch
-systemctl status elasticsearch
-
-# Statut Kibana
-systemctl status kibana
-
-# Statut Logstash
-systemctl status logstash
+sudo systemctl daemon-reload
+sudo systemctl enable --now elasticsearch
 ```
 
-### Vérifier les ports
+### 3. Installer Kibana
 
 ```bash
-ss -tlnp | grep 9200
-ss -tlnp | grep 5601
-ss -tlnp | grep 5044
+sudo apt install -y kibana
 ```
 
-### Test Elasticsearch
+Dans `/etc/kibana/kibana.yml` :
 
-```bash
-curl http://localhost:9200
+```yaml
+server.host: "0.0.0.0"
 ```
 
-## Configuration firewall
+Générer un jeton d'inscription, puis démarrer Kibana :
 
-### UFW
 ```bash
-sudo ufw allow 5601/tcp
+sudo /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+sudo systemctl enable --now kibana
+```
+
+Ouvrir `http://<adresse-du-serveur>:5601`, coller le jeton, puis saisir le code de vérification obtenu avec :
+
+```bash
+sudo /usr/share/kibana/bin/kibana-verification-code
+```
+
+Se connecter avec le compte `elastic`.
+
+### 4. Installer Logstash et Filebeat (collecte)
+
+```bash
+sudo apt install -y logstash filebeat
+sudo systemctl enable --now logstash
+```
+
+Filebeat s'installe plutôt sur les machines dont on veut collecter les journaux. Le configurer dans `/etc/filebeat/filebeat.yml` (sortie vers Elasticsearch ou Logstash), puis :
+
+```bash
+sudo filebeat modules enable system
+sudo filebeat setup
+sudo systemctl enable --now filebeat
+```
+
+### 5. Ouvrir les ports
+
+```bash
 sudo ufw allow 9200/tcp
+sudo ufw allow 5601/tcp
 sudo ufw allow 5044/tcp
 ```
 
-### firewall-cmd
+## Vérification
+
 ```bash
-sudo firewall-cmd --permanent --add-port=5601/tcp
-sudo firewall-cmd --permanent --add-port=9200/tcp
-sudo firewall-cmd --permanent --add-port=5044/tcp
-sudo firewall-cmd --reload
+systemctl status elasticsearch kibana
+curl -k -u elastic https://localhost:9200
 ```
+
+Elasticsearch répond avec le nom du cluster et sa version. Dans Kibana, *Discover* affiche les journaux envoyés par Filebeat.
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/elasticsearch/elasticsearch.yml` | Configuration d'Elasticsearch |
+| `/etc/elasticsearch/jvm.options.d/` | Mémoire Java (`-Xms` / `-Xmx`) |
+| `/etc/kibana/kibana.yml` | Configuration de Kibana |
+| `/etc/logstash/conf.d/` | Pipelines Logstash |
+| `/etc/filebeat/filebeat.yml` | Configuration de Filebeat |
 
 ## Dépannage
 
-```bash
-# Logs Elasticsearch
-journalctl -u elasticsearch -f
+- Elasticsearch ne démarre pas faute de mémoire : limiter le tas Java dans `/etc/elasticsearch/jvm.options.d/heap.options` (`-Xms1g` et `-Xmx1g`).
+- Journaux : `journalctl -u elasticsearch` et `/var/log/elasticsearch/`.
 
-# Logs Kibana
-journalctl -u kibana -f
+## Points d'attention
 
-# Logs Logstash
-journalctl -u logstash -f
+- Le script installe la branche 7.x, sans sécurité activée : Elasticsearch répond sans authentification sur le port 9200 dès que celui-ci est ouvert.
+- Le script installe `openjdk-11-jre`, inutile : Elasticsearch et Logstash embarquent leur propre Java. Il utilise aussi `apt-key`, retiré des versions récentes de Debian et Ubuntu.
+- Le script ouvre le port 5000 pour Logstash, alors que l'entrée Beats utilise le port 5044 par convention.
 
-# Vérifier Java
-java -version
-```
+## Sources
 
-## Accès Web
-
-- Kibana :
-```
-http://IP_DU_SERVEUR:5601
-```
-
-## Documentation
-- https://www.elastic.co/
-- https://www.elastic.co/guide/
-
-## Notes
-- ELK est très gourmand en ressources (RAM et CPU)
-- Elasticsearch doit être correctement dimensionné pour la production
-- Il est recommandé d'utiliser HTTPS en production
-- Peut être remplacé ou complété par Grafana/Loki dans certains cas
+- [Installer Elasticsearch (paquet Debian)](https://www.elastic.co/guide/en/elasticsearch/reference/current/deb.html)
+- [Installer Kibana](https://www.elastic.co/guide/en/kibana/current/deb.html)
+- [Démarrer avec Filebeat](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-installation-configuration.html)

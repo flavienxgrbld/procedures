@@ -1,142 +1,135 @@
-# Installation de Dolibarr
+# Dolibarr — procédure d'installation
 
 ## Description
-Dolibarr est un ERP/CRM open source destiné aux PME, permettant de gérer la facturation, les clients, les stocks, les projets et la comptabilité.
+
+Dolibarr est un logiciel de gestion (ERP/CRM) libre pour les TPE, PME, associations et indépendants : tiers, devis, factures, stocks, comptabilité, agenda. Cette procédure l'installe sur une pile Apache, PHP et MariaDB.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu |
+| **Méthode** | Archive des sources officielles |
+| **Dossier** | `/var/www/dolibarr` (racine web : `htdocs/`) |
+| **Ports** | 80/tcp |
+| **Script** | `install_dolibarr.sh` |
 
 ## Prérequis
-- Système d'exploitation : Ubuntu/Debian Linux (ou autre distribution compatible)
-- Accès : root ou sudo
-- Connexion Internet
-- Serveur web (Apache recommandé)
-- Base de données (MySQL/MariaDB)
-- PHP installé
 
-## Installation
+- Un accès root et une connexion Internet.
+- 1 Go de RAM au minimum.
 
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-bash install_dolibarr.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/dolibarr
+sudo bash install_dolibarr.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Lire les points d'attention : le script ne parvient plus à télécharger Dolibarr.
 
-#### 1. Mise à jour du système
+## Installation manuelle
+
+### 1. Installer Apache, MariaDB et PHP
+
 ```bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update
+sudo apt install -y apache2 mariadb-server unzip
+sudo apt install -y php libapache2-mod-php php-mysql php-gd php-xml php-zip php-intl php-curl php-mbstring php-imap php-soap
 ```
 
-#### 2. Installation des dépendances
-```bash
-sudo apt install apache2 mariadb-server php php-mysql php-gd php-xml php-mbstring php-curl php-zip unzip wget -y
-```
+### 2. Créer la base de données
 
-#### 3. Sécurisation de la base de données
 ```bash
 sudo mysql_secure_installation
-```
-
-#### 4. Création de la base de données
-```bash
 sudo mysql -u root -p
 ```
 
-Dans MySQL :
 ```sql
-CREATE DATABASE dolibarr;
-CREATE USER 'dolibarr'@'localhost' IDENTIFIED BY 'motdepasse';
+CREATE DATABASE dolibarr CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'dolibarr'@'localhost' IDENTIFIED BY 'MotDePasseFort';
 GRANT ALL PRIVILEGES ON dolibarr.* TO 'dolibarr'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;
 ```
 
-#### 5. Téléchargement de Dolibarr
+### 3. Télécharger Dolibarr
+
+Récupérer la dernière version sur la page des versions (ici 24.0.1) :
+
 ```bash
-cd /var/www/html
-wget https://github.com/Dolibarr/dolibarr/archive/refs/tags/latest.tar.gz
-tar -xvzf latest.tar.gz
-mv dolibarr-* dolibarr
+cd /tmp
+wget https://github.com/Dolibarr/dolibarr/archive/refs/tags/24.0.1.tar.gz -O dolibarr.tar.gz
+sudo mkdir -p /var/www/dolibarr
+sudo tar -xzf dolibarr.tar.gz -C /var/www/dolibarr --strip-components=1
+sudo mkdir -p /var/lib/dolibarr/documents
+sudo touch /var/www/dolibarr/htdocs/conf/conf.php
+sudo chown -R www-data:www-data /var/www/dolibarr /var/lib/dolibarr
 ```
 
-#### 6. Permissions
-```bash
-sudo chown -R www-data:www-data /var/www/html/dolibarr
-sudo chmod -R 755 /var/www/html/dolibarr
-```
+### 4. Créer le site Apache
 
-#### 7. Configuration Apache
 ```bash
 sudo nano /etc/apache2/sites-available/dolibarr.conf
 ```
 
-Contenu :
-```
+```apache
 <VirtualHost *:80>
-    ServerName votre-domaine.com
-    DocumentRoot /var/www/html/dolibarr/htdocs
+    ServerName erp.exemple.local
+    DocumentRoot /var/www/dolibarr/htdocs
 
-    <Directory /var/www/html/dolibarr/htdocs>
+    <Directory /var/www/dolibarr/htdocs>
         AllowOverride All
         Require all granted
     </Directory>
 </VirtualHost>
 ```
 
-Activation :
 ```bash
-sudo a2ensite dolibarr.conf
+sudo a2ensite dolibarr
+sudo a2dissite 000-default
 sudo systemctl reload apache2
 ```
 
-## Configuration
+### 5. Lancer l'assistant d'installation
 
-### Installation via navigateur
-Accédez à :
+Ouvrir `http://<adresse-du-serveur>/install/` et suivre les étapes :
+
+1. Vérification des prérequis PHP.
+2. Répertoire des documents : `/var/lib/dolibarr/documents`.
+3. Base de données : serveur `localhost`, base `dolibarr`, utilisateur `dolibarr` et son mot de passe.
+4. Création du compte administrateur.
+
+### 6. Verrouiller l'installation
+
+```bash
+sudo touch /var/lib/dolibarr/documents/install.lock
+sudo chmod 444 /var/www/dolibarr/htdocs/conf/conf.php
 ```
-http://votre-serveur/dolibarr
-```
-
-Puis suivez l'assistant :
-- Configuration base de données
-- Création utilisateur admin
-- Paramètres société
-
-### Répertoires importants
-- `/var/www/html/dolibarr/htdocs/` — application web
-- `/var/www/html/dolibarr/documents/` — fichiers
 
 ## Vérification
 
-```bash
-# Apache
-sudo systemctl status apache2
+Se connecter sur `http://<adresse-du-serveur>/` avec le compte administrateur, puis activer les modules utiles dans *Accueil → Configuration → Modules/Applications*.
 
-# MariaDB
-sudo systemctl status mysql
+## Fichiers importants
 
-# Test accès web
-curl -I http://localhost/dolibarr
-```
+| Chemin | Rôle |
+|---|---|
+| `/var/www/dolibarr/htdocs/` | Application (racine web) |
+| `/var/www/dolibarr/htdocs/conf/conf.php` | Configuration (base de données) |
+| `/var/lib/dolibarr/documents/` | Documents générés et téléversés |
 
 ## Dépannage
 
-```bash
-# Logs Apache
-sudo tail -f /var/log/apache2/error.log
+- **L'assistant ne peut pas écrire `conf.php`** : le fichier doit exister et appartenir à `www-data` avant l'installation (étape 3).
+- Journaux : `/var/log/apache2/error.log`.
 
-# Vérifier PHP
-php -v
+## Points d'attention
 
-# Redémarrer services
-sudo systemctl restart apache2
-sudo systemctl restart mysql
-```
+- Le script télécharge `github.com/Dolibarr/dolibarr/releases/download/16.0.0/dolibarr-16.0.0.zip`, qui n'existe pas (erreur 404, vérifié le 13/10/2026). Le `rm dolibarr-*.zip` qui suit échoue et arrête le script.
+- Le script installe les modules PHP sous les noms `php81-gd`, `php81-xml` et `php81-zip`. Sur Debian et Ubuntu, ce sont `php8.1-gd`, `php8.1-xml` et `php8.1-zip`.
+- Même téléchargé, Dolibarr doit être publié depuis le dossier `htdocs/` : l'URL `http://votre-serveur/dolibarr` affichée par le script ne donne pas accès à l'application.
 
-## Documentation
-- Site officiel : https://www.dolibarr.org/
-- Documentation : https://wiki.dolibarr.org/
+## Sources
 
-## Notes
-- Dolibarr est très modulaire (CRM, ERP, facturation, stock)
-- Peut être utilisé en mode SaaS ou local
-- Pensez à sécuriser l'accès (HTTPS recommandé)
+- [Téléchargements Dolibarr](https://www.dolibarr.org/downloads.php)
+- [Wiki Dolibarr — installation](https://wiki.dolibarr.org/index.php/Installation_-_Upgrade)

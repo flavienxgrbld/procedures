@@ -1,146 +1,149 @@
-# Installation ERPNext
+# ERPNext — procédure d'installation
 
 ## Description
-ERPNext est un ERP/CRM complet open source basé sur le framework Frappe.
+
+ERPNext est un progiciel de gestion intégré (ERP) libre : comptabilité, ventes, achats, stocks, production, RH et projets. Il repose sur le framework Frappe et s'administre avec l'outil en ligne de commande `bench`. Cette procédure installe ERPNext version 15 pour un environnement de test ou de production.
+
+| | |
+|---|---|
+| **Systèmes** | Ubuntu 22.04 / 24.04, Debian 12 |
+| **Méthode** | Frappe Bench (Python, Node.js, MariaDB, Redis) |
+| **Ports** | 8000/tcp (développement), 80/tcp (production derrière Nginx) |
+| **Script** | `install_erpnext.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou distribution compatible avec `apt`)
-- Accès root ou un compte avec privilèges sudo
-- Connexion Internet
-- Un serveur propre ou une VM avec au moins 4 Go de RAM recommandés
 
-## Structure du dossier
-- `install_erpnext.sh` : script d’installation automatique
-- `README.md` : documentation de la procédure
+- 4 Go de RAM au minimum, 40 Go de disque.
+- Un utilisateur non-root disposant de `sudo` (ici `frappe`).
+- Une connexion Internet.
 
-## Installation
-
-### Lancement du script
-
-Se placer dans le répertoire de la procédure :
+## Installation automatique
 
 ```bash
-cd /REPO/procedures/erpnext
-```
-
-Exécuter le script avec les droits administrateur :
-
-```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/erpnext
 sudo bash install_erpnext.sh
 ```
 
-### Ce que fait le script
+Lire les points d'attention : en l'état, le script s'arrête avant la fin.
 
-Le script effectue les actions suivantes :
+## Installation manuelle
 
-1. Vérifie que l’utilisateur est root.
-2. Détecte le système et le gestionnaire de paquets.
-3. Installe les dépendances : `python3`, `python3-dev`, `python3-pip`, `python3-venv`, `git`, `redis-server`, `mariadb-server`, `curl`.
-4. Crée l’utilisateur système `erpnext` et le répertoire `/opt/erpnext`.
-5. Installe `frappe-bench` via `pip3`.
-6. Initialise un bench Frappe dans `/opt/erpnext/erpnext-bench` avec la branche Frappe `version-14`.
-7. Crée un nouveau site Frappe `erpnext.local`.
-8. Télécharge l’application `erpnext` et l’installe sur le site créé.
-
-### Remarques importantes
-
-- Le site créé par défaut est `erpnext.local`.
-- Sur une machine locale, ajoutez une entrée dans `/etc/hosts` :
+### 1. Créer l'utilisateur
 
 ```bash
-127.0.0.1 erpnext.local
+sudo adduser frappe
+sudo usermod -aG sudo frappe
+su - frappe
 ```
 
-- Pour un environnement de production, adaptez le nom de domaine et la configuration du serveur web.
-
-## Configuration post-installation
-
-### Démarrer le bench
-
-Après l’installation, accéder au répertoire d’installation :
+### 2. Installer les dépendances
 
 ```bash
-cd /opt/erpnext/erpnext-bench
+sudo apt update
+sudo apt install -y git python3-dev python3-pip python3-venv pipx redis-server \
+  mariadb-server mariadb-client xvfb libfontconfig wkhtmltopdf curl
 ```
 
-Démarrer l’instance en mode développement :
+### 3. Configurer MariaDB
+
+```bash
+sudo mysql_secure_installation
+sudo nano /etc/mysql/mariadb.conf.d/99-frappe.cnf
+```
+
+```ini
+[mysqld]
+character-set-client-handshake = FALSE
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+[mysql]
+default-character-set = utf8mb4
+```
+
+```bash
+sudo systemctl restart mariadb
+```
+
+### 4. Installer Node.js et Yarn
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc
+nvm install 18
+npm install -g yarn
+```
+
+### 5. Installer Bench
+
+```bash
+pipx install frappe-bench
+pipx ensurepath
+source ~/.bashrc
+bench --version
+```
+
+### 6. Créer le bench et le site
+
+```bash
+cd ~
+bench init --frappe-branch version-15 frappe-bench
+cd frappe-bench
+bench new-site erp.exemple.local
+```
+
+`bench new-site` demande le mot de passe root de MariaDB, puis celui du compte `Administrator` d'ERPNext.
+
+### 7. Installer l'application ERPNext
+
+```bash
+bench get-app --branch version-15 erpnext
+bench --site erp.exemple.local install-app erpnext
+```
+
+### 8. Démarrer
+
+Pour un test :
 
 ```bash
 bench start
 ```
 
-### Accéder à l’application
+L'application répond sur `http://<adresse-du-serveur>:8000`.
 
-Ouvrir le navigateur sur :
+Pour la production (Nginx et Supervisor) :
 
-```text
-http://erpnext.local:8000
+```bash
+sudo bench setup production frappe
+bench --site erp.exemple.local enable-scheduler
 ```
-
-Si vous utilisez un nom de domaine différent, changez l’URL en conséquence.
-
-### Configuration de base
-
-1. Se connecter avec les identifiants créés lors du `bench new-site`.
-2. Configurer les paramètres de la société.
-3. Configurer les utilisateurs et les rôles.
-4. Mettre en place la base de données et les paramètres de messagerie.
 
 ## Vérification
 
-- Vérifier que le site démarre sans erreur :
+Se connecter avec `Administrator` et le mot de passe défini à l'étape 6 : l'assistant de configuration demande la langue, le pays, la devise et l'entreprise.
 
-```bash
-cd /opt/erpnext/erpnext-bench
-bench start
-```
+## Fichiers importants
 
-- Vérifier l’accès web :
+| Chemin | Rôle |
+|---|---|
+| `~/frappe-bench/sites/<site>/site_config.json` | Configuration du site (base, clés) |
+| `~/frappe-bench/apps/` | Applications Frappe et ERPNext |
+| `~/frappe-bench/logs/` | Journaux |
 
-```text
-http://erpnext.local:8000
-```
+## Dépannage
 
-- Vérifier la présence du site dans `sites/` :
+- Erreur de jeu de caractères à la création du site : la configuration MariaDB de l'étape 3 n'est pas appliquée.
+- Sauvegarde : `bench --site erp.exemple.local backup --with-files`.
 
-```bash
-ls /opt/erpnext/erpnext-bench/sites
-```
+## Points d'attention
 
-- Vérifier que l’utilisateur `erpnext` existe :
+- Le script installe `frappe-bench` avec `pip3 install` : sur Debian 12 et Ubuntu 23.04+, cette commande est refusée (« externally-managed-environment »). Il faut passer par `pipx` (étape 5).
+- Il lance les commandes `bench new-site`, `get-app` et `install-app` depuis le dossier personnel de l'utilisateur au lieu du dossier du bench : elles échouent. Il n'installe ni Node.js, ni Yarn, ni wkhtmltopdf, et ne configure pas MariaDB en `utf8mb4`.
+- Le script vise la version 14 : la version 15 est la version stable actuelle.
+- Le site `erp.exemple.local` doit être résolu par le DNS (ou ajouté dans `/etc/hosts`) pour fonctionner en production, car Nginx sert le site selon son nom.
 
-```bash
-id erpnext
-```
+## Sources
 
-## Dépannage rapide
-
-- Si `bench` n’est pas trouvé :
-
-```bash
-python3 -m pip install frappe-bench
-```
-
-- Si la base MariaDB ne démarre pas :
-
-```bash
-sudo systemctl status mariadb
-sudo journalctl -u mariadb --no-pager
-```
-
-- Si Redis est indisponible :
-
-```bash
-sudo systemctl status redis-server
-```
-
-## Documentation
-
-- [ERPNext officiel](https://erpnext.com)
-- [Documentation Frappe](https://frappeframework.com/docs)
-- [GitHub ERPNext](https://github.com/frappe/erpnext)
-
-## Notes
-- Le script installe ERPNext en mode utilitaire de développement/test.
-- Pour une installation en production, il est recommandé d’ajouter un serveur web reverse proxy (Nginx), un certificat TLS et une configuration de processus supervisé.
-- Adaptez les noms de sites et les domaines selon votre infrastructure.
+- [Installation de Frappe](https://docs.frappe.io/framework/user/en/installation)
+- [Documentation ERPNext](https://docs.erpnext.com/)

@@ -1,338 +1,126 @@
-# Installation de postgresql
+# PostgreSQL — procédure d'installation
 
 ## Description
 
-PostgreSQL - Base de données relationnelle puissante
+PostgreSQL est un système de gestion de base de données relationnelle libre, réputé pour sa robustesse, sa conformité au standard SQL et ses extensions (PostGIS, recherche plein texte, JSON). Il sert de base à de nombreuses applications (Odoo, Mattermost, Synapse, Keycloak…). Cette procédure l'installe, crée une base et un utilisateur, puis ouvre l'accès depuis le réseau local.
 
-### Type
-Base de données
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, RHEL/Fedora, openSUSE, Arch |
+| **Méthode** | Paquets de la distribution (ou dépôt officiel PGDG pour la dernière version) |
+| **Ports** | 5432/tcp |
+| **Script** | `install_postgresql.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
-
-## Installation
-
-### Méthode Automatique (Recommandée)
-
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_postgresql.sh
-
-# 2. Exécutez le script d'installation
-bash install_postgresql.sh
-
-# 3. Répondez aux questions interactives si nécessaire
-`
-
-### Étapes Manuelles Détaillées
-
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
-
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
-
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
-
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
-
-## Services Installés
-
-Les services suivants seront créés et activés :
-- **postgresql** - Service système avec démarrage automatique
-
-## Ports Requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-
-| 5432 | tcp | PostgreSQL - Base de données |
-## Configuration
-
-### Configuration de Base
-
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/postgresql/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/postgresql/ - Données de l'application
-- /var/log/postgresql/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status postgresql
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 5432/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=5432/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
-
-## Dépannage
-
-### Problèmes Courants
-
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
-
-# Vérifier la syntaxe de configuration
-sudo True --version
-
-# Redémarrer le service
-sudo systemctl restart True
-
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/postgresql/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/postgresql/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/postgresql/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/postgresql
-sudo rm -rf /var/lib/postgresql
-sudo rm -rf /etc/postgresql
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_postgresql.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: postgresql)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-postgresql-$(date +%Y%m%d).tar.gz /var/lib/postgresql/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-postgresql-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade postgresql  # Debian/Ubuntu
-sudo dnf upgrade postgresql  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/postgresql/config /etc/postgresql/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall postgresql  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract postgresql /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora), zypper (openSUSE), pacman (Arch)
-
-**Statut** : Production Ready ✅
+- Un accès root.
+
+## Installation automatique
+
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/postgresql
+sudo bash install_postgresql.sh
+```
+
+Le script installe PostgreSQL et demande un mot de passe pour le compte `postgres`. Les étapes 3 à 5 restent à faire pour un accès depuis le réseau.
+
+## Installation manuelle
+
+### 1. Installer PostgreSQL
+
+```bash
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql
+psql --version
+```
+
+Pour une version plus récente que celle de la distribution, ajouter le dépôt officiel PGDG :
+
+```bash
+sudo apt install -y postgresql-common
+sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+```
+
+### 2. Créer un utilisateur et une base
+
+```bash
+sudo -u postgres createuser --pwprompt appli
+sudo -u postgres createdb --owner=appli appli_db
+```
+
+Ou en SQL :
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+CREATE USER appli WITH PASSWORD 'MotDePasseFort';
+CREATE DATABASE appli_db OWNER appli;
+\q
+```
+
+### 3. Écouter sur le réseau
+
+Dans `/etc/postgresql/<version>/main/postgresql.conf` :
+
+```conf
+listen_addresses = 'localhost,192.168.1.50'
+```
+
+### 4. Autoriser les connexions distantes
+
+Dans `/etc/postgresql/<version>/main/pg_hba.conf`, ajouter :
+
+```conf
+# TYPE  BASE       UTILISATEUR  ADRESSE           MÉTHODE
+host    appli_db   appli        192.168.1.0/24    scram-sha-256
+```
+
+```bash
+sudo systemctl restart postgresql
+```
+
+### 5. Ouvrir le pare-feu au seul réseau local
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 5432 proto tcp
+```
+
+## Vérification
+
+```bash
+sudo -u postgres psql -c "SELECT version();"
+psql -h 192.168.1.50 -U appli -d appli_db -c '\conninfo'
+```
+
+## Commandes utiles
+
+| Commande | Rôle |
+|---|---|
+| `\l` / `\du` / `\dt` (dans `psql`) | Lister bases / rôles / tables |
+| `pg_dump -U appli -h localhost appli_db > sauvegarde.sql` | Sauvegarder une base |
+| `psql -U appli -h localhost appli_db < sauvegarde.sql` | Restaurer |
+| `pg_lsclusters` | Voir les instances et leur état (Debian/Ubuntu) |
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/postgresql/<version>/main/postgresql.conf` | Configuration du serveur |
+| `/etc/postgresql/<version>/main/pg_hba.conf` | Règles d'authentification |
+| `/var/lib/postgresql/<version>/main/` | Données |
+| `/var/log/postgresql/` | Journaux |
+
+## Points d'attention
+
+- Le script ouvre le port 5432 à tout le réseau, alors que PostgreSQL n'écoute que sur `localhost` par défaut : l'ouverture ne sert à rien tant que `listen_addresses` et `pg_hba.conf` ne sont pas modifiés (étapes 3 et 4). Une fois ces fichiers modifiés, il faut limiter l'accès au réseau local.
+- Il donne un mot de passe au super-utilisateur `postgres`. Les applications doivent utiliser leur propre utilisateur, limité à leur base (étape 2).
+- Sur openSUSE et Arch, il ne lance pas toujours l'initialisation de la base (`initdb`) : le service peut refuser de démarrer.
+
+## Sources
+
+- [PostgreSQL sur Debian](https://www.postgresql.org/download/linux/debian/)
+- [Documentation PostgreSQL](https://www.postgresql.org/docs/current/)

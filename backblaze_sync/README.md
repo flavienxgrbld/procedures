@@ -1,314 +1,103 @@
-# Installation de backblaze_sync
+# Synchronisation vers Backblaze B2 — procédure
 
 ## Description
 
-SyncThing - Synchronisation P2P décentralisée
+Backblaze B2 est un stockage objet en ligne, peu coûteux, adapté aux sauvegardes externalisées. Cette procédure synchronise un dossier local vers un bucket B2 avec rclone et automatise l'envoi chaque nuit.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (rclone existe pour toutes les distributions) |
+| **Outil** | rclone |
+| **Ports** | Aucun port entrant (connexions sortantes HTTPS) |
+| **Script** | `install_backblaze_sync.sh` (voir les points d'attention) |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : accès root ou sudo
-- **Ressources** : RAM minimale 2 Go, espace disque selon l'application
-- **Réseau** : connexion Internet stable
-- **Ports** : ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un compte Backblaze avec un **bucket B2** créé et une **clé d'application** (`keyID` et `applicationKey`), générée dans *App Keys* et limitée à ce bucket.
+- Un accès root et une connexion Internet.
 
-## Installation
+## Installation manuelle
 
-### Méthode automatique (recommandée)
+### 1. Installer rclone
 
 ```bash
-# 1. Rendez le script exécutable
-chmod +x install_backblaze_sync.sh
-
-# 2. Exécutez le script d'installation
-bash install_backblaze_sync.sh
-
-# 3. Répondez aux questions interactives si nécessaire
+sudo apt update
+sudo apt install -y rclone
+rclone version
 ```
 
-### Installation manuelle (étapes détaillées)
+Pour la dernière version : `curl https://rclone.org/install.sh | sudo bash`.
 
-#### 1. Mise à jour du système
+### 2. Déclarer le stockage B2
+
 ```bash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
+rclone config
 ```
 
-#### 2. Installation des dépendances de base
+Répondre :
+
+1. `n` (nouveau stockage) et nom : `b2`
+2. Type de stockage : `b2` (Backblaze B2)
+3. `account` : le **keyID**
+4. `key` : l'**applicationKey**
+5. Laisser les autres options par défaut et valider.
+
+Vérifier l'accès :
+
 ```bash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
+rclone lsd b2:
 ```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+### 3. Lancer une première synchronisation
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+Toujours tester avec `--dry-run` : `sync` supprime à destination les fichiers absents de la source.
 
-## Services installés
-
-Les services suivants seront créés et activés :
-- **syncthing@root** — service système avec démarrage automatique
-
-## Ports requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-| 21025 | TCP       | Synchronisation |
-
-## Configuration
-
-### Configuration de base
-
-Les fichiers de configuration se trouvent généralement dans :
-- `/etc/backblaze_sync/` — configuration de l'application
-- `/etc/systemd/system/` — services systemd
-- `/var/lib/backblaze_sync/` — données de l'application
-- `/var/log/backblaze_sync/` — logs de l'application
-
-### Configuration avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'installation
-
-### Vérifier l'état des services
 ```bash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier le service principal
-systemctl status syncthing@root
-
-# Vérifier l'activation au démarrage
-systemctl is-enabled syncthing@root
+rclone sync /srv/donnees b2:mon-bucket/serveur1 --dry-run --progress
+rclone sync /srv/donnees b2:mon-bucket/serveur1 --progress
 ```
 
-### Vérifier les ports
+Pour ne jamais supprimer côté B2, utiliser `rclone copy` au lieu de `rclone sync`.
+
+### 4. Automatiser chaque nuit
+
 ```bash
-# Afficher les ports en écoute
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :21025
+sudo crontab -e
 ```
 
-### Logs et debugging
+```cron
+0 2 * * * rclone sync /srv/donnees b2:mon-bucket/serveur1 --log-file=/var/log/rclone-b2.log --log-level INFO
+```
+
+### 5. Restaurer des fichiers
+
 ```bash
-# Logs en temps réel
-journalctl -u syncthing@root -f
-
-# Derniers logs
-journalctl -u syncthing@root -n 50
-
-# Tous les logs
-journalctl -u syncthing@root
+rclone copy b2:mon-bucket/serveur1/dossier /srv/restauration --progress
 ```
 
-### Test d'accès web
+## Vérification
+
 ```bash
-# Vérifier la connectivité HTTP (si interface web activée)
-curl -v http://localhost:8384
-
-# Ou via navigateur
-# http://votre-serveur:8384
+rclone size b2:mon-bucket/serveur1
+rclone check /srv/donnees b2:mon-bucket/serveur1
+tail /var/log/rclone-b2.log
 ```
 
-## Configuration du firewall
+## Fichiers importants
 
-### Avec UFW (Debian/Ubuntu)
-```bash
-# Autoriser le port
-sudo ufw allow 21025/tcp
+| Chemin | Rôle |
+|---|---|
+| `~/.config/rclone/rclone.conf` | Identifiants B2 (à protéger : `chmod 600`) |
+| `/var/log/rclone-b2.log` | Journal des synchronisations |
 
-# Vérifier les règles
-sudo ufw status numbered
-```
+## Points d'attention
 
-### Avec firewall-cmd (RedHat/Fedora)
-```bash
-# Autoriser le port
-sudo firewall-cmd --permanent --add-port=21025/tcp
+- **Le script actuel n'installe pas d'outil Backblaze** : il installe et démarre Syncthing (service `syncthing@root`, ports 8384, 22000 et 21027), copie du script `syncthing`. Il ne doit pas être utilisé pour cette procédure ; suivre l'installation manuelle ci-dessus.
+- Le script utilise `apt-key`, retiré des versions récentes de Debian et Ubuntu.
+- Activer la **gestion des versions** (lifecycle) du bucket B2 permet de récupérer un fichier supprimé ou écrasé par erreur.
+- Pour chiffrer les données avant l'envoi, ajouter un stockage rclone de type `crypt` au-dessus de `b2:`.
 
-# Recharger
-sudo firewall-cmd --reload
-```
+## Sources
 
-## Dépannage
-
-### Problèmes courants
-
-#### Le service ne démarre pas
-```bash
-# Vérifier les erreurs
-sudo journalctl -u syncthing@root -n 50
-
-# Vérifier la version
-syncthing --version
-
-# Redémarrer
-sudo systemctl restart syncthing@root
-
-# Permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/backblaze_sync/
-```
-
-#### Port déjà utilisé
-```bash
-# Identifier le processus
-sudo ss -tlnp | grep :21025
-
-# Ou
-sudo lsof -i :21025
-
-# Tuer le processus
-sudo kill -9 PID
-
-# Redémarrer
-sudo systemctl restart syncthing@root
-```
-
-#### Permissions insuffisantes
-```bash
-# Ajouter au groupe
-sudo usermod -aG syncthing $USER
-
-# Permissions
-sudo chown -R syncthing:syncthing /var/lib/backblaze_sync/
-
-# Reconnexion
-exit
-```
-
-#### Firewall bloque l'accès
-```bash
-# Vérifier
-sudo ufw status
-
-# Autoriser
-sudo ufw allow 21025/tcp
-
-# Tester
-curl -v http://localhost:8384
-```
-
-### Vérification des logs système
-```bash
-# Debian/Ubuntu
-tail -f /var/log/syslog
-
-# RedHat/Fedora
-tail -f /var/log/messages
-
-# Logs applicatifs
-tail -f /var/log/backblaze_sync/*.log
-```
-
-### Réinitialisation complète
-```bash
-# Stop
-sudo systemctl stop syncthing@root
-
-# Disable
-sudo systemctl disable syncthing@root
-
-# Suppression
-sudo rm -rf /opt/backblaze_sync
-sudo rm -rf /var/lib/backblaze_sync
-sudo rm -rf /etc/backblaze_sync
-
-# Service
-sudo rm /etc/systemd/system/syncthing@root.service
-sudo systemctl daemon-reload
-
-# Réinstallation
-bash install_backblaze_sync.sh
-```
-
-## Documentation officielle
-
-- Site officiel : https://syncthing.net/
-- Documentation : https://docs.syncthing.net/
-- GitHub : https://github.com/syncthing/syncthing
-
-## Notes supplémentaires
-
-### Sécurité
-1. Utiliser HTTPS en production
-2. Configurer le firewall correctement
-3. Utiliser des mots de passe forts
-4. Mettre à jour régulièrement
-5. Faire des sauvegardes
-6. Limiter les accès
-7. Utiliser des certificats SSL valides
-
-### Optimisation
-1. Limiter les ressources
-2. Ajuster le cache
-3. Utiliser un load balancer
-4. Surveiller les métriques
-5. Optimiser le stockage
-
-### Sauvegarde
-```bash
-# Sauvegarde
-sudo tar -czf backup-backblaze_sync-$(date +%Y%m%d).tar.gz /var/lib/backblaze_sync/
-
-# Restauration
-sudo tar -xzf backup-backblaze_sync-YYYYMMDD.tar.gz -C /
-```
-
-### Mise à jour
-```bash
-# Vérifier
-apt list --upgradable
-
-# Mettre à jour
-sudo apt upgrade backblaze_sync
-
-# Redémarrer
-sudo systemctl restart syncthing@root
-```
-
-### Restauration configuration
-```bash
-# Backup
-sudo cp /etc/backblaze_sync/config /etc/backblaze_sync/config.bak
-
-# Réinstallation
-sudo apt install --reinstall backblaze_sync
-```
-
-## Intégrations possibles
-- Nginx / Apache / HAProxy
-- Prometheus / Grafana
-- ELK / Loki
-- Docker / Kubernetes
-
----
-
-**Dernière mise à jour** : 03/05/2026  
-**Version du script** : 1.0  
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)  
-**Statut** : Production Ready ✅
+- [rclone — Backblaze B2](https://rclone.org/b2/)
+- [Backblaze B2 — documentation](https://www.backblaze.com/docs/cloud-storage)

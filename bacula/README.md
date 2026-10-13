@@ -1,104 +1,125 @@
-# Installation de Bacula
+# Bacula — procédure d'installation
 
 ## Description
-Bacula est un système de sauvegarde d'entreprise permettant de gérer la sauvegarde, la restauration et la vérification des données sur un réseau.
+
+Bacula est une solution de sauvegarde réseau d'entreprise. Un **Director** orchestre les travaux, un **Storage Daemon** écrit les sauvegardes sur disque ou bande, et un **File Daemon** installé sur chaque machine envoie les fichiers. Cette procédure installe les trois composants et la console sur un même serveur Debian.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu |
+| **Méthode** | Paquets de la distribution |
+| **Ports** | 9101 (Director), 9102 (File Daemon), 9103 (Storage Daemon) |
+| **Script** | `install_bacula.sh` |
 
 ## Prérequis
-- Système d'exploitation : Ubuntu/Debian Linux (ou autre distribution compatible)
-- Accès : root ou sudo
-- Connexion Internet
 
-## Installation
+- Un accès root et une connexion Internet.
+- Un disque ou une partition dédiée aux sauvegardes (ici `/bacula/backup`).
 
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-bash install_bacula.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/bacula
+sudo bash install_bacula.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Lire les points d'attention : le script ne démarre pas les bons services.
 
-#### 1. Mise à jour du système
+## Installation manuelle
+
+### 1. Installer les composants
+
 ```bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update
+sudo apt install -y bacula-director bacula-sd bacula-fd bacula-console bacula-director-mysql mariadb-server
 ```
 
-#### 2. Installation de Bacula
+Pendant l'installation, accepter la configuration de la base avec **dbconfig-common** : elle crée la base du catalogue Bacula.
+
+### 2. Préparer le dossier de sauvegarde
+
 ```bash
-sudo apt install bacula -y
+sudo mkdir -p /bacula/backup
+sudo chown -R bacula:bacula /bacula
 ```
 
-#### 3. Installation des composants principaux (optionnel selon besoin)
-```bash
-sudo apt install bacula-director bacula-console bacula-client bacula-storage -y
+### 3. Pointer le Storage Daemon vers ce dossier
+
+Dans `/etc/bacula/bacula-sd.conf`, bloc `Device` :
+
+```conf
+Device {
+  Name = FileStorage
+  Media Type = File
+  Archive Device = /bacula/backup
+  LabelMedia = yes
+  Random Access = yes
+  AutomaticMount = yes
+  RemovableMedia = no
+  AlwaysOpen = no
+}
 ```
 
-#### 4. Configuration de la base de données (MySQL/MariaDB)
+### 4. Définir ce qu'on sauvegarde
+
+Dans `/etc/bacula/bacula-dir.conf`, adapter le `FileSet` (dossiers à inclure ou exclure) et le `Job` de sauvegarde. Vérifier ensuite la syntaxe :
+
 ```bash
-sudo apt install mysql-server -y
-sudo mysql_secure_installation
+sudo bacula-dir -t -c /etc/bacula/bacula-dir.conf
+sudo bacula-sd -t -c /etc/bacula/bacula-sd.conf
+sudo bacula-fd -t -c /etc/bacula/bacula-fd.conf
 ```
 
-Configurer la base lors de l'installation ou manuellement selon votre architecture.
+### 5. Démarrer les services
 
-#### 5. Activation et démarrage des services
 ```bash
-sudo systemctl enable bacula-director
-sudo systemctl enable bacula-sd
-sudo systemctl enable bacula-fd
-
-sudo systemctl start bacula-director
-sudo systemctl start bacula-sd
-sudo systemctl start bacula-fd
+sudo systemctl enable --now bacula-director bacula-sd bacula-fd
 ```
 
-## Configuration
+### 6. Lancer une sauvegarde de test
 
-### Fichiers principaux
-- `/etc/bacula/bacula-dir.conf` — configuration du Director
-- `/etc/bacula/bacula-sd.conf` — Storage Daemon
-- `/etc/bacula/bacula-fd.conf` — File Daemon
-
-### Configuration de base
-- Définir les clients à sauvegarder
-- Configurer les jobs de sauvegarde
-- Définir les volumes et pools
-- Configurer les mots de passe entre les composants
-
-Redémarrer les services après modification :
 ```bash
-sudo systemctl restart bacula-director
-sudo systemctl restart bacula-sd
-sudo systemctl restart bacula-fd
+sudo bconsole
+```
+
+```text
+*label            (créer un volume, par ex. Vol-0001)
+*run              (choisir le job, puis « yes »)
+*status director
+*messages
 ```
 
 ## Vérification
 
 ```bash
-# Vérifier les services
-sudo systemctl status bacula-director
-sudo systemctl status bacula-sd
-sudo systemctl status bacula-fd
-
-# Accéder à la console Bacula
-sudo bconsole
+systemctl status bacula-director bacula-sd bacula-fd
+ss -tlnp | grep -E ':910[123]'
+ls -lh /bacula/backup
 ```
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/bacula/bacula-dir.conf` | Director : jobs, planifications, clients, catalogue |
+| `/etc/bacula/bacula-sd.conf` | Storage Daemon : emplacement des volumes |
+| `/etc/bacula/bacula-fd.conf` | File Daemon (client) |
+| `/etc/bacula/bconsole.conf` | Console d'administration |
+| `/var/log/bacula/` | Journaux |
 
 ## Dépannage
 
-```bash
-# Logs Director
-sudo tail -f /var/log/bacula/bacula.log
+- Mots de passe : chaque composant s'authentifie auprès des autres. Les mots de passe des fichiers `bacula-dir.conf`, `bacula-sd.conf` et `bacula-fd.conf` doivent correspondre deux à deux.
+- Journaux : `journalctl -u bacula-director` et `/var/log/bacula/bacula.log`.
 
-# Vérifier la configuration
-sudo bacula-dir -t -c /etc/bacula/bacula-dir.conf
-```
+## Points d'attention
 
-## Documentation
-- Site officiel : https://www.bacula.org/
-- Documentation : https://www.bacula.org/documentation/
+- Le script installe les paquets **Bacula**, mais active les services `bareos-dir` et `bareos-sd`, qui appartiennent à **Bareos** (un autre logiciel, dérivé de Bacula). Ces services n'existent pas : le script s'arrête en erreur. Les bons noms sont `bacula-director` et `bacula-sd`.
+- Le paquet `bacula-storage` installé par le script n'existe pas sous ce nom sur Debian : c'est `bacula-sd`.
+- Pour sauvegarder d'autres machines, installer seulement `bacula-fd` sur chacune et la déclarer comme `Client` dans `bacula-dir.conf`.
 
-## Notes
-- Bacula nécessite une configuration précise pour fonctionner correctement
-- Pensez à tester régulièrement vos restaurations
-- Sécurisez les accès entre les composants
+## Sources
+
+- [Documentation Bacula](https://www.bacula.org/documentation/documentation/)
+- [Bacula sur Debian (wiki)](https://wiki.debian.org/Bacula)

@@ -1,338 +1,126 @@
-# Installation de seaweedfs
+# SeaweedFS — procédure d'installation
 
 ## Description
 
-Seaweed FS - Distributed object storage
+SeaweedFS est un système de stockage distribué libre (licence Apache 2.0), rapide pour un très grand nombre de fichiers. Il propose un système de fichiers (*filer*) et une **API compatible Amazon S3**, ce qui en fait une alternative libre à MinIO pour les sauvegardes et les applications qui parlent S3. Cette procédure installe un nœud unique regroupant tous les composants.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Linux 64 bits avec systemd |
+| **Méthode** | Binaire officiel `weed` (GitHub), version 4.48 |
+| **Ports** | 9333 (master), 8080 (volume), 8888 (filer), 8333 (API S3) |
+| **Script** | `install_seaweedfs.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un disque ou une partition pour les données (ici `/var/lib/seaweedfs`).
+- Un accès root et une connexion Internet.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/seaweedfs
+sudo bash install_seaweedfs.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_seaweedfs.sh
+Lire les points d'attention : le script ne démarre que le maître, qui ne peut rien stocker seul.
 
-# 2. Exécutez le script d'installation
-bash install_seaweedfs.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer le binaire
 
-### Étapes Manuelles Détaillées
+```bash
+cd /tmp
+wget https://github.com/seaweedfs/seaweedfs/releases/download/4.48/linux_amd64.tar.gz
+tar -xzf linux_amd64.tar.gz
+sudo mv weed /usr/local/bin/
+weed version
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Créer l'utilisateur et le dossier de données
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+sudo useradd -r -s /usr/sbin/nologin seaweedfs
+sudo mkdir -p /var/lib/seaweedfs /etc/seaweedfs
+sudo chown seaweedfs:seaweedfs /var/lib/seaweedfs
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+### 3. Définir les identifiants S3
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+`/etc/seaweedfs/s3.json` :
 
-## Services Installés
+```json
+{
+  "identities": [
+    {
+      "name": "admin",
+      "credentials": [{ "accessKey": "admin", "secretKey": "UneCleSecreteLongue" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
+```
 
-Les services suivants seront créés et activés :
-- **seaweedfs-master** - Service système avec démarrage automatique
+```bash
+sudo chown root:seaweedfs /etc/seaweedfs/s3.json
+sudo chmod 640 /etc/seaweedfs/s3.json
+```
 
-## Ports Requis
+### 4. Créer le service (tous les composants sur un nœud)
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+`/etc/systemd/system/seaweedfs.service` :
 
-| 9333 | tcp | Application |
-## Configuration
+```ini
+[Unit]
+Description=SeaweedFS
+After=network.target
 
-### Configuration de Base
+[Service]
+User=seaweedfs
+Group=seaweedfs
+ExecStart=/usr/local/bin/weed server -dir=/var/lib/seaweedfs -ip=192.168.1.70 -filer -s3 -s3.config=/etc/seaweedfs/s3.json
+Restart=on-failure
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/seaweedfs/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/seaweedfs/ - Données de l'application
-- /var/log/seaweedfs/ - Logs de l'application
+[Install]
+WantedBy=multi-user.target
+```
 
-### Configuration Avancée
+Remplacer `192.168.1.70` par l'adresse du serveur.
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status seaweedfs-master
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 9333/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=9333/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
-
-## Dépannage
-
-### Problèmes Courants
-
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
-
-# Vérifier la syntaxe de configuration
-sudo True --version
-
-# Redémarrer le service
-sudo systemctl restart True
-
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/seaweedfs/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/seaweedfs/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/seaweedfs/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/seaweedfs
-sudo rm -rf /var/lib/seaweedfs
-sudo rm -rf /etc/seaweedfs
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
+```bash
 sudo systemctl daemon-reload
+sudo systemctl enable --now seaweedfs
+sudo ufw allow from 192.168.1.0/24 to any port 8333 proto tcp
+```
 
-# 5. Réexécutez le script d'installation
-bash install_seaweedfs.sh
-`
+### 5. Utiliser l'API S3
 
-## Documentation Officielle
+```bash
+aws configure set aws_access_key_id admin
+aws configure set aws_secret_access_key UneCleSecreteLongue
+aws --endpoint-url http://192.168.1.70:8333 s3 mb s3://sauvegardes
+aws --endpoint-url http://192.168.1.70:8333 s3 cp fichier.tar.gz s3://sauvegardes/
+aws --endpoint-url http://192.168.1.70:8333 s3 ls s3://sauvegardes
+```
 
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
+## Vérification
 
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
+```bash
+systemctl status seaweedfs
+curl -s http://localhost:9333/cluster/status
+```
 
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: seaweedfs)
+L'interface du maître (`http://<serveur>:9333`) affiche les volumes, et celle du filer (`http://<serveur>:8888`) les fichiers.
 
-## Notes Supplémentaires
+## Points d'attention
 
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
+- Le script ne démarre que le **maître** (`weed master`), qui gère les métadonnées sans stocker de données : sans serveur de volumes, aucun fichier ne peut être enregistré. Il n'active ni le filer ni l'API S3.
+- Il ne précise pas `-mdir` : le maître écrit ses métadonnées dans `/tmp`, effacé au redémarrage. Il écoute aussi sur `localhost`, ce qui le rend injoignable depuis le réseau.
+- Il installe la version 3.57 ; la version actuelle est la 4.48.
+- Exposée sans identifiants, l'API S3 accepte toutes les requêtes : toujours fournir `-s3.config`.
 
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
+## Sources
 
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-seaweedfs-$(date +%Y%m%d).tar.gz /var/lib/seaweedfs/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-seaweedfs-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade seaweedfs  # Debian/Ubuntu
-sudo dnf upgrade seaweedfs  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/seaweedfs/config /etc/seaweedfs/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall seaweedfs  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract seaweedfs /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Dépôt SeaweedFS](https://github.com/seaweedfs/seaweedfs)
+- [API compatible S3](https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API)

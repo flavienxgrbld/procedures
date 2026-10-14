@@ -22,7 +22,7 @@ wallabag/
 
 ## Philosophie
 
-- **Standalone** : chaque script est indépendant et peut être exécuté seul, sans dépendre des autres dossiers du dépôt.
+- **Bibliothèque commune** : la plupart des scripts téléchargent au démarrage `install_common.sh` (détection de l'OS, gestionnaire de paquets, journalisation dans `/var/log/install_script.log`) depuis le dépôt [`install-scripts`](https://github.com/flavienxgrbld/install-scripts). Une connexion Internet est donc nécessaire. Seuls les scripts `GLPI` et `ZABBIX` sont entièrement autonomes.
 - **Un service = un dossier** : pas de procédure partagée entre plusieurs services, pas de fichier de variables commun.
 - **Environnement variable** : l'OS et les prérequis (Linux Debian/Ubuntu, Docker, etc.) dépendent de chaque service — se référer au README de chaque dossier pour les prérequis exacts.
 
@@ -39,6 +39,20 @@ wallabag/
    ./install_<nom_du_service>.sh
    ```
 
+## Format des procédures
+
+Chaque `README.md` de service suit le même plan :
+
+1. **Description** : rôle du service, puis une fiche récapitulative (systèmes, méthode, ports) ;
+2. **Prérequis** ;
+3. **Installation automatique** avec le script du dossier ;
+4. **Installation manuelle** étape par étape, avec les commandes Debian/Ubuntu ;
+5. **Vérification**, fichiers importants et dépannage ;
+6. **Points d'attention** : limites et défauts connus du script ;
+7. **Sources** officielles.
+
+Les points d'attention ont été établis le 13/10/2026, en relisant chaque script et en vérifiant les URL et paquets utilisés. Plusieurs scripts ne fonctionnent plus en l'état (téléchargements devenus introuvables, dépôts déplacés, configurations incomplètes) : dans ce cas, suivre l'installation manuelle.
+
 ## Avertissement
 
 Ces scripts sont fournis tels quels, à but de documentation et de réutilisation personnelle. Avant toute exécution en production :
@@ -51,9 +65,9 @@ Aucune garantie n'est fournie quant à la compatibilité avec toutes les version
 ## Liste des services couverts
 
 <details>
-<summary>Cliquer pour afficher la liste complète (103 services)</summary>
+<summary>Cliquer pour afficher la liste complète (107 services)</summary>
 
-akaunting, alertmanager, apache, backblaze_sync, bacula, cacti, certbot, discourse, dnsmasq, docker, dokuwiki, dolibarr, drupal, duplicati, elk, emby, erpnext, etherpad, fail2ban, filebrowser, focalboard, ghost, gitea_self_hosted, gitlab_runner, gitlist, gitpod, GLPI, guacamole, haproxy, hashicorp_consul, hashicorp_nomad, home_assistant, hurl, hyperledger_fabric, immich, influxdb, invoice_ninja, jellyfin, jenkins, jitsi_meet, keycloak, kodi, landscape, localstack, loki, luajit, lxd, mastodon, MATOMO, matrix_synapse, mattermost_enhanced, mediawiki, meilisearch, minio, mongodb, moodle, mosquitto, netdata, nextcloud_talk, nginx, nginx_ui, node_red, ntopng, odoo, OPEN WEB ANALYTICS, openhab, openvpn, openwrt, outline, owncloud, paperless_ngx, penpot, pihole, PLAUSIBLE, plex, portainer, postgresql, prometheus, PROXMOX, rclone, redis, requestbin, restic, rocketchat, rustdesk, rustlings, seafile, seaweedfs, sentry, sonarqube, strapi, syncthing, taiga, tig_stack, typesense, uptime_kuma, vault, vaultwarden, wallabag, wireguard, woodpecker_ci, ZABBIX, zulip
+akaunting, alertmanager, apache, artica, backblaze_sync, bacula, cacti, certbot, discourse, dnsmasq, docker, dokuwiki, dolibarr, drupal, duplicati, elk, emby, erpnext, etherpad, fail2ban, filebrowser, focalboard, fog_project, ghost, gitea_self_hosted, gitlab_runner, gitlist, gitpod, GLPI, guacamole, haproxy, hashicorp_consul, hashicorp_nomad, home_assistant, hurl, hyperledger_fabric, immich, influxdb, invoice_ninja, jellyfin, jenkins, jitsi_meet, keycloak, kodi, landscape, localstack, loki, luajit, lxd, mastodon, MATOMO, matrix_synapse, mattermost_enhanced, mediawiki, meilisearch, minio, mongodb, moodle, mosquitto, netdata, nextcloud_talk, nginx, nginx_ui, node_red, ntopng, odoo, OPEN WEB ANALYTICS, openhab, openvpn, openwrt, outline, owncloud, paperless_ngx, penpot, pihole, PLAUSIBLE, plex, portainer, postgresql, prometheus, PROXMOX, rclone, redis, requestbin, restic, rocketchat, rustdesk, rustlings, samba, seafile, seaweedfs, sentry, sonarqube, strapi, syncthing, taiga, tig_stack, typesense, uptime_kuma, vault, vaultwarden, wallabag, wireguard, woodpecker_ci, xivo, ZABBIX, zulip
 
 </details>
 

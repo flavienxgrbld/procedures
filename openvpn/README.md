@@ -1,338 +1,182 @@
-# Installation de openvpn
+# OpenVPN — procédure d'installation
 
 ## Description
 
-OpenVPN - Serveur VPN
+OpenVPN est un logiciel libre de réseau privé virtuel (VPN) : il crée un tunnel chiffré entre des postes distants (nomades, télétravailleurs) et le réseau de l'entreprise. L'authentification repose sur une autorité de certification (PKI) gérée avec easy-rsa. Cette procédure installe un serveur OpenVPN en mode routé et crée un premier client.
 
-### Type
-Serveur Web
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu |
+| **Méthode** | Paquets `openvpn` et `easy-rsa` |
+| **Réseau VPN** | `10.8.0.0/24` |
+| **Ports** | 1194/udp |
+| **Script** | `install_openvpn.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un serveur avec une adresse IP fixe, joignable depuis Internet sur le port 1194/udp (redirection de port sur la box ou le pare-feu).
+- Le réseau local à rendre accessible (ici `192.168.1.0/24`).
+- Un accès root.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/openvpn
+sudo bash install_openvpn.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_openvpn.sh
+Lire les points d'attention : le script s'arrête dès la copie d'easy-rsa et attend des réponses au clavier.
 
-# 2. Exécutez le script d'installation
-bash install_openvpn.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer les paquets
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y openvpn easy-rsa
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Créer l'autorité de certification et le certificat du serveur
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+make-cadir ~/pki-vpn
+cd ~/pki-vpn
+./easyrsa init-pki
+./easyrsa build-ca nopass          # nom de l'autorité : ex. « CA-VPN-Labo »
+./easyrsa build-server-full serveur nopass
+./easyrsa gen-dh
+openvpn --genkey secret ta.key
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+`build-server-full` crée et signe le certificat du serveur ; confirmer avec `yes`.
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+### 3. Copier les fichiers du serveur
 
-## Services Installés
+```bash
+sudo mkdir -p /etc/openvpn/server
+sudo cp pki/ca.crt pki/issued/serveur.crt pki/private/serveur.key pki/dh.pem ta.key /etc/openvpn/server/
+```
 
-Les services suivants seront créés et activés :
-- **openvpn@server** - Service système avec démarrage automatique
+### 4. Écrire la configuration du serveur
 
-## Ports Requis
+`/etc/openvpn/server/server.conf` :
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+```conf
+port 1194
+proto udp
+dev tun
 
-| 1194 | udp | Application |
-## Configuration
+ca ca.crt
+cert serveur.crt
+key serveur.key
+dh dh.pem
+tls-crypt ta.key
 
-### Configuration de Base
+server 10.8.0.0 255.255.255.0
+push "route 192.168.1.0 255.255.255.0"
+push "dhcp-option DNS 192.168.1.1"
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/openvpn/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/openvpn/ - Données de l'application
-- /var/log/openvpn/ - Logs de l'application
+keepalive 10 120
+data-ciphers AES-256-GCM:AES-128-GCM
+user nobody
+group nogroup
+persist-key
+persist-tun
+status /var/log/openvpn/status.log
+verb 3
+```
 
-### Configuration Avancée
+Pour faire passer **tout** le trafic des clients par le VPN, remplacer la route poussée par `push "redirect-gateway def1"`.
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+### 5. Activer le routage et la traduction d'adresses
 
-## Vérification de l'Installation
+```bash
+echo 'net.ipv4.ip_forward=1' | sudo tee /etc/sysctl.d/99-vpn.conf
+sudo sysctl --system
+```
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+Si les machines du réseau local n'ont pas de route vers `10.8.0.0/24`, masquer les clients VPN derrière l'adresse du serveur (remplacer `eth0` par l'interface du réseau local) :
 
-# Vérifier les services spécifiques
-systemctl status openvpn@server
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
+```bash
+sudo iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+sudo apt install -y iptables-persistent
+```
 
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
+### 6. Démarrer le serveur
 
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
+sudo mkdir -p /var/log/openvpn
+sudo systemctl enable --now openvpn-server@server
 sudo ufw allow 1194/udp
-# Vérifier les règles
-sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=1194/udp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+### 7. Créer un client
+
+```bash
+cd ~/pki-vpn
+./easyrsa build-client-full alice nopass
+```
+
+Assembler le fichier `alice.ovpn` :
+
+```bash
+{
+cat <<EOF
+client
+dev tun
+proto udp
+remote vpn.exemple.fr 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+data-ciphers AES-256-GCM:AES-128-GCM
+verb 3
+EOF
+echo "<ca>";        cat pki/ca.crt;                 echo "</ca>"
+echo "<cert>";      sed -n '/BEGIN/,/END/p' pki/issued/alice.crt; echo "</cert>"
+echo "<key>";       cat pki/private/alice.key;      echo "</key>"
+echo "<tls-crypt>"; cat ta.key;                     echo "</tls-crypt>"
+} > alice.ovpn
+```
+
+Transmettre `alice.ovpn` par un canal sûr, puis l'importer dans le client OpenVPN (OpenVPN Connect, ou `network-manager-openvpn` sous Linux).
+
+### 8. Révoquer un client
+
+```bash
+./easyrsa revoke alice
+./easyrsa gen-crl
+sudo cp pki/crl.pem /etc/openvpn/server/
+echo "crl-verify crl.pem" | sudo tee -a /etc/openvpn/server/server.conf
+sudo systemctl restart openvpn-server@server
+```
+
+## Vérification
+
+```bash
+systemctl status openvpn-server@server
+ip addr show tun0
+sudo cat /var/log/openvpn/status.log
+```
+
+Depuis le client connecté : `ping 10.8.0.1`, puis une machine du réseau local.
 
 ## Dépannage
 
-### Problèmes Courants
+- **Connexion qui expire** : le port 1194/udp n'est pas redirigé ou bloqué par un pare-feu.
+- **VPN connecté mais réseau local injoignable** : routage désactivé (`sysctl net.ipv4.ip_forward`) ou règle NAT absente.
+- Journal : `journalctl -u openvpn-server@server -f`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script copie `/usr/share/easy-rsa/*` avec `cp` sans `-r`. Ce dossier contient un sous-dossier (`x509-types`) : `cp` échoue et le script s'arrête.
+- Même corrigé, `build-ca` et `sign-req` attendent des réponses au clavier (nom de l'autorité, confirmation `yes`). Le script ne génère aucun fichier client, n'active pas le routage IP et ne pousse que la route du réseau VPN lui-même, ce qui ne donne accès à rien.
+- La PKI (en particulier `pki/private/ca.key`) permet de créer de nouveaux accès : la garder hors du serveur VPN ou la protéger par un mot de passe (sans `nopass`).
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/openvpn/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/openvpn/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/openvpn/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/openvpn
-sudo rm -rf /var/lib/openvpn
-sudo rm -rf /etc/openvpn
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_openvpn.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: openvpn)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-openvpn-$(date +%Y%m%d).tar.gz /var/lib/openvpn/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-openvpn-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade openvpn  # Debian/Ubuntu
-sudo dnf upgrade openvpn  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/openvpn/config /etc/openvpn/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall openvpn  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract openvpn /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Documentation OpenVPN 2.6](https://openvpn.net/community-resources/reference-manual-for-openvpn-2-6/)
+- [Documentation easy-rsa](https://easy-rsa.readthedocs.io/)

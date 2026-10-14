@@ -1,338 +1,111 @@
-# Installation de mosquitto
+# Mosquitto — procédure d'installation
 
 ## Description
 
-Mosquitto - Broker MQTT pour IoT
+Eclipse Mosquitto est un courtier (*broker*) MQTT léger : les objets connectés, capteurs et applications publient des messages sur des sujets (*topics*), et le courtier les distribue à ceux qui y sont abonnés. Il est très utilisé en domotique et en IoT, par exemple avec Home Assistant ou Node-RED. Cette procédure l'installe avec authentification par mot de passe.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, RHEL/Fedora, openSUSE, Arch |
+| **Méthode** | Paquets de la distribution |
+| **Ports** | 1883/tcp (MQTT), 9001/tcp (MQTT sur WebSocket, optionnel) |
+| **Script** | `install_mosquitto.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/mosquitto
+sudo bash install_mosquitto.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_mosquitto.sh
+Lire les points d'attention : avec la configuration du script, aucun client ne peut se connecter.
 
-# 2. Exécutez le script d'installation
-bash install_mosquitto.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer le courtier et les clients
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y mosquitto mosquitto-clients
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Créer les comptes
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+sudo mosquitto_passwd -c /etc/mosquitto/passwd domotique
+sudo mosquitto_passwd /etc/mosquitto/passwd capteur1
+sudo chown root:mosquitto /etc/mosquitto/passwd
+sudo chmod 640 /etc/mosquitto/passwd
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+L'option `-c` crée le fichier : ne l'utiliser que pour le premier compte.
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+### 3. Configurer les ports d'écoute
 
-## Services Installés
+Laisser `/etc/mosquitto/mosquitto.conf` d'origine et créer `/etc/mosquitto/conf.d/local.conf` :
 
-Les services suivants seront créés et activés :
-- **mosquitto** - Service système avec démarrage automatique
+```conf
+listener 1883
+allow_anonymous false
+password_file /etc/mosquitto/passwd
 
-## Ports Requis
+# Optionnel : MQTT sur WebSocket pour les applications web
+listener 9001
+protocol websockets
+```
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+`allow_anonymous` et `password_file` s'appliquent à tous les ports d'écoute.
 
-| 9001 | tcp | Application |
-## Configuration
+### 4. Redémarrer et ouvrir le pare-feu
 
-### Configuration de Base
+```bash
+sudo systemctl enable mosquitto
+sudo systemctl restart mosquitto
+sudo ufw allow from 192.168.1.0/24 to any port 1883 proto tcp
+```
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/mosquitto/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/mosquitto/ - Données de l'application
-- /var/log/mosquitto/ - Logs de l'application
+## Vérification
 
-### Configuration Avancée
+Dans un premier terminal, s'abonner :
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+```bash
+mosquitto_sub -h localhost -u domotique -P 'MotDePasse' -t 'maison/#' -v
+```
 
-## Vérification de l'Installation
+Dans un second, publier :
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+```bash
+mosquitto_pub -h localhost -u capteur1 -P 'MotDePasse' -t 'maison/salon/temperature' -m '21.5'
+```
 
-# Vérifier les services spécifiques
-systemctl status mosquitto
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
+Le message `maison/salon/temperature 21.5` doit apparaître dans le premier terminal.
 
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
+## Fichiers importants
 
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 9001/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=9001/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+| Chemin | Rôle |
+|---|---|
+| `/etc/mosquitto/mosquitto.conf` | Configuration principale (inclut `conf.d/`) |
+| `/etc/mosquitto/conf.d/` | Configuration locale |
+| `/etc/mosquitto/passwd` | Comptes (mots de passe chiffrés) |
+| `/var/log/mosquitto/mosquitto.log` | Journal |
 
 ## Dépannage
 
-### Problèmes Courants
+- **« Connection Refused: not authorised »** : identifiants erronés, ou `allow_anonymous false` sans compte.
+- Journal en direct : `sudo tail -f /var/log/mosquitto/mosquitto.log`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Depuis Mosquitto 2.0, un port déclaré avec `listener` refuse les clients anonymes tant que `allow_anonymous true` ou un `password_file` n'est pas configuré. La configuration du script ne définit ni l'un ni l'autre : toutes les connexions sont refusées.
+- Le script remplace tout `mosquitto.conf`, ce qui supprime l'inclusion de `/etc/mosquitto/conf.d/`, et donne la propriété de `/etc/mosquitto` à l'utilisateur du service.
+- Sur Internet, utiliser MQTT chiffré (port 8883 avec certificat TLS) plutôt que le port 1883 en clair.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/mosquitto/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/mosquitto/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/mosquitto/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/mosquitto
-sudo rm -rf /var/lib/mosquitto
-sudo rm -rf /etc/mosquitto
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_mosquitto.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: mosquitto)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-mosquitto-$(date +%Y%m%d).tar.gz /var/lib/mosquitto/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-mosquitto-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade mosquitto  # Debian/Ubuntu
-sudo dnf upgrade mosquitto  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/mosquitto/config /etc/mosquitto/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall mosquitto  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract mosquitto /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Documentation Mosquitto](https://mosquitto.org/documentation/)
+- [Méthodes d'authentification](https://mosquitto.org/documentation/authentication-methods/)

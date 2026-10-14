@@ -1,338 +1,109 @@
-# Installation de home_assistant
+# Home Assistant — procédure d'installation
 
 ## Description
 
-Home Assistant - Plateforme domotique
+Home Assistant est une plateforme domotique libre qui centralise et automatise les objets connectés de la maison (éclairage, chauffage, capteurs, caméras), localement, sans dépendre d'un service en ligne. Cette procédure l'installe en conteneur Docker, l'une des méthodes officiellement prises en charge.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Image officielle `ghcr.io/home-assistant/home-assistant` |
+| **Dossier** | `/opt/homeassistant` |
+| **Ports** | 8123/tcp |
+| **Script** | `install_home_assistant.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Docker installé (voir la procédure `docker`).
+- 2 Go de RAM au minimum.
+- Pour une installation dédiée avec gestion des modules complémentaires (*add-ons*), préférer **Home Assistant OS** en machine virtuelle (image disponible pour Proxmox, VirtualBox, VMware).
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/home_assistant
+sudo bash install_home_assistant.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_home_assistant.sh
+Lire les points d'attention : la méthode du script ne fonctionne plus sur les distributions récentes.
 
-# 2. Exécutez le script d'installation
-bash install_home_assistant.sh
+## Installation manuelle (conteneur)
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Créer le dossier de configuration
 
-### Étapes Manuelles Détaillées
+```bash
+sudo mkdir -p /opt/homeassistant/config
+cd /opt/homeassistant
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Décrire le service
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+`/opt/homeassistant/compose.yaml` :
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+```yaml
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      TZ: Europe/Paris
+    volumes:
+      - ./config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+```
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+Le mode réseau `host` permet à Home Assistant de découvrir les appareils du réseau local (mDNS, UPnP).
 
-## Services Installés
+### 3. Démarrer
 
-Les services suivants seront créés et activés :
-- **homeassistant** - Service système avec démarrage automatique
-
-## Ports Requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-
-| 8123 | tcp | Application |
-## Configuration
-
-### Configuration de Base
-
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/home_assistant/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/home_assistant/ - Données de l'application
-- /var/log/home_assistant/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status homeassistant
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
+sudo docker compose up -d
 sudo ufw allow 8123/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=8123/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+### 4. Assistant de démarrage
+
+Ouvrir `http://<adresse-du-serveur>:8123` (une à deux minutes après le premier démarrage), créer le compte propriétaire, indiquer la localisation et le fuseau horaire, puis ajouter les appareils détectés.
+
+## Vérification
+
+```bash
+sudo docker compose ps
+sudo docker compose logs -f homeassistant
+```
+
+## Mise à jour
+
+```bash
+cd /opt/homeassistant
+sudo docker compose pull
+sudo docker compose up -d
+```
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/opt/homeassistant/config/configuration.yaml` | Configuration principale |
+| `/opt/homeassistant/config/` | Automatisations, base de données, sauvegardes |
 
 ## Dépannage
 
-### Problèmes Courants
+- Appareils non découverts : vérifier `network_mode: host` et que le serveur est sur le même réseau que les appareils.
+- Clé USB Zigbee/Z-Wave : la passer au conteneur avec `devices: ["/dev/ttyUSB0:/dev/ttyUSB0"]`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script installe Home Assistant avec `pip3 install homeassistant` dans le Python du système. Sur Debian 12 et Ubuntu 23.04 et plus récents, cette commande est refusée (« externally-managed-environment »). De plus, Home Assistant exige une version très récente de Python, rarement celle de la distribution.
+- Le service du script tourne en `root`, ce que la documentation déconseille.
+- La méthode *Core* (installation Python manuelle) n'est plus prise en charge par le projet : les méthodes conseillées sont Home Assistant OS et le conteneur.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/home_assistant/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/home_assistant/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/home_assistant/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/home_assistant
-sudo rm -rf /var/lib/home_assistant
-sudo rm -rf /etc/home_assistant
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_home_assistant.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: home_assistant)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-home_assistant-$(date +%Y%m%d).tar.gz /var/lib/home_assistant/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-home_assistant-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade home_assistant  # Debian/Ubuntu
-sudo dnf upgrade home_assistant  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/home_assistant/config /etc/home_assistant/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall home_assistant  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract home_assistant /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready ✅
+- [Installer Home Assistant sur Linux](https://www.home-assistant.io/installation/linux)
+- [Documentation Home Assistant](https://www.home-assistant.io/docs/)

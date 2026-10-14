@@ -1,181 +1,144 @@
-# Installation d'Akaunting
+# Akaunting — procédure d'installation
 
 ## Description
-Akaunting est un logiciel de comptabilité open source gratuit permettant de gérer les finances d'une entreprise. Il offre des fonctionnalités telles que la facturation, la gestion des dépenses, les rapports financiers, etc.
+
+Akaunting est un logiciel de comptabilité en ligne, libre et auto-hébergé, destiné aux petites entreprises et aux indépendants (factures, dépenses, clients, rapports). Cette procédure l'installe sur une pile Apache, PHP 8.1 et MariaDB.
+
+| | |
+|---|---|
+| **Systèmes** | Debian 11+ / Ubuntu 20.04+ (dnf, zypper et pacman gérés par la bibliothèque commune) |
+| **Méthode** | Code source depuis GitHub + Composer |
+| **Dossier** | `/var/www/akaunting` |
+| **Ports** | 80/tcp (HTTP) |
+| **Script** | `install_akaunting.sh` |
 
 ## Prérequis
-- Système d'exploitation : Ubuntu/Debian Linux (ou autres distributions compatibles)
-- Accès : root ou sudo
-- Connexion Internet pour télécharger les dépendances
-- Espace disque : au moins 1 Go d'espace libre
-- Mémoire : au moins 512 Mo de RAM
 
-## Installation
+- Une machine Debian ou Ubuntu à jour, avec un accès root (`sudo`).
+- Une connexion Internet : le script télécharge sa bibliothèque commune, PHP, Composer et le code d'Akaunting.
+- 2 Go de RAM conseillés (Composer est gourmand pendant l'installation).
 
-### Méthode automatique (recommandée)
-Exécutez le script d'installation fourni :
+## Installation automatique
 
 ```bash
-bash install_akaunting.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/akaunting
+sudo bash install_akaunting.sh
 ```
 
-### Installation manuelle (étapes détaillées)
-Si vous préférez installer Akaunting manuellement, suivez les étapes ci-dessous :
+Le script installe PHP 8.1, Apache, MariaDB, Composer, puis récupère Akaunting dans `/var/www/akaunting`. Lire les **points d'attention** avant de l'utiliser : la base de données et le site Apache restent à configurer.
 
-1. **Mise à jour du système**
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   ```
+## Installation manuelle
 
-2. **Installation de PHP 8.1 et des extensions nécessaires**
-   ```bash
-   sudo apt install php8.1 php8.1-cli php8.1-common php8.1-curl php8.1-xml php8.1-zip php8.1-mbstring php8.1-bcmath php8.1-mysql -y
-   ```
+### 1. Mettre le système à jour
 
-3. **Installation du serveur web Apache**
-   ```bash
-   sudo apt install apache2 -y
-   sudo systemctl enable apache2
-   sudo systemctl start apache2
-   ```
+```bash
+sudo apt update && sudo apt upgrade -y
+```
 
-4. **Installation de la base de données (MySQL/MariaDB)**
-   ```bash
-   sudo apt install mysql-server -y
-   sudo systemctl enable mysql
-   sudo systemctl start mysql
-   ```
+### 2. Installer Apache, MariaDB et PHP 8.1
 
-5. **Sécurisation de MySQL (recommandé)**
-   ```bash
-   sudo mysql_secure_installation
-   ```
+Si PHP 8.1 n'est pas dans les dépôts de la distribution, ajouter le dépôt Sury (Debian) ou `ppa:ondrej/php` (Ubuntu), comme le fait le script.
 
-6. **Installation de Composer**
-   ```bash
-   curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-   ```
+```bash
+sudo apt install -y apache2 mariadb-server git unzip
+sudo apt install -y php8.1 php8.1-cli php8.1-common php8.1-mysql php8.1-zip php8.1-gd \
+  php8.1-mbstring php8.1-curl php8.1-xml php8.1-bcmath php8.1-intl libapache2-mod-php8.1
+```
 
-7. **Installation de Git (si nécessaire)**
-   ```bash
-   sudo apt install git -y
-   ```
+### 3. Créer la base de données
 
-8. **Téléchargement d'Akaunting**
-   ```bash
-   cd /var/www
-   sudo git clone https://github.com/akaunting/akaunting.git
-   cd akaunting
-   ```
+```bash
+sudo mysql_secure_installation
+sudo mysql -u root -p
+```
 
-9. **Installation des dépendances PHP**
-   ```bash
-   composer install --no-dev --optimize-autoloader
-   ```
+```sql
+CREATE DATABASE akaunting CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'akaunting'@'localhost' IDENTIFIED BY 'MotDePasseFort';
+GRANT ALL PRIVILEGES ON akaunting.* TO 'akaunting'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
 
-10. **Configuration de l'application**
-    ```bash
-    cp .env.example .env
-    php artisan key:generate
-    php artisan storage:link
-    ```
+### 4. Installer Composer
 
-11. **Configuration de la base de données**
-    Modifiez le fichier `.env` :
-    ```bash
-    nano .env
-    ```
-    Renseignez :
-    ```
-    DB_DATABASE=akaunting
-    DB_USERNAME=utilisateur
-    DB_PASSWORD=motdepasse
-    ```
+```bash
+curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
+```
 
-    Puis lancez :
-    ```bash
-    php artisan migrate --force
-    ```
+### 5. Récupérer Akaunting et ses dépendances
 
-12. **Permissions**
-    ```bash
-    sudo chown -R www-data:www-data /var/www/akaunting
-    sudo chmod -R 775 storage bootstrap/cache
-    ```
+```bash
+cd /var/www
+sudo git clone https://github.com/akaunting/akaunting.git
+cd akaunting
+sudo composer install --no-dev
+sudo php artisan storage:link
+sudo chown -R www-data:www-data /var/www/akaunting
+```
 
-## Configuration
-
-Après l'installation, configurez Akaunting via l'interface web :
-
-1. Accédez à : `http://votre-serveur/akaunting`
-2. Suivez l'assistant d'installation pour configurer la base de données et créer un compte administrateur
-
-### Configuration Apache (si nécessaire)
-
-Créez un fichier de configuration :
+### 6. Créer le site Apache
 
 ```bash
 sudo nano /etc/apache2/sites-available/akaunting.conf
 ```
 
-Contenu :
-
-```
+```apache
 <VirtualHost *:80>
-    ServerName votre-domaine.com
-    DocumentRoot /var/www/akaunting/public
+    ServerName compta.exemple.local
+    DocumentRoot /var/www/akaunting
 
-    <Directory /var/www/akaunting/public>
+    <Directory /var/www/akaunting>
         AllowOverride All
         Require all granted
     </Directory>
-
-    ErrorLog ${APACHE_LOG_DIR}/akaunting_error.log
-    CustomLog ${APACHE_LOG_DIR}/akaunting_access.log combined
 </VirtualHost>
 ```
 
-Activez les modules et le site :
-
 ```bash
+sudo a2ensite akaunting
+sudo a2dissite 000-default
 sudo a2enmod rewrite
-sudo a2ensite akaunting.conf
 sudo systemctl reload apache2
 ```
 
+### 7. Terminer l'installation dans le navigateur
+
+Ouvrir `http://<adresse-du-serveur>/` : l'assistant d'Akaunting demande la langue, les informations de la base créée à l'étape 3, puis le compte administrateur.
+
 ## Vérification
 
-- Vérifiez qu'Apache est actif :
-  ```bash
-  sudo systemctl status apache2
-  ```
+```bash
+systemctl status apache2 mariadb
+php -v
+curl -I http://localhost/
+```
 
-- Vérifiez que MySQL est actif :
-  ```bash
-  sudo systemctl status mysql
-  ```
+La page d'accueil doit répondre (code 200 ou 302 vers l'assistant d'installation).
 
-- Accédez à l'application via votre navigateur
-- Testez la création d'une facture ou d'une dépense
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/var/www/akaunting` | Application |
+| `/var/www/akaunting/.env` | Configuration (base de données, URL), créé par l'assistant |
+| `/etc/apache2/sites-available/akaunting.conf` | Site Apache |
+| `/var/www/akaunting/storage/logs/` | Journaux de l'application |
 
 ## Dépannage
 
-- En cas d'erreurs PHP, consultez les logs :
-  ```bash
-  sudo tail -f /var/log/apache2/error.log
-  ```
-- Vérifiez les modules PHP installés :
-  ```bash
-  php -m
-  ```
-- Pour les problèmes de base de données, vérifiez le fichier `.env`
+- **Erreur 500** : consulter `storage/logs/laravel.log` et `/var/log/apache2/error.log`, puis vérifier que `www-data` est bien propriétaire du dossier.
+- **Page 404 sur les sous-pages** : le module `rewrite` n'est pas activé ou `AllowOverride All` manque.
+- **Journal du script** : `/var/log/install_script.log`.
 
-## Documentation
-- Site officiel : https://akaunting.com/
-- Documentation : https://akaunting.com/docs
-- GitHub : https://github.com/akaunting/akaunting
+## Points d'attention
 
-## Notes
-- Akaunting est compatible avec plusieurs langues et devises
-- Pensez à configurer des sauvegardes régulières de la base de données
-- En production, utilisez HTTPS (Let's Encrypt recommandé)
+- Le script lance `php artisan migrate --force` sans avoir créé de base de données ni de fichier `.env` : cette étape échoue. Il faut créer la base (étape 3) et passer par l'assistant web (étape 7).
+- Le script ne crée pas de site Apache : l'URL `http://votre-serveur/akaunting` qu'il affiche ne fonctionne pas tant que l'étape 6 n'est pas faite.
+- Installé depuis GitHub, le code peut aussi nécessiter la compilation des fichiers front (`npm install && npm run prod`). L'archive officielle disponible sur akaunting.com contient déjà tout et évite Composer et npm.
+
+## Sources
+
+- [Documentation Akaunting — installation](https://akaunting.com/hc/docs/on-premise/requirements/)
+- [Dépôt GitHub d'Akaunting](https://github.com/akaunting/akaunting)

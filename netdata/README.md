@@ -1,45 +1,104 @@
-# Installation netdata
+# Netdata — procédure d'installation
 
 ## Description
-Netdata - Monitoring système temps réel
+
+Netdata est un outil de supervision en temps réel : installé sur un serveur, il collecte chaque seconde des milliers de métriques (CPU, mémoire, disques, réseau, services, conteneurs) et les affiche dans un tableau de bord web, avec des alertes préconfigurées. Cette procédure l'installe avec le script officiel `kickstart.sh`.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, RHEL/Fedora, openSUSE, Arch… |
+| **Méthode** | Script officiel `kickstart.sh` (paquets natifs quand ils existent) |
+| **Ports** | 19999/tcp (tableau de bord) |
+| **Script** | `install_netdata.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Un accès root et une connexion Internet.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_netdata.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/netdata
+sudo bash install_netdata.sh
+```
 
-### Étapes détaillées
-### Installation de Netdata
+Le script compile Netdata depuis les sources : c'est long, et la méthode recommandée est celle ci-dessous.
 
-Le script `install_netdata.sh` installe les dépendances nécessaires et déploie Netdata.
-- Mise à jour du système et installation des paquets requis.
-- Ouverture automatique des ports requis dans UFW si disponible.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Vérification des ports exposés : 19999.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### 1. Lancer le script officiel
+
+```bash
+cd /tmp
+curl -fsSL https://get.netdata.cloud/kickstart.sh -o kickstart.sh
+sudo sh kickstart.sh --stable-channel --disable-telemetry --non-interactive
+```
+
+Le script ajoute le dépôt de Netdata et installe le paquet natif de la distribution.
+
+### 2. Limiter l'accès au tableau de bord
+
+Le tableau de bord n'a pas d'authentification. Le réserver au réseau d'administration :
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 19999 proto tcp
+```
+
+Ou ne l'écouter que localement, en éditant la configuration :
+
+```bash
+sudo /etc/netdata/edit-config netdata.conf
+```
+
+```ini
+[web]
+    bind to = 127.0.0.1
+```
+
+```bash
+sudo systemctl restart netdata
+```
+
+### 3. Consulter
+
+Ouvrir `http://<adresse-du-serveur>:19999`.
+
+### 4. (Optionnel) Superviser d'autres services
+
+Netdata détecte automatiquement de nombreux services (Nginx, Apache, MariaDB, Docker…). Pour un service nécessitant des identifiants, éditer son collecteur, par exemple :
+
+```bash
+sudo /etc/netdata/edit-config go.d/mysql.conf
+```
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://www.netdata.cloud)
-- [Documentation](https://learn.netdata.cloud/docs/)
+```bash
+systemctl status netdata
+curl -s http://localhost:19999/api/v1/info | head -c 300
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/netdata/netdata.conf` | Configuration générale |
+| `/etc/netdata/go.d/` | Collecteurs de services |
+| `/etc/netdata/health.d/` | Règles d'alerte |
+| `/var/log/netdata/` | Journaux |
+
+## Dépannage
+
+- Mise à jour : relancer `kickstart.sh`, ou utiliser le gestionnaire de paquets (`apt upgrade`).
+- Désinstallation : `sudo sh kickstart.sh --uninstall`.
+
+## Points d'attention
+
+- Le script clone le dépôt Git et compile Netdata, ce qui demande de nombreuses dépendances et plusieurs minutes. Le script officiel `kickstart.sh` installe un paquet précompilé, plus simple à mettre à jour.
+- Il ouvre le port 19999 à tout le réseau alors que le tableau de bord n'a pas d'authentification.
+
+## Sources
+
+- [Installer Netdata sur Linux](https://learn.netdata.cloud/docs/netdata-agent/installation/linux/)
+- [Configuration de l'agent](https://learn.netdata.cloud/docs/netdata-agent/configuration/)

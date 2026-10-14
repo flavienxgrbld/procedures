@@ -1,149 +1,102 @@
-# Installation de Cacti
+# Cacti — procédure d'installation
 
 ## Description
-Cacti est un outil de supervision qui permet de collecter, stocker et afficher des données sous forme de graphiques. Il s'appuie généralement sur RRDTool et SNMP pour la collecte de données.
+
+Cacti est un outil de supervision qui interroge les équipements réseau en SNMP et trace des graphiques d'utilisation (bande passante, CPU, mémoire…) à partir de RRDtool. Cette procédure l'installe sur une pile Apache, PHP et MariaDB.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu |
+| **Méthode** | Archive officielle 1.2.26 (script) ou paquet Debian `cacti` (manuel) |
+| **Ports** | 80/tcp (interface web), 161/udp vers les équipements supervisés |
+| **Script** | `install_cacti.sh` |
 
 ## Prérequis
-- Système d'exploitation : Ubuntu/Debian Linux (ou autre distribution compatible)
-- Accès : root ou sudo
-- Connexion Internet
-- Serveur web (Apache recommandé)
-- Base de données (MySQL/MariaDB)
-- PHP
 
-## Installation
+- Un accès root et une connexion Internet.
+- Des équipements avec SNMP activé et la communauté (ou les identifiants SNMPv3) correspondante.
 
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-bash install_cacti.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/cacti
+sudo bash install_cacti.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Lire les points d'attention : sur Debian et Ubuntu, le script échoue à l'installation des modules PHP.
 
-#### 1. Mise à jour du système
+## Installation manuelle (paquet Debian, recommandée)
+
+Le paquet `cacti` de Debian installe et configure Apache, PHP, la base de données et la tâche de collecte.
+
+### 1. Installer MariaDB, puis Cacti
+
 ```bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update
+sudo apt install -y mariadb-server
+sudo apt install -y cacti snmp snmpd rrdtool
 ```
 
-#### 2. Installation des dépendances
+À l'installation :
+
+- serveur web à configurer : **apache2** ;
+- configurer la base avec **dbconfig-common** : **Oui**, puis choisir un mot de passe pour l'utilisateur `cacti`.
+
+### 2. Régler le fuseau horaire de PHP et MariaDB
+
+Cacti vérifie que les deux sont identiques. Dans `/etc/php/*/apache2/php.ini` et `/etc/php/*/cli/php.ini` :
+
+```ini
+date.timezone = Europe/Paris
+memory_limit = 512M
+max_execution_time = 60
+```
+
 ```bash
-sudo apt install apache2 mariadb-server php php-mysql php-snmp php-xml php-gd php-mbstring php-ldap rrdtool snmp snmpd git -y
+sudo mysql_tzinfo_to_sql /usr/share/zoneinfo | sudo mysql -u root mysql
+sudo mysql -u root -e "GRANT SELECT ON mysql.time_zone_name TO 'cacti'@'localhost'; FLUSH PRIVILEGES;"
+sudo systemctl restart apache2 mariadb
 ```
 
-#### 3. Sécurisation de la base de données
-```bash
-sudo mysql_secure_installation
-```
+### 3. Terminer l'installation dans le navigateur
 
-#### 4. Création de la base de données
-```bash
-sudo mysql -u root -p
-```
+Ouvrir `http://<adresse-du-serveur>/cacti`, se connecter avec `admin` / `admin`, changer le mot de passe, puis suivre l'assistant de vérification des prérequis.
 
-Dans le shell MySQL :
-```sql
-CREATE DATABASE cacti;
-CREATE USER 'cacti'@'localhost' IDENTIFIED BY 'motdepasse';
-GRANT ALL PRIVILEGES ON cacti.* TO 'cacti'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-```
+### 4. Ajouter un équipement
 
-#### 5. Téléchargement de Cacti
-```bash
-cd /var/www/html
-sudo git clone https://github.com/Cacti/cacti.git
-sudo mv cacti cacti-site
-```
-
-#### 6. Configuration
-```bash
-cd cacti-site
-cp include/config.php.dist include/config.php
-nano include/config.php
-```
-
-Modifier les paramètres de base de données :
-```
-$database_type     = 'mysql';
-$database_default  = 'cacti';
-$database_hostname = 'localhost';
-$database_username = 'cacti';
-$database_password = 'motdepasse';
-```
-
-#### 7. Permissions
-```bash
-sudo chown -R www-data:www-data /var/www/html/cacti-site
-sudo chmod -R 775 /var/www/html/cacti-site
-```
-
-#### 8. Configuration Apache
-```bash
-sudo nano /etc/apache2/sites-available/cacti.conf
-```
-
-Contenu :
-```
-<VirtualHost *:80>
-    ServerName votre-domaine.com
-    DocumentRoot /var/www/html/cacti-site
-
-    <Directory /var/www/html/cacti-site>
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-```
-
-Activation :
-```bash
-sudo a2enmod rewrite
-sudo a2ensite cacti.conf
-sudo systemctl reload apache2
-```
-
-## Configuration
-
-### Finalisation via interface web
-1. Accédez à : `http://votre-serveur/cacti-site`
-2. Suivez l'assistant d'installation
-3. Configurez SNMP si nécessaire
-4. Ajoutez vos équipements à superviser
+*Console → Create → New Device* : renseigner l'adresse IP, la version SNMP et la communauté, puis créer les graphiques proposés.
 
 ## Vérification
 
 ```bash
-# Vérifier Apache
-sudo systemctl status apache2
-
-# Vérifier MariaDB
-sudo systemctl status mysql
-
-# Tester accès web
-curl -I http://localhost
+systemctl status apache2 mariadb
+snmpwalk -v2c -c public <ip-equipement> system
 ```
+
+Les premiers graphiques apparaissent après quelques cycles de collecte (5 minutes par défaut).
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/usr/share/cacti/` | Application (paquet Debian) |
+| `/etc/cacti/debian.php` | Connexion à la base |
+| `/etc/cron.d/cacti` | Collecte périodique (poller) |
+| `/var/log/cacti/` | Journaux |
 
 ## Dépannage
 
-```bash
-# Logs Apache
-sudo tail -f /var/log/apache2/error.log
+- Graphiques vides : vérifier que le poller tourne (`cat /etc/cron.d/cacti`) et que `snmpwalk` répond depuis le serveur.
+- Journal : *Console → Utilities → View Cacti Log*.
 
-# Vérifier PHP
-php -m
+## Points d'attention
 
-# Vérifier SNMP
-snmpwalk -v2c -c public localhost
-```
+- Le script installe les modules PHP sous les noms `php81-snmp`, `php81-gd` et `php81-ldap`. Sur Debian et Ubuntu, ce sont `php8.1-snmp`, `php8.1-gd`, `php8.1-ldap` : l'installation s'arrête en erreur.
+- Même après correction, l'installation par archive du script reste incomplète. Elle ne crée pas la base, n'importe pas `cacti.sql`, ne configure pas `include/config.php` et ne planifie pas le poller.
+- Son site Apache publie Cacti à la racine (`http://serveur/`), alors que le message de fin indique `http://serveur/cacti`.
 
-## Documentation
-- Site officiel : https://www.cacti.net/
-- Documentation : https://docs.cacti.net/
-- GitHub : https://github.com/Cacti/cacti
+## Sources
 
-## Notes
-- Assurez-vous que SNMP est correctement configuré pour collecter les données
-- Pensez à sécuriser l'accès web (authentification, HTTPS)
-- Configurez des tâches cron pour la collecte des données
+- [Documentation Cacti](https://docs.cacti.net/)
+- [Prérequis d'installation](https://docs.cacti.net/Requirements.md)

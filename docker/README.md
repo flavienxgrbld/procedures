@@ -1,177 +1,117 @@
-# Installation de Docker
+# Docker — procédure d'installation
 
 ## Description
-Docker est une plateforme de conteneurisation open source permettant de créer, déployer et exécuter des applications dans des conteneurs isolés. Elle facilite le développement, les tests et la mise en production.
+
+Docker permet d'exécuter des applications dans des conteneurs isolés et reproductibles. Docker Compose décrit des applications à plusieurs conteneurs dans un fichier YAML. Cette procédure installe Docker Engine et le plugin Compose depuis le dépôt officiel de Docker.
+
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (dépôt officiel) ; RHEL, openSUSE, Arch (paquets de la distribution) |
+| **Méthode** | Dépôt `download.docker.com` |
+| **Ports** | Aucun par défaut (les conteneurs publient les leurs) |
+| **Script** | `install_docker.sh` |
 
 ## Prérequis
-- Système d'exploitation : Ubuntu/Debian, CentOS/RHEL, SUSE, Arch Linux
-- Architecture : x86_64 (amd64)
-- Accès : root ou sudo
-- Connexion Internet
-- Noyau Linux version 3.10 ou supérieure
 
-## Installation
+- Un système 64 bits, un accès root et une connexion Internet.
+- Pas d'anciens paquets `docker.io` ou `docker-compose` de la distribution (voir l'étape 1).
 
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-bash install_docker.sh
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/docker
+sudo bash install_docker.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Le script ajoute l'utilisateur qui l'a lancé avec `sudo` au groupe `docker`.
 
-#### 1. Mise à jour du système
+## Installation manuelle
+
+### 1. Retirer les anciennes versions
+
 ```bash
-sudo apt update && sudo apt upgrade -y  # Ubuntu/Debian
+sudo apt remove -y docker.io docker-compose docker-doc podman-docker containerd runc 2>/dev/null || true
 ```
 
-#### 2. Installation de Docker
+### 2. Ajouter le dépôt officiel
 
-##### Ubuntu / Debian
 ```bash
-sudo apt install apt-transport-https ca-certificates curl gnupg lsb-release -y
-
-curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
 sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
+sudo apt install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt update
 ```
 
-##### CentOS / RHEL
+Sur Ubuntu, remplacer les deux occurrences de `linux/debian` par `linux/ubuntu`.
+
+### 3. Installer Docker et Compose
+
 ```bash
-sudo yum install docker docker-compose -y
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
 ```
 
-##### SUSE
-```bash
-sudo zypper install docker docker-compose -y
-```
+### 4. Utiliser Docker sans sudo
 
-##### Arch Linux
-```bash
-sudo pacman -S docker docker-compose
-```
-
-#### 3. Activation et démarrage du service
-```bash
-sudo systemctl enable docker
-sudo systemctl start docker
-```
-
-#### 4. Ajout de l'utilisateur au groupe Docker
 ```bash
 sudo usermod -aG docker $USER
 ```
 
-⚠️ Déconnectez-vous puis reconnectez-vous pour appliquer les changements.
-
-## Configuration
-
-### Démarrage automatique
-Docker démarre automatiquement au démarrage du système.
-
-### Configuration avancée du démon
-Fichier :
-```bash
-sudo nano /etc/docker/daemon.json
-```
-
-Exemple :
-```json
-{
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  }
-}
-```
-
-Redémarrage :
-```bash
-sudo systemctl restart docker
-```
-
-## Utilisation de base
-
-```bash
-# Vérifier les versions
-docker --version
-docker compose version
-
-# Tester Docker
-docker run hello-world
-
-# Télécharger une image
-docker pull nginx
-
-# Lister les conteneurs
-docker ps -a
-
-# Lancer un conteneur
-docker run -d nginx
-
-# Nettoyage système
-docker system prune
-```
-
-## Docker Compose
-
-```bash
-# Lancer une stack
-docker compose up -d
-
-# Arrêter une stack
-docker compose down
-```
+Se déconnecter puis se reconnecter pour que le groupe soit pris en compte.
 
 ## Vérification
 
 ```bash
-# État du service
-sudo systemctl status docker
-
-# Test rapide
-docker run hello-world
-
-# Logs Docker
-sudo journalctl -u docker -f
+docker --version
+docker compose version
+docker run --rm hello-world
 ```
+
+## Exemple avec Compose
+
+`compose.yaml` :
+
+```yaml
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs -f
+```
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/docker/daemon.json` | Configuration du démon (à créer si besoin) |
+| `/var/lib/docker/` | Images, conteneurs, volumes |
 
 ## Dépannage
 
-```bash
-# Problèmes de permissions
-groups $USER
+- **« permission denied » sur `/var/run/docker.sock`** : l'utilisateur n'est pas encore dans le groupe `docker`, ou ne s'est pas reconnecté.
+- Journal : `journalctl -u docker -f`.
+- Libérer de l'espace : `docker system prune` (supprime les conteneurs arrêtés et les images inutilisées).
 
-# Ajouter docker si nécessaire
-sudo usermod -aG docker $USER
+## Points d'attention
 
-# Vérifier utilisation disque
-docker system df
+- Appartenir au groupe `docker` revient à avoir les droits root sur la machine : le réserver aux administrateurs.
+- Les ports publiés par Docker contournent les règles `ufw` : n'exposer que ce qui est nécessaire, ou publier sur `127.0.0.1` (`"127.0.0.1:8080:80"`).
+- Le script force l'architecture `amd64` dans le dépôt : sur un Raspberry Pi (`arm64`), utiliser la commande de l'étape 2, qui détecte l'architecture.
+- Lancé directement en root (sans `sudo`), le script tente d'ajouter un utilisateur `ubuntu` au groupe `docker`.
 
-# Logs détaillés
-sudo journalctl -u docker --no-pager
-```
+## Sources
 
-## Sécurité
-
-- Ne pas exécuter systématiquement en root
-- Utiliser uniquement des images fiables
-- Scanner les images avant production
-- Limiter les privilèges des conteneurs
-
-## Documentation
-- Site officiel : https://www.docker.com/
-- Documentation : https://docs.docker.com/
-- Docker Compose : https://docs.docker.com/compose/
-
-## Notes
-- Docker simplifie le déploiement d'applications
-- Nettoyez régulièrement les ressources inutilisées :
-```bash
-docker system prune -a
-```
-- Pour la production, envisager Kubernetes ou Docker Swarm
+- [Installer Docker Engine sur Debian](https://docs.docker.com/engine/install/debian/)
+- [Installer Docker Engine sur Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
+- [Documentation Docker Compose](https://docs.docker.com/compose/)

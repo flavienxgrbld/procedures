@@ -9,6 +9,10 @@ Ce dossier contient les scripts d'installation pour déployer Zabbix Server et l
 - Connexion Internet
 - Serveur Zabbix configuré avec une base MariaDB/MySQL pour le serveur
 
+## Procédure détaillée
+
+La procédure pas à pas, commande par commande (serveur sur Debian 13, agents Linux et Windows, ajout d'un hôte), se trouve dans [`installation zabbix.md`](installation%20zabbix.md).
+
 ## Scripts disponibles
 - `install_zabbix.sh` : installe et configure Zabbix Server 7.4 avec MariaDB, Apache et l'interface web
 - `install_zabbix_agent.sh` : installe et configure l'agent Zabbix sur un client Linux compatible avec `apt`, `dnf`, `yum`, `zypper` ou `pacman`
@@ -87,7 +91,7 @@ zabbix_agentd -t agent.ping
 ```
 
 ## Configuration manuelle supplémentaire
-- Ajouter l'hôte dans l'interface Zabbix sous `Configuration → Hosts`
+- Ajouter l'hôte dans l'interface Zabbix sous `Collecte de données → Hôtes` (`Data collection → Hosts` en anglais ; l'ancien menu `Configuration → Hosts` date de Zabbix 6)
 - Associer le template correspondant au système d'exploitation
 - Activer les éléments de supervision nécessaires
 

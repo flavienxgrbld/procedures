@@ -1,45 +1,78 @@
-# Installation gitpod
+# Gitpod / OpenVSCode Server — procédure
 
 ## Description
-Gitpod - Environnement de développement en ligne
+
+Gitpod fournit des environnements de développement prêts à l'emploi dans le navigateur. Sa version auto-hébergée n'est plus distribuée : cette procédure installe à la place OpenVSCode Server, publié par l'équipe Gitpod, qui donne un VS Code complet dans le navigateur sur son propre serveur.
+
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Image Docker `gitpod/openvscode-server` |
+| **Ports** | 3000/tcp |
+| **Script** | `install_gitpod.sh` (voir les points d'attention) |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Docker installé si le script utilise des conteneurs
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Docker installé (voir la procédure `docker`).
+- Un accès root et une connexion Internet.
 
-Exécutez le script d’installation :
+## Installation manuelle
 
-`ash
-bash install_gitpod.sh
-`
+### 1. Préparer le dossier de travail
 
-### Étapes détaillées
-### Installation de Gitpod
+```bash
+sudo mkdir -p /opt/openvscode/workspace
+cd /opt/openvscode
+```
 
-Le script `install_gitpod.sh` installe les dépendances nécessaires et déploie Gitpod.
-- Mise à jour du système et installation des paquets requis.
-- Exécution de conteneurs Docker via `docker run`.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Ajustement manuel des paramètres de configuration après installation.
+### 2. Décrire le service
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+`/opt/openvscode/compose.yaml` :
+
+```yaml
+services:
+  openvscode:
+    image: gitpod/openvscode-server:latest
+    container_name: openvscode
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    command: --host 0.0.0.0 --connection-token MonJetonSecret
+    volumes:
+      - ./workspace:/home/workspace
+```
+
+Le jeton de connexion (`--connection-token`) protège l'accès : sans lui, n'importe qui sur le réseau peut utiliser l'éditeur et le terminal.
+
+### 3. Démarrer
+
+```bash
+sudo chown -R 1000:1000 /opt/openvscode/workspace
+sudo docker compose up -d
+sudo ufw allow 3000/tcp
+```
+
+### 4. Se connecter
+
+Ouvrir `http://<adresse-du-serveur>:3000/?tkn=MonJetonSecret`. Le dossier `/home/workspace` du conteneur correspond à `/opt/openvscode/workspace` sur le serveur.
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://www.gitpod.io)
-- [Documentation](https://www.gitpod.io/docs/)
+```bash
+sudo docker compose ps
+sudo docker compose logs openvscode
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+## Dépannage
+
+- Fichiers non modifiables : le conteneur tourne avec l'utilisateur d'UID 1000, qui doit être propriétaire du dossier `workspace` (étape 3).
+- Mise à jour : `sudo docker compose pull && sudo docker compose up -d`.
+
+## Points d'attention
+
+- Le script `install_gitpod.sh` n'installe pas Gitpod : il installe `docker.io` et `kubernetes-client`, puis affiche un lien vers la documentation auto-hébergée, qui n'existe plus. Il ne peut pas servir tel quel.
+- Pour un accès depuis Internet, placer le service derrière un proxy inverse avec HTTPS (Nginx et `certbot`) : certaines fonctions de VS Code (presse-papiers, webviews) exigent HTTPS.
+
+## Sources
+
+- [OpenVSCode Server](https://github.com/gitpod-io/openvscode-server)

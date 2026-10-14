@@ -1,340 +1,122 @@
-# Installation de keycloak
+# Keycloak — procédure d'installation
 
 ## Description
 
-Keycloak - Gestion d'authentification et d'identité
+Keycloak est un serveur libre de gestion des identités et des accès : authentification unique (SSO) entre applications, protocoles OpenID Connect et SAML, fédération avec un annuaire LDAP ou Active Directory, double authentification. Cette procédure installe Keycloak 26 avec le conteneur officiel, qui embarque la bonne version de Java.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Image officielle `quay.io/keycloak/keycloak` |
+| **Ports** | 8080/tcp (HTTP), 8443/tcp (HTTPS en production) |
+| **Script** | `install_keycloak.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Docker installé (voir la procédure `docker`).
+- 2 Go de RAM au minimum.
+- En production : un nom de domaine, un certificat TLS et une base PostgreSQL.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/keycloak
+sudo bash install_keycloak.sh
+sudo systemctl start keycloak
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_keycloak.sh
+Lire les points d'attention : le service créé par le script ne démarre pas.
 
-# 2. Exécutez le script d'installation
-bash install_keycloak.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Démarrer Keycloak en mode développement (labo)
 
-### Étapes Manuelles Détaillées
-
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
-
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
-
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
-
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
-
-## Services Installés
-
-Les services suivants seront créés et activés :
-- **keycloak** - Service système avec démarrage automatique
-- **keycloak"** - Service système avec démarrage automatique
-
-## Ports Requis
-
-| Port | Protocole | Description |
-|------|-----------|-------------|
-
-| 8080 | tcp | HTTP alternatif |
-## Configuration
-
-### Configuration de Base
-
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/keycloak/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/keycloak/ - Données de l'application
-- /var/log/keycloak/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status keycloak
-systemctl status keycloak"
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
+```bash
+sudo docker run -d --name keycloak --restart unless-stopped \
+  -p 8080:8080 \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=MotDePasseFort \
+  quay.io/keycloak/keycloak:26.8.1 start-dev
 sudo ufw allow 8080/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=8080/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+Le mode `start-dev` accepte HTTP et une base interne : il convient pour apprendre et tester, pas pour la production.
+
+### 2. Se connecter à la console d'administration
+
+Ouvrir `http://<adresse-du-serveur>:8080/admin` et se connecter avec le compte `admin`. Ce compte bootstrap est temporaire : créer un vrai compte administrateur dans le royaume `master`, puis supprimer `admin`.
+
+### 3. Créer un royaume et un utilisateur
+
+1. Menu des royaumes → **Create realm** → nom `labo`.
+2. **Users → Add user** : renseigner l'identifiant, puis dans l'onglet *Credentials*, définir un mot de passe (*Temporary* désactivé).
+3. Tester la connexion sur `http://<adresse-du-serveur>:8080/realms/labo/account`.
+
+### 4. Déclarer une application (client OIDC)
+
+**Clients → Create client** : type *OpenID Connect*, identifiant de l'application, puis l'URL de redirection valide (*Valid redirect URIs*). L'application utilise ensuite l'émetteur `http://<serveur>:8080/realms/labo`.
+
+## Mode production
+
+En production, Keycloak doit utiliser HTTPS, un nom d'hôte fixe et une base externe. Avec Docker Compose et PostgreSQL :
+
+```yaml
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: MotDePasseBase
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    restart: unless-stopped
+    command: start
+    depends_on: [postgres]
+    ports:
+      - "8443:8443"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: MotDePasseBase
+      KC_HOSTNAME: https://sso.exemple.fr:8443
+      KC_HTTPS_CERTIFICATE_FILE: /certs/fullchain.pem
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /certs/privkey.pem
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: MotDePasseFort
+    volumes:
+      - ./certs:/certs:ro
+
+volumes:
+  pg_data:
+```
+
+## Vérification
+
+```bash
+sudo docker logs keycloak | tail -20
+curl -s http://localhost:8080/realms/master/.well-known/openid-configuration | head -c 200
+```
 
 ## Dépannage
 
-### Problèmes Courants
+- **« HTTPS required »** en se connectant depuis un autre poste : normal hors `start-dev`. Utiliser HTTPS, ou, pour un labo uniquement, désactiver l'exigence sur le royaume (*Realm settings → General → Require SSL : none*).
+- Journaux : `sudo docker logs -f keycloak`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le service du script lance `kc.sh start` (mode production) sans certificat TLS ni option `--http-enabled=true` : Keycloak refuse de démarrer. Il fixe aussi `--hostname=localhost`, ce qui empêche l'accès depuis une autre machine.
+- Le script ne crée aucun compte administrateur et ne démarre pas le service (seulement `enable`).
+- Il installe Keycloak 23.0.1, qui ne reçoit plus de correctifs de sécurité. Keycloak 26.8 demande OpenJDK 25 pour une installation hors conteneur.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/keycloak/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/keycloak/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/keycloak/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/keycloak
-sudo rm -rf /var/lib/keycloak
-sudo rm -rf /etc/keycloak
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_keycloak.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: keycloak)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-keycloak-$(date +%Y%m%d).tar.gz /var/lib/keycloak/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-keycloak-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade keycloak  # Debian/Ubuntu
-sudo dnf upgrade keycloak  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/keycloak/config /etc/keycloak/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall keycloak  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract keycloak /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready ✅
+- [Démarrer Keycloak avec Docker](https://www.keycloak.org/getting-started/getting-started-docker)
+- [Configurer le nom d'hôte](https://www.keycloak.org/server/hostname)
+- [Mise en production](https://www.keycloak.org/server/configuration-production)

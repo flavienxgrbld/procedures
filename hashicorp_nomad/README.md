@@ -1,338 +1,141 @@
-# Installation de hashicorp_nomad
+# HashiCorp Nomad — procédure d'installation
 
 ## Description
 
-Hashicorp Nomad - Orchestrateur de conteneurs et de microservices
+Nomad est un orchestrateur de charges de travail, plus simple que Kubernetes : il planifie et exécute des conteneurs Docker, des binaires ou des machines virtuelles sur un ensemble de serveurs. Cette procédure installe Nomad en mode serveur et client sur une seule machine, pour un labo.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (dépôt HashiCorp) |
+| **Méthode** | Dépôt APT officiel HashiCorp |
+| **Ports** | 4646 (HTTP/UI), 4647 (RPC), 4648 (gossip) |
+| **Script** | `install_hashicorp_nomad.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
+- Docker installé pour exécuter des conteneurs (voir la procédure `docker`).
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/hashicorp_nomad
+sudo bash install_hashicorp_nomad.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_hashicorp_nomad.sh
+Lire les points d'attention : la configuration écrite par le script empêche Nomad de démarrer.
 
-# 2. Exécutez le script d'installation
-bash install_hashicorp_nomad.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Ajouter le dépôt HashiCorp et installer Nomad
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y gpg wget
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update
+sudo apt install -y nomad
+nomad version
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Configurer un nœud serveur et client
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+`/etc/nomad.d/nomad.hcl` :
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+```hcl
+datacenter = "dc1"
+data_dir   = "/opt/nomad/data"
+bind_addr  = "0.0.0.0"
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+server {
+  enabled          = true
+  bootstrap_expect = 1
+}
 
-## Services Installés
+client {
+  enabled = true
+}
 
-Les services suivants seront créés et activés :
-- **nomad** - Service système avec démarrage automatique
+ui {
+  enabled = true
+}
+```
 
-## Ports Requis
+### 3. Démarrer
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+Le service fourni par le paquet tourne en root : c'est nécessaire pour le client, qui crée les conteneurs.
 
-| 4646 | tcp | Application |
-## Configuration
+```bash
+sudo systemctl enable --now nomad
+sudo ufw allow 4646:4648/tcp
+sudo ufw allow 4648/udp
+```
 
-### Configuration de Base
+### 4. Lancer une première tâche
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/hashicorp_nomad/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/hashicorp_nomad/ - Données de l'application
-- /var/log/hashicorp_nomad/ - Logs de l'application
+`web.nomad.hcl` :
 
-### Configuration Avancée
+```hcl
+job "web" {
+  datacenters = ["dc1"]
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+  group "web" {
+    network {
+      port "http" {
+        static = 8080
+        to     = 80
+      }
+    }
 
-## Vérification de l'Installation
+    task "nginx" {
+      driver = "docker"
+      config {
+        image = "nginx:alpine"
+        ports = ["http"]
+      }
+    }
+  }
+}
+```
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+```bash
+nomad job run web.nomad.hcl
+nomad job status web
+curl -I http://localhost:8080
+```
 
-# Vérifier les services spécifiques
-systemctl status nomad
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
+## Vérification
 
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
+```bash
+nomad server members
+nomad node status
+```
 
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
+L'interface web est accessible sur `http://<adresse-du-serveur>:4646`.
 
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
+## Fichiers importants
 
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 4646/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=4646/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+| Chemin | Rôle |
+|---|---|
+| `/etc/nomad.d/nomad.hcl` | Configuration |
+| `/opt/nomad/data/` | Données (état, allocations) |
 
 ## Dépannage
 
-### Problèmes Courants
+- Journal : `journalctl -u nomad -f`.
+- **Pilote docker non détecté** (`nomad node status -self`) : Docker n'est pas installé ou pas démarré.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- La configuration du script ne définit pas `data_dir`, obligatoire : Nomad refuse de démarrer.
+- Le service du script tourne sous un utilisateur `nomad` sans privilèges, alors que la partie client a besoin des droits root pour lancer des conteneurs.
+- Le script installe Nomad 1.6.0 et a besoin de `unzip`, qu'il n'installe pas. Il n'ouvre que le port 4646.
+- Pour un cluster réel : 3 serveurs, des clients séparés, et Consul pour la découverte de services (voir `hashicorp_consul`).
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/hashicorp_nomad/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/hashicorp_nomad/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/hashicorp_nomad/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/hashicorp_nomad
-sudo rm -rf /var/lib/hashicorp_nomad
-sudo rm -rf /etc/hashicorp_nomad
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_hashicorp_nomad.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: hashicorp_nomad)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-hashicorp_nomad-$(date +%Y%m%d).tar.gz /var/lib/hashicorp_nomad/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-hashicorp_nomad-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade hashicorp_nomad  # Debian/Ubuntu
-sudo dnf upgrade hashicorp_nomad  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/hashicorp_nomad/config /etc/hashicorp_nomad/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall hashicorp_nomad  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract hashicorp_nomad /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Installer Nomad](https://developer.hashicorp.com/nomad/docs/install)
+- [Démarrer avec Nomad](https://developer.hashicorp.com/nomad/tutorials/get-started)

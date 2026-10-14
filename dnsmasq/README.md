@@ -1,151 +1,130 @@
-# Installation de dnsmasq
+# Dnsmasq — procédure d'installation
 
 ## Description
 
-Dnsmasq est un serveur léger combinant les fonctionnalités DNS, DHCP et TFTP, souvent utilisé pour les réseaux locaux et les environnements embarqués.
+Dnsmasq est un serveur DNS (cache et résolution locale) et DHCP léger, idéal pour un petit réseau ou un laboratoire. Cette procédure l'installe et le configure comme serveur DNS du réseau local, avec en option la distribution d'adresses IP par DHCP.
 
-### Type
-Serveur réseau
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu, RHEL/Fedora, openSUSE, Arch |
+| **Méthode** | Paquet de la distribution |
+| **Ports** | 53/tcp+udp (DNS), 67/udp (DHCP) |
+| **Script** | `install_dnsmasq.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : accès root ou sudo
-- **Ressources** : faible consommation (RAM ≥ 1 Go recommandé)
-- **Réseau** : connexion Internet stable
-- **Ports** : ports DNS/DHCP disponibles
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une adresse IP fixe pour le serveur (ici `192.168.1.10`).
+- Aucun autre serveur DHCP actif sur le réseau si l'on active le DHCP (désactiver celui de la box).
 
-## Installation
-
-### Méthode automatique (recommandée)
+## Installation automatique
 
 ```bash
-# 1. Rendez le script exécutable
-chmod +x install_dnsmasq.sh
-
-# 2. Exécutez le script d'installation
-bash install_dnsmasq.sh
-
-# 3. Répondez aux questions interactives si nécessaire
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/dnsmasq
+sudo bash install_dnsmasq.sh
 ```
 
-### Installation manuelle (étapes détaillées)
+Lire les points d'attention : la configuration écrite par le script doit être corrigée.
 
-#### 1. Mise à jour du système
+## Installation manuelle
+
+### 1. Installer le paquet
+
 ```bash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
+sudo apt update
+sudo apt install -y dnsmasq
 ```
 
-#### 2. Installation de dnsmasq
+### 2. Libérer le port 53 (Ubuntu)
+
+Sur Ubuntu, `systemd-resolved` occupe déjà le port 53 :
+
 ```bash
-sudo apt install dnsmasq -y
+sudo sed -i 's/^#\?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
+sudo systemctl restart systemd-resolved
 ```
 
-#### 3. Activation du service
+### 3. Écrire la configuration
+
 ```bash
-sudo systemctl enable dnsmasq
-sudo systemctl start dnsmasq
+sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
+sudo nano /etc/dnsmasq.d/lan.conf
 ```
 
-## Configuration
-
-### Fichiers principaux
-- `/etc/dnsmasq.conf` — configuration principale
-- `/etc/dnsmasq.d/` — configurations additionnelles
-- `/var/lib/misc/dnsmasq.leases` — baux DHCP
-
-### Exemple de configuration basique
-```bash
-sudo nano /etc/dnsmasq.conf
-```
-
-Exemple :
-```
+```conf
+# Écoute
 interface=eth0
+bind-interfaces
+listen-address=127.0.0.1,192.168.1.10
+
+# DNS en amont (ne pas lire /etc/resolv.conf)
+no-resolv
+server=1.1.1.1
+server=9.9.9.9
+cache-size=1000
+
+# Domaine local
+domain=lab.local
+local=/lab.local/
+expand-hosts
+
+# Enregistrements locaux
+address=/nas.lab.local/192.168.1.20
+
+# DHCP (optionnel)
 dhcp-range=192.168.1.100,192.168.1.200,12h
-domain-needed
-bogus-priv
+dhcp-option=option:router,192.168.1.1
+dhcp-option=option:dns-server,192.168.1.10
 ```
 
-Redémarrage :
+Remplacer `eth0` par le nom de l'interface (`ip a`). Les noms des machines peuvent aussi être déclarés dans `/etc/hosts`, que dnsmasq lit automatiquement.
+
+### 4. Vérifier puis démarrer
+
 ```bash
+sudo dnsmasq --test
+sudo systemctl enable dnsmasq
 sudo systemctl restart dnsmasq
 ```
 
-## Vérification de l'installation
+### 5. Ouvrir le pare-feu
 
-### Vérifier le service
-```bash
-systemctl status dnsmasq
-systemctl is-enabled dnsmasq
-```
-
-### Vérifier les ports
-```bash
-ss -tulpn | grep dnsmasq
-```
-
-Ports utilisés :
-- 53 TCP/UDP (DNS)
-- 67 UDP (DHCP)
-
-### Logs
-```bash
-journalctl -u dnsmasq -f
-```
-
-## Configuration du firewall
-
-### UFW (Debian/Ubuntu)
 ```bash
 sudo ufw allow 53/tcp
 sudo ufw allow 53/udp
 sudo ufw allow 67/udp
 ```
 
-### firewall-cmd (RedHat/Fedora)
+## Vérification
+
 ```bash
-sudo firewall-cmd --permanent --add-port=53/tcp
-sudo firewall-cmd --permanent --add-port=53/udp
-sudo firewall-cmd --permanent --add-port=67/udp
-sudo firewall-cmd --reload
+systemctl status dnsmasq
+dig @192.168.1.10 debian.org +short
+dig @192.168.1.10 nas.lab.local +short
+cat /var/lib/misc/dnsmasq.leases
 ```
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/etc/dnsmasq.conf` | Configuration principale |
+| `/etc/dnsmasq.d/` | Fichiers de configuration additionnels |
+| `/etc/hosts` | Noms locaux servis en DNS |
+| `/var/lib/misc/dnsmasq.leases` | Baux DHCP attribués |
 
 ## Dépannage
 
-### Service ne démarre pas
-```bash
-sudo journalctl -u dnsmasq -n 50
-sudo dnsmasq --test
-```
+- **« Address already in use »** : un autre service occupe le port 53 (`sudo ss -lunp | grep :53`), souvent `systemd-resolved` (étape 2).
+- Journal : `journalctl -u dnsmasq -f`.
 
-### Port déjà utilisé
-```bash
-sudo ss -tulpn | grep :53
-sudo lsof -i :53
-```
+## Points d'attention
 
-### Redémarrage propre
-```bash
-sudo systemctl restart dnsmasq
-```
+- Le script écrase `/etc/dnsmasq.conf` avec `resolv-file=/etc/resolv.conf.d/resolv.conf.dnsmasq`. Ce fichier n'existe pas, donc dnsmasq n'a aucun serveur DNS en amont et ne résout pas les noms Internet. La configuration ci-dessus utilise `no-resolv` et des `server=` explicites.
+- Le script fait écouter dnsmasq uniquement sur `127.0.0.1` : les autres machines du réseau ne peuvent pas l'interroger, même avec les ports ouverts.
+- Sur Ubuntu, le script ne désactive pas l'écoute DNS de `systemd-resolved` : dnsmasq peut refuser de démarrer.
 
-## Vérification DNS
-```bash
-nslookup google.com
-dig google.com
-```
+## Sources
 
-## Documentation
-- Site officiel : https://thekelleys.org.uk/dnsmasq/doc.html
-- Man page : `man dnsmasq`
-
-## Notes
-- dnsmasq est très léger et adapté aux réseaux locaux
-- Ne pas exposer directement sur Internet sans filtrage
-- Idéal pour les réseaux internes, VM et containers
+- [Documentation dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)
+- [Page de manuel](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html)

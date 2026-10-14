@@ -1,338 +1,141 @@
-# Installation de prometheus
+# Prometheus — procédure d'installation
 
 ## Description
 
-Prometheus - Système de monitoring et de collecte de métriques
+Prometheus est un système de supervision qui collecte à intervalles réguliers des métriques (CPU, mémoire, disque, services…) exposées par des « exporteurs », les stocke dans une base de séries temporelles et déclenche des alertes. Il s'associe à Grafana pour les tableaux de bord et à Alertmanager pour les notifications. Cette procédure installe Prometheus et l'exporteur système `node_exporter`.
 
-### Type
-Monitoring
+| | |
+|---|---|
+| **Systèmes** | Linux 64 bits avec systemd |
+| **Méthode** | Binaire officiel (GitHub), dernière version |
+| **Ports** | 9090/tcp (Prometheus), 9100/tcp (node_exporter) |
+| **Script** | `install_prometheus.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/prometheus
+sudo bash install_prometheus.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_prometheus.sh
+Le script télécharge la dernière version de Prometheus, crée l'utilisateur, la configuration et le service. Ajouter ensuite les cibles à superviser (étape 5).
 
-# 2. Exécutez le script d'installation
-bash install_prometheus.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Créer l'utilisateur et les dossiers
 
-### Étapes Manuelles Détaillées
+```bash
+sudo useradd -r -s /bin/false prometheus
+sudo mkdir -p /etc/prometheus /var/lib/prometheus
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Installer Prometheus
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+Prendre la dernière version sur la page des versions (ici la 3.15.0) :
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+```bash
+cd /tmp
+VER=3.15.0
+wget https://github.com/prometheus/prometheus/releases/download/v${VER}/prometheus-${VER}.linux-amd64.tar.gz
+tar -xzf prometheus-${VER}.linux-amd64.tar.gz
+sudo cp prometheus-${VER}.linux-amd64/{prometheus,promtool} /usr/local/bin/
+sudo chown -R prometheus:prometheus /etc/prometheus /var/lib/prometheus
+```
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+### 3. Écrire la configuration
 
-## Services Installés
+`/etc/prometheus/prometheus.yml` :
 
-Les services suivants seront créés et activés :
-- **prometheus** - Service système avec démarrage automatique
+```yaml
+global:
+  scrape_interval: 15s
 
-## Ports Requis
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+  - job_name: serveurs
+    static_configs:
+      - targets: ["localhost:9100", "192.168.1.21:9100", "192.168.1.22:9100"]
+```
 
-| 9090 | tcp | Prometheus Web UI |
-## Configuration
+```bash
+promtool check config /etc/prometheus/prometheus.yml
+```
 
-### Configuration de Base
+### 4. Créer le service systemd
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/prometheus/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/prometheus/ - Données de l'application
-- /var/log/prometheus/ - Logs de l'application
+`/etc/systemd/system/prometheus.service` :
 
-### Configuration Avancée
+```ini
+[Unit]
+Description=Prometheus
+After=network-online.target
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+[Service]
+User=prometheus
+Group=prometheus
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus \
+  --storage.tsdb.retention.time=30d
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
 
-## Vérification de l'Installation
+[Install]
+WantedBy=multi-user.target
+```
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now prometheus
+sudo ufw allow from 192.168.1.0/24 to any port 9090 proto tcp
+```
 
-# Vérifier les services spécifiques
+### 5. Installer node_exporter sur chaque machine à superviser
+
+Sur Debian/Ubuntu, le paquet de la distribution suffit :
+
+```bash
+sudo apt install -y prometheus-node-exporter
+sudo systemctl enable --now prometheus-node-exporter
+sudo ufw allow from <adresse-de-prometheus> to any port 9100 proto tcp
+```
+
+## Vérification
+
+```bash
 systemctl status prometheus
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
+curl -s http://localhost:9090/-/healthy
+```
 
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
+Dans l'interface `http://<adresse-du-serveur>:9090`, *Status → Targets* doit afficher toutes les cibles à l'état **UP**. Tester une requête dans l'explorateur : `100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)` (taux d'utilisation du CPU).
 
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
+## Fichiers importants
 
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 9090/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=9090/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+| Chemin | Rôle |
+|---|---|
+| `/etc/prometheus/prometheus.yml` | Configuration (cibles, règles) |
+| `/var/lib/prometheus/` | Base de séries temporelles |
 
 ## Dépannage
 
-### Problèmes Courants
+- Recharger la configuration sans redémarrer : `sudo systemctl reload prometheus`.
+- Cible **DOWN** : l'exporteur n'est pas démarré, ou un pare-feu bloque le port 9100.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script place la configuration dans `/opt/prometheus` au lieu de l'emplacement habituel `/etc/prometheus`, et ne supervise que Prometheus lui-même : aucun exporteur n'est installé.
+- Il ouvre le port 9090 à tout le réseau, alors que l'interface de Prometheus n'a pas d'authentification.
+- Pour les alertes, voir la procédure `alertmanager` ; pour les tableaux de bord, la procédure `tig_stack` (Grafana).
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/prometheus/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/prometheus/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/prometheus/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/prometheus
-sudo rm -rf /var/lib/prometheus
-sudo rm -rf /etc/prometheus
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_prometheus.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: prometheus)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-prometheus-$(date +%Y%m%d).tar.gz /var/lib/prometheus/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-prometheus-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade prometheus  # Debian/Ubuntu
-sudo dnf upgrade prometheus  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/prometheus/config /etc/prometheus/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall prometheus  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract prometheus /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Démarrer avec Prometheus](https://prometheus.io/docs/prometheus/latest/getting_started/)
+- [Superviser Linux avec node_exporter](https://prometheus.io/docs/guides/node-exporter/)

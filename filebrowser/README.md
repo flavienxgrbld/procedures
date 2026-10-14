@@ -1,338 +1,118 @@
-# Installation de filebrowser
+# File Browser — procédure d'installation
 
 ## Description
 
-Filebrowser - Gestionnaire de fichiers web
+File Browser est un gestionnaire de fichiers web : il donne accès à un dossier du serveur depuis un navigateur (envoi, téléchargement, renommage, édition, partage par lien) avec des comptes utilisateurs. Cette procédure l'installe à partir du binaire officiel, sous forme de service systemd.
 
-### Type
-Serveur Web
+| | |
+|---|---|
+| **Systèmes** | Linux 64 bits avec systemd |
+| **Méthode** | Binaire officiel (GitHub) |
+| **Ports** | 8080/tcp (par défaut) |
+| **Script** | `install_filebrowser.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
+- Le dossier à partager (ici `/srv/partage`).
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/filebrowser
+sudo bash install_filebrowser.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_filebrowser.sh
+Lire les points d'attention : la configuration du script reste incomplète.
 
-# 2. Exécutez le script d'installation
-bash install_filebrowser.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Installer le binaire
 
-### Étapes Manuelles Détaillées
+```bash
+curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | sudo bash
+filebrowser version
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+Le binaire est placé dans `/usr/local/bin/filebrowser`.
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+### 2. Créer un utilisateur et les dossiers
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+```bash
+sudo useradd -r -s /usr/sbin/nologin filebrowser
+sudo mkdir -p /etc/filebrowser /var/lib/filebrowser /srv/partage
+sudo chown -R filebrowser:filebrowser /var/lib/filebrowser /srv/partage
+```
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+### 3. Écrire la configuration
 
-## Services Installés
+`/etc/filebrowser/settings.json` :
 
-Les services suivants seront créés et activés :
-- **filebrowser** - Service système avec démarrage automatique
+```json
+{
+  "port": 8080,
+  "address": "0.0.0.0",
+  "database": "/var/lib/filebrowser/filebrowser.db",
+  "root": "/srv/partage",
+  "log": "stdout"
+}
+```
 
-## Ports Requis
+### 4. Créer le service systemd
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+`/etc/systemd/system/filebrowser.service` :
 
-| 80 | tcp | HTTP - Accès web |
-## Configuration
+```ini
+[Unit]
+Description=File Browser
+After=network.target
 
-### Configuration de Base
+[Service]
+User=filebrowser
+Group=filebrowser
+ExecStart=/usr/local/bin/filebrowser -c /etc/filebrowser/settings.json
+Restart=on-failure
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/filebrowser/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/filebrowser/ - Données de l'application
-- /var/log/filebrowser/ - Logs de l'application
+[Install]
+WantedBy=multi-user.target
+```
 
-### Configuration Avancée
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now filebrowser
+sudo ufw allow 8080/tcp
+```
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+### 5. Première connexion
 
-## Vérification de l'Installation
+Ouvrir `http://<adresse-du-serveur>:8080`. Le compte administrateur est `admin`. Dans les versions récentes, son mot de passe est généré au premier démarrage et affiché dans le journal :
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+```bash
+sudo journalctl -u filebrowser | grep -i password
+```
 
-# Vérifier les services spécifiques
+Changer ce mot de passe dès la connexion (*Paramètres → Profil*), puis créer les comptes utilisateurs dans *Paramètres → Gestion des utilisateurs*.
+
+## Vérification
+
+```bash
 systemctl status filebrowser
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 80/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=80/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+curl -I http://localhost:8080
+```
 
 ## Dépannage
 
-### Problèmes Courants
+- Le service s'arrête aussitôt : lire l'erreur avec `journalctl -u filebrowser -n 50`. Souvent, il s'agit de droits sur la base ou le dossier racine.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script lance `filebrowser -c /etc/filebrowser/filebrowser.json` sans créer ce fichier, en root et depuis le dossier `/`. File Browser utilise alors ses valeurs par défaut : sa racine devient le dossier courant, c'est-à-dire **tout le système de fichiers**, accessible avec les droits root.
+- Le script ouvre le port 80, alors que File Browser écoute sur le port 8080 par défaut. Le couple `admin / admin` qu'il affiche ne vaut que pour les anciennes versions.
+- La version 2.26.0 est figée dans le script ; le script officiel `get.sh` (étape 1) installe la dernière version.
+- Pour un accès depuis Internet, placer File Browser derrière un proxy inverse avec HTTPS (Nginx ou Apache et `certbot`).
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/filebrowser/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/filebrowser/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/filebrowser/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/filebrowser
-sudo rm -rf /var/lib/filebrowser
-sudo rm -rf /etc/filebrowser
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_filebrowser.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: filebrowser)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-filebrowser-$(date +%Y%m%d).tar.gz /var/lib/filebrowser/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-filebrowser-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade filebrowser  # Debian/Ubuntu
-sudo dnf upgrade filebrowser  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/filebrowser/config /etc/filebrowser/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall filebrowser  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract filebrowser /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : 
-
-**Statut** : Production Ready ✅
+- [Dépôt File Browser](https://github.com/filebrowser/filebrowser)
+- [Versions publiées](https://github.com/filebrowser/filebrowser/releases)

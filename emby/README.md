@@ -1,338 +1,101 @@
-# Installation de emby
+# Emby — procédure d'installation
 
 ## Description
 
-Emby Media Server - Serveur streaming vidéo
+Emby Server est un serveur multimédia qui organise films, séries, musique et photos, puis les diffuse en streaming vers un navigateur, une télévision, un téléphone ou une console. Cette procédure installe le paquet officiel Debian/Ubuntu.
 
-### Type
-Serveur Web
+| | |
+|---|---|
+| **Systèmes** | Debian, Ubuntu (64 bits) |
+| **Méthode** | Paquet `.deb` officiel (GitHub) |
+| **Ports** | 8096/tcp (HTTP), 8920/tcp (HTTPS) |
+| **Script** | `install_emby.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
+- Les médias accessibles depuis le serveur (disque local ou partage réseau monté).
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/emby
+sudo bash install_emby.sh
+```
 
-`bash
-# 1. Rendez le script exécutable
-chmod +x install_emby.sh
+Lire les points d'attention : le dépôt utilisé par le script ne répond pas.
 
-# 2. Exécutez le script d'installation
-bash install_emby.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Télécharger le paquet
 
-### Étapes Manuelles Détaillées
+Récupérer le fichier `emby-server-deb_<version>_amd64.deb` sur la page des versions d'Emby (ici la 4.10.1.0) :
 
-#### 1. Mise à jour du système
-`bash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+```bash
+cd /tmp
+wget https://github.com/MediaBrowser/Emby.Releases/releases/download/4.10.1.0/emby-server-deb_4.10.1.0_amd64.deb
+```
 
-#### 2. Installation des dépendances de base
-`bash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+### 2. Installer
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+```bash
+sudo apt install -y ./emby-server-deb_4.10.1.0_amd64.deb
+```
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+Le service `emby-server` est créé et démarré automatiquement.
 
-## Services Installés
+### 3. Donner accès aux médias
 
-Les services suivants seront créés et activés :
-- **emby-server** - Service système avec démarrage automatique
+Emby tourne sous l'utilisateur `emby`, qui doit pouvoir lire les dossiers de médias :
 
-## Ports Requis
+```bash
+sudo setfacl -R -m u:emby:rx /srv/medias
+```
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+À défaut d'ACL, ajouter `emby` au groupe propriétaire des fichiers.
 
-| 8096 | tcp | Application |
-## Configuration
+### 4. Ouvrir le pare-feu
 
-### Configuration de Base
-
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/emby/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/emby/ - Données de l'application
-- /var/log/emby/ - Logs de l'application
-
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`bash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status emby-server
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`bash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`bash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`bash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`bash
-# Autoriser les ports
+```bash
 sudo ufw allow 8096/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
+```
 
-### Avec Firewall-cmd (RedHat/Fedora)
-`bash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=8096/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+### 5. Assistant de configuration
+
+Ouvrir `http://<adresse-du-serveur>:8096` et suivre l'assistant : langue, compte administrateur, ajout des bibliothèques (type de contenu et dossier), puis langue des métadonnées.
+
+## Vérification
+
+```bash
+systemctl status emby-server
+curl -I http://localhost:8096
+```
+
+## Fichiers importants
+
+| Chemin | Rôle |
+|---|---|
+| `/var/lib/emby/` | Base de données, métadonnées, configuration |
+| `/var/lib/emby/logs/` | Journaux |
+| `/opt/emby-server/` | Programme |
 
 ## Dépannage
 
-### Problèmes Courants
+- **Bibliothèque vide** : l'utilisateur `emby` n'a pas le droit de lire les dossiers (étape 3).
+- Journal : `journalctl -u emby-server -f`.
 
-#### Le service ne démarre pas
-`bash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Mise à jour
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+Télécharger le nouveau `.deb` et relancer `sudo apt install -y ./emby-server-deb_*.deb`.
 
-# Redémarrer le service
-sudo systemctl restart True
+## Points d'attention
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/emby/
-`
+- Le script ajoute le dépôt `packages.emby.media`, qui ne répond pas (vérifié le 13/10/2026). Le paquet `emby-server` reste donc introuvable et le script s'arrête. L'éditeur distribue Emby sous forme de fichiers `.deb` sur GitHub (étape 1).
+- Le script utilise `apt-key`, retiré des versions récentes de Debian et Ubuntu.
+- Certaines fonctions (transcodage matériel, téléchargements hors ligne) nécessitent l'abonnement Emby Premiere.
 
-#### Port déjà utilisé
-`bash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
+## Sources
 
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`bash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/emby/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`bash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`bash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/emby/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`bash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/emby
-sudo rm -rf /var/lib/emby
-sudo rm -rf /etc/emby
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_emby.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: emby)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`bash
-# Créer une sauvegarde complète
-sudo tar -czf backup-emby-$(date +%Y%m%d).tar.gz /var/lib/emby/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-emby-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`bash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade emby  # Debian/Ubuntu
-sudo dnf upgrade emby  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`bash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/emby/config /etc/emby/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall emby  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract emby /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready ✅
+- [Emby pour Linux](https://emby.media/linux-server.html)
+- [Versions publiées](https://github.com/MediaBrowser/Emby.Releases/releases)

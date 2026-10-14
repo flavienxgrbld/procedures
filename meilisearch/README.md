@@ -1,338 +1,129 @@
-# Installation de meilisearch
+# Meilisearch — procédure d'installation
 
 ## Description
 
-Meili Search - Moteur de recherche performant
+Meilisearch est un moteur de recherche rapide et simple à intégrer : il indexe des documents JSON et répond instantanément aux recherches, avec tolérance aux fautes de frappe, filtres et tri. Il s'utilise via une API REST depuis un site ou une application. Cette procédure l'installe à partir du binaire officiel, sous forme de service systemd sécurisé par une clé maîtresse.
 
-### Type
-Application
+| | |
+|---|---|
+| **Systèmes** | Linux 64 bits avec systemd |
+| **Méthode** | Binaire officiel (script `install.meilisearch.com`) |
+| **Ports** | 7700/tcp (API) |
+| **Script** | `install_meilisearch.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un accès root et une connexion Internet.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/meilisearch
+sudo bash install_meilisearch.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_meilisearch.sh
+Lire les points d'attention : le service créé par le script ne trouve pas le binaire.
 
-# 2. Exécutez le script d'installation
-bash install_meilisearch.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Télécharger le binaire
 
-### Étapes Manuelles Détaillées
+```bash
+cd /tmp
+curl -L https://install.meilisearch.com | sh
+sudo mv ./meilisearch /usr/local/bin/
+meilisearch --version
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+### 2. Créer l'utilisateur et les dossiers
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+sudo useradd -r -d /var/lib/meilisearch -s /usr/sbin/nologin meilisearch
+sudo mkdir -p /var/lib/meilisearch/{data,dumps,snapshots}
+sudo chown -R meilisearch:meilisearch /var/lib/meilisearch
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+### 3. Écrire la configuration
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+`/etc/meilisearch.toml` :
 
-## Services Installés
+```toml
+env = "production"
+master_key = "UneCleMaitresseLongueEtAleatoireDe32CaracteresMinimum"
+db_path = "/var/lib/meilisearch/data"
+dump_dir = "/var/lib/meilisearch/dumps"
+snapshot_dir = "/var/lib/meilisearch/snapshots"
+http_addr = "0.0.0.0:7700"
+```
 
-Les services suivants seront créés et activés :
-- **meilisearch** - Service système avec démarrage automatique
+Générer une clé avec `openssl rand -base64 32`. En mode `production`, la clé maîtresse est obligatoire.
 
-## Ports Requis
+### 4. Créer le service systemd
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+`/etc/systemd/system/meilisearch.service` :
 
-| 7700 | tcp | Application |
-## Configuration
+```ini
+[Unit]
+Description=Meilisearch
+After=network.target
 
-### Configuration de Base
+[Service]
+Type=simple
+User=meilisearch
+Group=meilisearch
+WorkingDirectory=/var/lib/meilisearch
+ExecStart=/usr/local/bin/meilisearch --config-file-path /etc/meilisearch.toml
+Restart=on-failure
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/meilisearch/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/meilisearch/ - Données de l'application
-- /var/log/meilisearch/ - Logs de l'application
+[Install]
+WantedBy=multi-user.target
+```
 
-### Configuration Avancée
-
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
-
-## Vérification de l'Installation
-
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
-
-# Vérifier les services spécifiques
-systemctl status meilisearch
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
-
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
-
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 7700/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=7700/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
-
-## Dépannage
-
-### Problèmes Courants
-
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
-
-# Vérifier la syntaxe de configuration
-sudo True --version
-
-# Redémarrer le service
-sudo systemctl restart True
-
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/meilisearch/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/meilisearch/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/meilisearch/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/meilisearch
-sudo rm -rf /var/lib/meilisearch
-sudo rm -rf /etc/meilisearch
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
+```bash
+sudo chmod 640 /etc/meilisearch.toml
+sudo chown root:meilisearch /etc/meilisearch.toml
 sudo systemctl daemon-reload
+sudo systemctl enable --now meilisearch
+sudo ufw allow 7700/tcp
+```
 
-# 5. Réexécutez le script d'installation
-bash install_meilisearch.sh
-`
+### 5. Récupérer les clés d'API
 
-## Documentation Officielle
+La clé maîtresse ne sert qu'à obtenir les clés d'usage :
 
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
+```bash
+curl -s http://localhost:7700/keys -H "Authorization: Bearer <master_key>"
+```
 
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
+Utiliser la clé *Default Search API Key* côté site public, et la clé *Default Admin API Key* côté serveur.
 
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: meilisearch)
+### 6. Indexer et chercher
 
-## Notes Supplémentaires
+```bash
+curl -X POST http://localhost:7700/indexes/films/documents \
+  -H "Authorization: Bearer <admin_key>" -H "Content-Type: application/json" \
+  --data '[{"id":1,"titre":"Le Fabuleux Destin d Amélie Poulain"},{"id":2,"titre":"Intouchables"}]'
 
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
+curl "http://localhost:7700/indexes/films/search?q=amelie" -H "Authorization: Bearer <search_key>"
+```
 
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
+## Vérification
 
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-meilisearch-$(date +%Y%m%d).tar.gz /var/lib/meilisearch/
+```bash
+systemctl status meilisearch
+curl -s http://localhost:7700/health
+```
 
-# Restaurer une sauvegarde
-sudo tar -xzf backup-meilisearch-20240101.tar.gz -C /
-`
+`/health` doit répondre `{"status":"available"}`.
 
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
+## Points d'attention
 
-# Mettre à jour
-sudo apt upgrade meilisearch  # Debian/Ubuntu
-sudo dnf upgrade meilisearch  # RedHat/Fedora
+- Le script exécute `install.meilisearch.com`, qui dépose le binaire dans le dossier courant (`/tmp` ou autre), mais son service lance `/usr/bin/meilisearch` : le service ne démarre pas.
+- Il démarre Meilisearch sans clé maîtresse et l'expose sur le réseau (port 7700 ouvert) : n'importe qui peut lire, modifier ou supprimer les index.
+- Le service tourne sous l'utilisateur partagé `nobody`, déconseillé pour un service qui écrit des données.
 
-# Redémarrer le service
-sudo systemctl restart True
-`
+## Sources
 
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/meilisearch/config /etc/meilisearch/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall meilisearch  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract meilisearch /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), dnf/yum (RedHat/Fedora)
-
-**Statut** : Production Ready ✅
+- [Installer Meilisearch](https://www.meilisearch.com/docs/learn/self_hosted/install_meilisearch_locally)
+- [Exécuter Meilisearch en production](https://www.meilisearch.com/docs/guides/deployment/running_production)

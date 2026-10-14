@@ -1,44 +1,100 @@
-# Installation lxd
+# LXD / Incus — procédure d'installation
 
 ## Description
-LXD - Conteneur et gestion de machines virtuelles
+
+LXD est un gestionnaire de conteneurs système et de machines virtuelles : chaque conteneur se comporte comme une machine Linux complète, légère et rapide à créer. Incus est son successeur communautaire, maintenu par les auteurs d'origine et fourni par Debian. Cette procédure installe LXD sur Ubuntu (snap) ou Incus sur Debian, puis crée un premier conteneur.
+
+| | |
+|---|---|
+| **Systèmes** | Ubuntu (LXD via snap), Debian 12/13 (Incus) |
+| **Méthode** | Snap `lxd` ou paquet `incus` |
+| **Ports** | Aucun par défaut (8443/tcp si l'API est exposée sur le réseau) |
+| **Script** | `install_lxd.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Un accès root.
+- Pour les machines virtuelles : la virtualisation matérielle activée (Intel VT-x ou AMD-V).
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_lxd.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/lxd
+sudo bash install_lxd.sh
+```
 
-### Étapes détaillées
-### Installation de Lxd
+Lire les points d'attention : les paquets demandés par le script n'existent pas tels quels.
 
-Le script `install_lxd.sh` installe les dépendances nécessaires et déploie Lxd.
-- Mise à jour du système et installation des paquets requis.
-- Activation et démarrage des services systemd pour le démarrage automatique.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### Ubuntu : LXD
+
+```bash
+sudo snap install lxd
+sudo usermod -aG lxd $USER
+newgrp lxd
+lxd init --minimal
+```
+
+### Debian : Incus
+
+```bash
+sudo apt update
+sudo apt install -y incus
+sudo usermod -aG incus-admin $USER
+newgrp incus-admin
+incus admin init --minimal
+```
+
+Les commandes sont identiques : `lxc` pour LXD, `incus` pour Incus.
+
+### Créer et utiliser un conteneur
+
+```bash
+lxc launch ubuntu:24.04 web1          # Incus : incus launch images:debian/12 web1
+lxc list
+lxc exec web1 -- apt update
+lxc shell web1
+```
+
+### Créer une machine virtuelle
+
+```bash
+lxc launch ubuntu:24.04 vm1 --vm
+```
+
+### Commandes utiles
+
+| Commande | Rôle |
+|---|---|
+| `lxc stop web1` / `lxc start web1` | Arrêter / démarrer |
+| `lxc snapshot web1 avant-maj` | Créer un instantané |
+| `lxc restore web1 avant-maj` | Revenir à l'instantané |
+| `lxc delete web1 --force` | Supprimer |
+| `lxc config set web1 limits.memory 1GiB` | Limiter la mémoire |
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://linuxcontainers.org/lxd/)
-- [Documentation](https://linuxcontainers.org/lxd/docs/master/)
+```bash
+lxc info
+lxc list
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+Le conteneur doit apparaître à l'état `RUNNING` avec une adresse IPv4 sur le pont `lxdbr0` (`incusbr0` pour Incus).
+
+## Dépannage
+
+- **« permission denied » sur le socket** : l'utilisateur n'est pas dans le groupe `lxd` (ou `incus-admin`), ou ne s'est pas reconnecté.
+- **Pas d'accès Internet dans le conteneur** : `ufw` bloque le pont. Autoriser le trafic : `sudo ufw allow in on lxdbr0` et `sudo ufw route allow in on lxdbr0`.
+
+## Points d'attention
+
+- Le script installe les paquets `lxd` et `lxd-client` avec apt. Sur Ubuntu, LXD n'est distribué qu'en snap (le paquet apt est un simple raccourci vers le snap) et `lxd-client` n'existe plus. Sur Debian, l'outil fourni est Incus.
+- Il active ensuite un service systemd `lxd`, qui n'existe pas avec l'installation snap (`snap.lxd.daemon`) : le script s'arrête.
+- `lxd init --auto` accepte toutes les valeurs par défaut. `lxd init` sans option permet de choisir le stockage (ZFS, Btrfs, dossier) et le réseau.
+
+## Sources
+
+- [Installer LXD](https://documentation.ubuntu.com/lxd/latest/installing/)
+- [Installer Incus](https://linuxcontainers.org/incus/docs/main/installing/)

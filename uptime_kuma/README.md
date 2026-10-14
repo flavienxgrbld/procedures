@@ -1,49 +1,94 @@
-# Installation uptime_kuma
+# Uptime Kuma — procédure d'installation
 
 ## Description
-Uptime Kuma - Surveillance de services web
+
+Uptime Kuma est un outil de surveillance de disponibilité simple et agréable : il vérifie à intervalles réguliers des sites web, des ports, des pings, des enregistrements DNS ou des conteneurs, conserve l'historique, envoie des alertes (e-mail, Telegram, Discord…) et publie des pages de statut. Cette procédure l'installe avec Docker.
+
+| | |
+|---|---|
+| **Systèmes** | Toute distribution avec Docker |
+| **Méthode** | Image officielle `louislam/uptime-kuma` |
+| **Dossier** | `/opt/uptime-kuma` |
+| **Ports** | 3001/tcp |
+| **Script** | `install_uptime_kuma.sh` |
 
 ## Prérequis
-- Ubuntu/Debian Linux (ou autre distribution supportée)
-- Accès root ou sudo
-- Connexion Internet
-- Docker installé si le script utilise des conteneurs
-- Certificat SSL ou accès Internet pour HTTPS
 
-## Installation
+- Docker installé (procédure `docker`).
+- Un accès root.
 
-Exécutez le script d’installation :
+## Installation automatique
 
-`ash
-bash install_uptime_kuma.sh
-`
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/uptime_kuma
+sudo bash install_uptime_kuma.sh
+```
 
-### Étapes détaillées
-### Installation de Uptime Kuma
+Le script démarre le conteneur `uptime-kuma` avec ses données dans `/opt/uptime-kuma/data`.
 
-Le script `install_uptime_kuma.sh` installe les dépendances nécessaires et déploie Uptime Kuma.
-- Mise à jour du système et installation des paquets requis.
-- Exécution de conteneurs Docker via `docker run`.
-- Ouverture automatique des ports requis dans UFW si disponible.
-- Téléchargement des fichiers de l’application depuis le site officiel ou le dépôt.
-- Création d’un utilisateur système dédié si nécessaire.
-- Vérification des ports exposés : 3001.
-- Création éventuelle des répertoires de données et de configuration.
-- Ajustement manuel des paramètres de configuration après installation.
+## Installation manuelle
 
-## Configuration
-Consultez la documentation du service pour adapter les paramètres après installation.
+### 1. Décrire le service
+
+```bash
+sudo mkdir -p /opt/uptime-kuma
+cd /opt/uptime-kuma
+```
+
+`/opt/uptime-kuma/compose.yaml` :
+
+```yaml
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+```
+
+### 2. Démarrer
+
+```bash
+sudo docker compose up -d
+sudo ufw allow 3001/tcp
+```
+
+### 3. Configurer
+
+1. Ouvrir `http://<adresse-du-serveur>:3001` et créer le compte administrateur.
+2. **Ajouter une sonde** : type HTTP(s), TCP, Ping, DNS…, nom, adresse et intervalle.
+3. *Paramètres → Notifications* : configurer un canal d'alerte, puis l'associer aux sondes.
+4. *Pages de statut* : créer une page publique qui affiche l'état des services.
 
 ## Vérification
-- Vérifiez que le service est actif : `systemctl status [service]` ou l’état du conteneur Docker.
-- Accédez à l’URL si applicable.
 
-## Documentation
-- [Site officiel](https://uptime.kuma.pet)
-- [Documentation](https://github.com/louislam/uptime-kuma)
+```bash
+sudo docker compose ps
+sudo docker compose logs -f uptime-kuma
+```
 
-## Notes
-- Configurez un certificat SSL valide pour l’accès HTTPS.
-- Adaptez la configuration à votre environnement avant la mise en production.
-- Vérifiez les permissions et l’accès aux fichiers de configuration.
-- Mettez à jour régulièrement le service et les dépendances.
+## Mise à jour
+
+```bash
+cd /opt/uptime-kuma
+sudo docker compose pull
+sudo docker compose up -d
+```
+
+Sauvegarder le dossier `data/` avant une mise à jour majeure.
+
+## Points d'attention
+
+- Le script installe le paquet `docker.io` sans vérifier si Docker est déjà installé depuis le dépôt officiel : les deux installations entrent en conflit. Utiliser la procédure `docker`.
+- Il crée un utilisateur système `uptimekuma` qui ne sert à rien, le conteneur tournant de façon indépendante.
+- Il utilise l'étiquette `latest` : préférer une version majeure (`:2`) pour éviter une mise à jour majeure non prévue.
+- Ne pas stocker `data/` sur un partage NFS : la base SQLite risque d'être corrompue.
+
+## Sources
+
+- [Installer Uptime Kuma](https://github.com/louislam/uptime-kuma/wiki/%F0%9F%94%A7-How-to-Install)
+- [Dépôt Uptime Kuma](https://github.com/louislam/uptime-kuma)

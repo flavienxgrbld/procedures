@@ -1,338 +1,134 @@
-# Installation de mongodb
+# MongoDB — procédure d'installation
 
 ## Description
 
-MongoDB - Base de données NoSQL
+MongoDB est une base de données NoSQL orientée documents : les données sont stockées sous forme de documents JSON (BSON), sans schéma fixe, ce qui convient aux applications web et aux données semi-structurées. Cette procédure installe MongoDB Community 8.0 depuis le dépôt officiel et active l'authentification.
 
-### Type
-Base de données
+| | |
+|---|---|
+| **Systèmes** | Debian 12, Ubuntu 22.04 / 24.04 (64 bits) |
+| **Méthode** | Dépôt officiel `repo.mongodb.org` |
+| **Version** | 8.0 |
+| **Ports** | 27017/tcp |
+| **Script** | `install_mongodb.sh` |
 
 ## Prérequis
 
-- **Système d'exploitation** : Ubuntu 20.04 LTS ou plus récent / Debian 11+ / CentOS 8+ / Fedora / openSUSE / Arch Linux
-- **Accès** : Accès root ou sudo
-- **Ressources** : RAM minimale 2GB, espace disque selon l'application
-- **Réseau** : Connexion Internet stable
-- **Port** : Ports disponibles pour l'application
-- **Dépendances** : curl, wget, git (installés automatiquement si nécessaire)
+- Un processeur 64 bits avec les instructions AVX (à vérifier en VM : `grep -c avx /proc/cpuinfo` doit être supérieur à 0).
+- Un accès root et une connexion Internet.
 
-## Installation
+## Installation automatique
 
-### Méthode Automatique (Recommandée)
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/mongodb
+sudo bash install_mongodb.sh
+```
 
-`ash
-# 1. Rendez le script exécutable
-chmod +x install_mongodb.sh
+Lire les points d'attention : le script installe une version en fin de vie, depuis un dépôt prévu pour Ubuntu 20.04 seulement.
 
-# 2. Exécutez le script d'installation
-bash install_mongodb.sh
+## Installation manuelle
 
-# 3. Répondez aux questions interactives si nécessaire
-`
+### 1. Ajouter le dépôt MongoDB 8.0
 
-### Étapes Manuelles Détaillées
+```bash
+sudo apt update
+sudo apt install -y gnupg curl
+curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
+```
 
-#### 1. Mise à jour du système
-`ash
-sudo apt update && sudo apt upgrade -y  # Debian/Ubuntu
-# ou
-sudo dnf update -y  # RedHat/Fedora
-# ou
-sudo zypper update  # openSUSE
-`
+Debian 12 :
 
-#### 2. Installation des dépendances de base
-`ash
-sudo apt install -y build-essential curl wget git  # Debian/Ubuntu
-`
+```bash
+echo "deb [signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/8.0 main" \
+  | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+```
 
-#### 3. Vérification du gestionnaire de paquets
-Le script détecte automatiquement votre système et utilise le bon gestionnaire parmi :
-- **apt** (Debian, Ubuntu)
-- **dnf/yum** (Red Hat, Fedora, CentOS)
-- **zypper** (openSUSE)
-- **pacman** (Arch Linux)
+Ubuntu 24.04 (remplacer `noble` par `jammy` pour 22.04) :
 
-#### 4. Installation des packages
-L'installation inclut automatiquement :
-- Toutes les dépendances requises
-- Les services système
-- La configuration de base
-- Les autorisations firewall
+```bash
+echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" \
+  | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+```
 
-## Services Installés
+### 2. Installer et démarrer
 
-Les services suivants seront créés et activés :
-- **mongod** - Service système avec démarrage automatique
+```bash
+sudo apt update
+sudo apt install -y mongodb-org
+sudo systemctl enable --now mongod
+```
 
-## Ports Requis
+### 3. Créer un administrateur
 
-| Port | Protocole | Description |
-|------|-----------|-------------|
+```bash
+mongosh
+```
 
-| 27017 | tcp | MongoDB - Base de données NoSQL |
-## Configuration
+```javascript
+use admin
+db.createUser({ user: "admin", pwd: passwordPrompt(), roles: [ "root" ] })
+exit
+```
 
-### Configuration de Base
+### 4. Activer l'authentification
 
-Les fichiers de configuration se trouvent généralement dans :
-- /etc/mongodb/ - Configuration de l'application
-- /etc/systemd/system/ - Configuration des services
-- /var/lib/mongodb/ - Données de l'application
-- /var/log/mongodb/ - Logs de l'application
+Dans `/etc/mongod.conf` :
 
-### Configuration Avancée
+```yaml
+net:
+  port: 27017
+  bindIp: 127.0.0.1,192.168.1.50
 
-Consultez la documentation officielle pour :
-- Configuration SSL/TLS
-- Intégration avec d'autres services
-- Optimisation des performances
-- Haute disponibilité
+security:
+  authorization: enabled
+```
 
-## Vérification de l'Installation
+`bindIp` ajoute l'adresse du serveur pour autoriser les connexions depuis le réseau.
 
-### Vérifier l'état des services
-`ash
-# Vérifier tous les services
-systemctl status
+```bash
+sudo systemctl restart mongod
+sudo ufw allow from 192.168.1.0/24 to any port 27017 proto tcp
+```
 
-# Vérifier les services spécifiques
+### 5. Créer un utilisateur applicatif
+
+```bash
+mongosh -u admin -p --authenticationDatabase admin
+```
+
+```javascript
+use appdb
+db.createUser({ user: "app", pwd: passwordPrompt(), roles: [ { role: "readWrite", db: "appdb" } ] })
+```
+
+## Vérification
+
+```bash
 systemctl status mongod
-# Vérifier que le service démarre au boot
-systemctl is-enabled True
-`
+mongosh -u admin -p --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 })'
+```
 
-### Vérifier les ports
-`ash
-# Afficher les ports écoutants
-ss -tlnp
-# ou
-netstat -tlnp
+## Fichiers importants
 
-# Vérifier un port spécifique
-ss -tlnp | grep :$PORT_NUMBER
-`
-
-### Logs et Debugging
-`ash
-# Voir les logs en temps réel
-journalctl -u True -f
-
-# Voir les derniers logs
-journalctl -u True -n 50
-
-# Voir tous les logs du service
-journalctl -u True
-`
-### Test d'accès Web
-
-`ash
-# Vérifier la connectivité HTTP
-curl -v http://localhost:
-
-# Ou accédez via votre navigateur
-# http://votre-serveur:
-`
-## Configuration du Firewall
-
-### Avec UFW (Debian/Ubuntu)
-`ash
-# Autoriser les ports
-sudo ufw allow 27017/tcp
-# Vérifier les règles
-sudo ufw status numbered
-`
-
-### Avec Firewall-cmd (RedHat/Fedora)
-`ash
-# Autoriser les ports de manière permanente
-sudo firewall-cmd --permanent --add-port=27017/tcp
-# Recharger le firewall
-sudo firewall-cmd --reload
-`
+| Chemin | Rôle |
+|---|---|
+| `/etc/mongod.conf` | Configuration |
+| `/var/lib/mongodb/` | Données |
+| `/var/log/mongodb/mongod.log` | Journal |
 
 ## Dépannage
 
-### Problèmes Courants
+- **`mongod` s'arrête aussitôt avec « Illegal instruction »** : le processeur (ou le CPU virtuel) ne fournit pas AVX. Sur Proxmox, utiliser le type de CPU `host`.
+- Sauvegarde : `mongodump -u admin -p --authenticationDatabase admin --out /srv/sauvegardes/mongo-$(date +%F)`.
 
-#### Le service ne démarre pas
-`ash
-# Vérifier les erreurs
-sudo journalctl -u True -n 50
+## Points d'attention
 
-# Vérifier la syntaxe de configuration
-sudo True --version
+- Le script installe MongoDB 5.0, qui n'est plus maintenu, depuis le dépôt `ubuntu focal` (Ubuntu 20.04), quelle que soit la distribution : sur Debian 12 ou Ubuntu 24.04, l'installation échoue faute de bibliothèques compatibles. Il utilise aussi `apt-key`, retiré des distributions récentes.
+- Il ouvre le port 27017 à tout le réseau sans activer l'authentification. MongoDB n'écoute que sur `127.0.0.1` par défaut : il faut à la fois `bindIp` et `authorization` (étape 4).
 
-# Redémarrer le service
-sudo systemctl restart True
+## Sources
 
-# Réappliquer les permissions
-sudo chown -R $(whoami):$(whoami) /var/lib/mongodb/
-`
-
-#### Port déjà utilisé
-`ash
-# Trouver quel processus utilise le port
-sudo ss -tlnp | grep :True
-
-# Ou
-sudo lsof -i :True
-
-# Arrêter le processus conflictuel
-sudo kill -9 PID
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-#### Permissions insuffisantes
-`ash
-# Ajouter l'utilisateur au groupe nécessaire
-sudo usermod -aG True $USER
-
-# Appliquer les permissions
-sudo chown -R True:True /var/lib/mongodb/
-
-# Se reconnecter pour appliquer les changements de groupe
-exit
-`
-
-#### Firewall bloque l'accès
-`ash
-# Vérifier les règles firewall
-sudo ufw status numbered
-
-# Ajouter le port si nécessaire
-sudo ufw allow True
-
-# Rechec de la connectivité
-curl -v http://localhost:True
-`
-
-### Vérification du Log Principal
-`ash
-# Pour les erreurs système
-tail -f /var/log/syslog  # Debian/Ubuntu
-tail -f /var/log/messages  # RedHat/Fedora
-
-# Pour les erreurs d'application
-tail -f /var/log/mongodb/*.log
-`
-
-### Réinitialisation Complète
-
-Si vous devez réinitialiser l'installation :
-`ash
-# 1. Arrêter le service
-sudo systemctl stop True
-
-# 2. Désactiver le service
-sudo systemctl disable True
-
-# 3. Supprimez l'application (adapter selon les besoins)
-sudo rm -rf /opt/mongodb
-sudo rm -rf /var/lib/mongodb
-sudo rm -rf /etc/mongodb
-
-# 4. Supprimez le service systemd
-sudo rm /etc/systemd/system/True.service
-sudo systemctl daemon-reload
-
-# 5. Réexécutez le script d'installation
-bash install_mongodb.sh
-`
-
-## Documentation Officielle
-
-### Ressources Principales
-- [Site Officiel](https://example.com)
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com)
-
-### Guides Connexes
-- Configuration SSL/TLS
-- Haute disponibilité
-- Optimisation des performances
-- Intégration avec Kubernetes
-
-### Communauté
-- Forums de support
-- Discord/Slack
-- Stack Overflow (tag: mongodb)
-
-## Notes Supplémentaires
-
-### Considérations de Sécurité
-1. Utilisez toujours HTTPS en production
-2. Configurez les pare-feu correctement
-3. Utilisez les mots de passe forts
-4. Mettez à jour régulièrement
-5. Faites des sauvegardes régulières
-6. Limitez l'accès administrateur
-7. Utilisez des certificats SSL valides
-
-### Optimisation des Performances
-1. Configurez les limites de ressources
-2. Ajustez les paramètres de cache
-3. Utilisez un load balancer en production
-4. Surveillez les métriques
-5. Optimisez la base de données
-
-### Sauvegarde et Récupération
-`ash
-# Créer une sauvegarde complète
-sudo tar -czf backup-mongodb-$(date +%Y%m%d).tar.gz /var/lib/mongodb/
-
-# Restaurer une sauvegarde
-sudo tar -xzf backup-mongodb-20240101.tar.gz -C /
-`
-
-### Mise à Jour
-`ash
-# Vérifier les mises à jour disponibles
-apt list --upgradable  # Debian/Ubuntu
-dnf check-update  # RedHat/Fedora
-
-# Mettre à jour
-sudo apt upgrade mongodb  # Debian/Ubuntu
-sudo dnf upgrade mongodb  # RedHat/Fedora
-
-# Redémarrer le service
-sudo systemctl restart True
-`
-
-### Restauration de la Configuration par Défaut
-`ash
-# Sauvegarder la configuration actuelle
-sudo cp /etc/mongodb/config /etc/mongodb/config.bak
-
-# Réinstaller depuis les sources
-sudo apt install --reinstall mongodb  # Debian/Ubuntu
-
-# Ou, restaurer depuis le paquet
-sudo apt-file extract mongodb /etc/
-`
-
-### Intégration avec Autres Services
-- Reverse Proxy (Nginx, Apache, HAProxy)
-- Load Balancer
-- Monitoring (Prometheus, Grafana)
-- Centralisation des logs (ELK Stack, Loki)
-- Orchestration (Docker, Kubernetes)
-
-### Contacts et Support
-Pour toute question ou problème :
-- Consultez la documentation officielle
-- Vérifiez les logs d'erreur
-- Contactez le support communautaire
-- Ouvrez une issue sur GitHub
-
----
-
-**Dernière mise à jour** : 03/05/2026
-
-**Version du script d'installation** : 1.0
-
-**Testé sur** : apt (Debian/Ubuntu), zypper (openSUSE), pacman (Arch)
-
-**Statut** : Production Ready ✅
+- [Installer MongoDB sur Debian](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-debian/)
+- [Installer MongoDB sur Ubuntu](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/)
+- [Activer le contrôle d'accès](https://www.mongodb.com/docs/manual/tutorial/configure-scram-client-authentication/)

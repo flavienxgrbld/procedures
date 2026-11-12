@@ -19,19 +19,34 @@ Certbot obtient et renouvelle automatiquement des certificats TLS gratuits aupr�
 
 ## Installation automatique
 
+Installer d'abord le serveur web (Apache ou Nginx) : le script installe seulement l'extension Certbot qui lui correspond, ou aucune extension (mode `standalone`) s'il n'y a pas de serveur web.
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/certbot
 sudo bash install_certbot.sh
 ```
 
+Il active ensuite le minuteur de renouvellement fourni par le paquet (`certbot.timer` sur Debian/Ubuntu, `certbot-renew.timer` sur Fedora/RHEL), ou une tâche cron à défaut.
+
+Pour obtenir directement un certificat, indiquer le domaine et une adresse de contact :
+
+```bash
+sudo CERTBOT_DOMAIN=www.exemple.fr CERTBOT_EMAIL=admin@exemple.fr bash install_certbot.sh
+```
+
+Avec Apache ou Nginx, le site est alors configuré en HTTPS avec redirection depuis HTTP, puis le renouvellement est testé (`certbot renew --dry-run`).
+
 ## Installation manuelle
 
-### 1. Installer Certbot et les extensions
+### 1. Installer Certbot et l'extension du serveur web
+
+N'installer que l'extension du serveur présent : `python3-certbot-apache` dépend d'Apache et `python3-certbot-nginx` de Nginx, installer les deux ajouterait un second serveur web.
 
 ```bash
 sudo apt update
-sudo apt install -y certbot python3-certbot-apache python3-certbot-nginx
+sudo apt install -y certbot python3-certbot-apache   # serveur Apache
+# ou : sudo apt install -y certbot python3-certbot-nginx   # serveur Nginx
 certbot --version
 ```
 
@@ -92,8 +107,10 @@ Le navigateur doit afficher le cadenas, avec un certificat émis par Let's Encry
 
 ## Points d'attention
 
-- Let's Encrypt ne délivre pas de certificat pour un nom interne (`.local`, `.lan`) ou une adresse IP privée. Sur un réseau de TP, utiliser un certificat autosigné ou une autorité de certification interne.
-- Le script fait un `upgrade` complet du système avant l'installation.
+- Let's Encrypt ne délivre pas de certificat pour un nom interne (`.local`, `.lan`) ou une adresse IP privée : le domaine doit être public et le port 80 joignable depuis Internet. Sur un réseau de TP, utiliser un certificat autosigné ou une autorité de certification interne.
+- Sur RHEL, Rocky ou AlmaLinux, Certbot vient du dépôt EPEL, que le script installe.
+- Le certificat d'un domaine expire au bout de 90 jours : vérifier de temps en temps `sudo certbot renew --dry-run`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

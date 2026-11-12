@@ -24,17 +24,25 @@ cd procedures/duplicati
 sudo bash install_duplicati.sh
 ```
 
-Lire les points d'attention : le dépôt et l'archive utilisés par le script n'existent plus.
+Le script cherche le dernier paquet stable sur GitHub pour l'architecture de la machine (`linux-x64-cli`, `.deb` ou `.rpm`), l'installe, écrit les options du serveur (port 8200, mot de passe aléatoire enregistré dans `/root/duplicati_identifiants.txt`) et démarre le service `duplicati`.
+
+Par sécurité, l'interface n'écoute que sur la machine elle-même. Pour y accéder depuis le réseau :
+
+```bash
+sudo DUPLICATI_LISTEN=any bash install_duplicati.sh
+```
+
+Sinon, passer par un tunnel SSH depuis son poste : `ssh -L 8200:127.0.0.1:8200 utilisateur@serveur`, puis ouvrir `http://127.0.0.1:8200`.
 
 ## Installation manuelle
 
 ### 1. Télécharger le paquet
 
-Sur la page des versions de Duplicati, prendre le paquet `linux-x64-cli.deb` pour un serveur sans interface graphique (ici la version 2.4.0.1) :
+Sur la page des versions de Duplicati, prendre le paquet `linux-x64-cli.deb` pour un serveur sans interface graphique (2.4.1.0 au 12/11/2026) :
 
 ```bash
 cd /tmp
-wget https://github.com/duplicati/duplicati/releases/download/v2.4.0.1_stable_2026-10-07/duplicati-2.4.0.1_stable_2026-10-07-linux-x64-cli.deb
+wget https://github.com/duplicati/duplicati/releases/download/v2.4.1.0_stable_2026-10-29/duplicati-2.4.1.0_stable_2026-10-29-linux-x64-cli.deb
 ```
 
 Le paquet `linux-x64-gui.deb` ajoute une icône dans la barre des tâches, utile seulement sur un poste de travail.
@@ -59,6 +67,8 @@ Par défaut, l'interface n'écoute que sur la machine elle-même. Pour y accéde
 ```bash
 DAEMON_OPTS="--webservice-interface=any --webservice-password=MotDePasseFort"
 ```
+
+Sur Fedora/RHEL (paquet `.rpm`), ce fichier est `/etc/sysconfig/duplicati`. Ne pas modifier le fichier du service : les mises à jour l'écrasent.
 
 ```bash
 sudo systemctl restart duplicati
@@ -90,11 +100,13 @@ Lancer la sauvegarde une première fois avec **Exécuter maintenant**, puis test
 
 ## Points d'attention
 
-- Le script ajoute le PPA `ppa:duplicati/duplicati-releases`, qui n'existe pas (vérifié le 13/10/2026), puis tente d'installer un paquet `duplicati` absent des dépôts : l'installation échoue sur Debian et Ubuntu.
-- Sur RHEL/Fedora, l'archive `v2.0.6.3` téléchargée par le script n'est plus disponible (erreur 404). Les versions récentes de Duplicati n'utilisent plus Mono.
-- L'interface web sans mot de passe donne accès à toutes les sauvegardes : toujours définir `--webservice-password` si elle est exposée sur le réseau.
+- La **phrase de passe de chiffrement** de chaque sauvegarde est indispensable à la restauration : la conserver hors du serveur sauvegardé.
+- L'interface web donne accès à toutes les sauvegardes : toujours un mot de passe (`--webservice-password`), et pas d'exposition directe sur Internet.
+- Le service tourne en root, ce qui lui permet de lire tous les fichiers à sauvegarder.
+- Relu et mis à jour le 12/11/2026 (Duplicati 2.4.1.0). Les versions 2.x actuelles reposent sur .NET et n'ont plus besoin de Mono.
 
 ## Sources
 
 - [Documentation Duplicati](https://docs.duplicati.com/)
 - [Versions publiées](https://github.com/duplicati/duplicati/releases)
+- [Documentation Duplicati — utilisation sous Linux](https://docs.duplicati.com/platform-specific-guides/using-duplicati-with-linux)

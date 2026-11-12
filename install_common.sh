@@ -69,9 +69,10 @@ log() {
             echo "✅ $message"
             ;;
         DEBUG)
-            [ "${DEBUG:-0}" = "1" ] && echo "🔍 $message"
+            if [ "${DEBUG:-0}" = "1" ]; then echo "🔍 $message"; fi
             ;;
     esac
+    return 0
 }
 
 error_exit() {

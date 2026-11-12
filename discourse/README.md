@@ -100,8 +100,10 @@ sudo docker ps
 
 ## Points d'attention
 
-- Le script installe les paquets `docker.io` et `docker-compose` de la distribution. L'éditeur recommande Docker installé avec `get.docker.com` (étape 1).
-- Le script clone `discourse_docker` dans `/var/discourse/discourse_docker` au lieu de `/var/discourse` : les commandes `./launcher` doivent alors être lancées depuis ce sous-dossier.
+- Discourse exige un **nom de domaine public** et un **serveur SMTP qui fonctionne** : sans e-mail, le compte administrateur ne peut pas être activé.
+- Le serveur doit être dédié (ou presque) : le conteneur occupe les ports 80 et 443.
+- Le script installe Docker avec `get.docker.com`, comme le recommande l'éditeur, puis clone l'outil officiel dans `/var/discourse` et lance `discourse-setup`, qui reste interactif.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

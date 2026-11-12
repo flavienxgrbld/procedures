@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation de Certbot (Let's Encrypt) avec l'extension du serveur web présent,
+# et activation du renouvellement automatique.
+#
+# Variables facultatives (obtention immédiate d'un certificat) :
+#   CERTBOT_DOMAIN  nom de domaine public pointant vers ce serveur (plusieurs : séparés par des virgules)
+#   CERTBOT_EMAIL   adresse de contact pour Let's Encrypt (obligatoire avec CERTBOT_DOMAIN)
 
 set -euo pipefail
 
@@ -16,40 +22,77 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Certbot - Génération de certificats SSL/TLS Let's Encrypt"
+info "Certbot - Certificats TLS Let's Encrypt"
 
-echo "=== Mise à jour du système ==="
+# Extension adaptée au serveur web déjà installé (installer les deux ajouterait
+# Apache ET Nginx, qui se disputeraient le port 80).
+PLUGIN=""
+if command -v nginx >/dev/null 2>&1; then
+    PLUGIN="nginx"
+elif command -v apache2 >/dev/null 2>&1 || command -v httpd >/dev/null 2>&1; then
+    PLUGIN="apache"
+fi
+info "Serveur web détecté : ${PLUGIN:-aucun (mode standalone)}"
+
 pkg_update
-pkg_upgrade
-
-echo "=== Installation de Certbot ==="
 case "$PKG_MANAGER" in
     apt)
-        pkg_install certbot python3-certbot-apache python3-certbot-nginx
+        pkgs=(certbot)
+        [ -n "$PLUGIN" ] && pkgs+=("python3-certbot-${PLUGIN}")
         ;;
     dnf|yum)
-        pkg_install certbot python3-certbot-apache python3-certbot-nginx
+        if is_redhat_family && [ "$OS_ID" != "fedora" ]; then
+            pkg_install epel-release || warn "EPEL non installé : certbot pourrait être introuvable"
+        fi
+        pkgs=(certbot)
+        [ -n "$PLUGIN" ] && pkgs+=("python3-certbot-${PLUGIN}")
         ;;
     zypper)
-        pkg_install certbot python3-certbot-nginx
+        pkgs=(python3-certbot)
+        [ -n "$PLUGIN" ] && pkgs+=("python3-certbot-${PLUGIN}")
         ;;
     pacman)
-        pkg_install certbot certbot-apache certbot-nginx
+        pkgs=(certbot)
+        [ -n "$PLUGIN" ] && pkgs+=("certbot-${PLUGIN}")
         ;;
 esac
-
-# Vérification installation
+pkg_install "${pkgs[@]}"
 certbot --version
 
-# Configuration renouvellement automatique
-if command -v systemctl >/dev/null 2>&1; then
-    systemctl enable certbot.timer 2>/dev/null || true
-    systemctl start certbot.timer 2>/dev/null || true
+info "Renouvellement automatique"
+TIMER=""
+for t in certbot.timer certbot-renew.timer snap.certbot.renew.timer; do
+    if systemctl list-unit-files "$t" >/dev/null 2>&1 && systemctl list-unit-files "$t" | grep -q "^$t"; then
+        TIMER="$t"; break
+    fi
+done
+if [ -n "$TIMER" ]; then
+    systemctl enable --now "$TIMER"
+    info "Minuteur actif : $TIMER"
+else
+    warn "Aucun minuteur systemd fourni par le paquet : ajout d'une tâche cron quotidienne"
+    echo "17 3 * * * root certbot renew --quiet" > /etc/cron.d/certbot-renew
+fi
+
+if [ -n "${CERTBOT_DOMAIN:-}" ]; then
+    [ -n "${CERTBOT_EMAIL:-}" ] || error_exit "CERTBOT_EMAIL est obligatoire avec CERTBOT_DOMAIN"
+    info "Demande du certificat pour ${CERTBOT_DOMAIN}"
+    if [ -n "$PLUGIN" ]; then
+        certbot "--${PLUGIN}" -d "$CERTBOT_DOMAIN" -m "$CERTBOT_EMAIL" --agree-tos --non-interactive --redirect
+    else
+        certbot certonly --standalone -d "$CERTBOT_DOMAIN" -m "$CERTBOT_EMAIL" --agree-tos --non-interactive
+    fi
+    certbot renew --dry-run
 fi
 
 echo
-echo "✅ Certbot installé avec succès"
-echo "Commande pour obtenir un certificat:"
-echo "  certbot certonly --standalone -d votre-domaine.com"
-echo "  certbot certonly --apache -d votre-domaine.com"
-echo "  certbot certonly --nginx -d votre-domaine.com"
+echo "✅ Certbot installé"
+if [ -z "${CERTBOT_DOMAIN:-}" ]; then
+    echo "Obtenir un certificat :"
+    if [ -n "$PLUGIN" ]; then
+        echo "  sudo certbot --${PLUGIN} -d votre-domaine.fr"
+    else
+        echo "  sudo certbot certonly --standalone -d votre-domaine.fr   (port 80 libre requis)"
+    fi
+fi
+echo "Tester le renouvellement : sudo certbot renew --dry-run"

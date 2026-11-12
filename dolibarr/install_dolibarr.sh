@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation de Dolibarr (dernière version stable) sur Apache, PHP et MariaDB.
+#
+# Variables modifiables :
+#   DOLIBARR_VERSION  version à installer (défaut : dernière publiée sur GitHub)
+#   DOLIBARR_DOMAIN   nom du site Apache (défaut : nom de la machine)
+#   DOLIBARR_DB_PASS  mot de passe de la base (défaut : généré)
 
 set -euo pipefail
 
@@ -15,37 +21,71 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Dolibarr - ERP/CRM pour PME"
+info "Dolibarr - ERP/CRM"
 
-DOLIBARR_DIR="/var/www/dolibarr"
-PHP_VERSION="8.1"
+DOLI_DIR="/var/www/dolibarr"
+DOCS_DIR="/var/lib/dolibarr/documents"
+DOLIBARR_VERSION="${DOLIBARR_VERSION:-$(github_latest_tag Dolibarr/dolibarr 24.0.3)}"
+DOLIBARR_DOMAIN="${DOLIBARR_DOMAIN:-$(hostname -f 2>/dev/null || hostname)}"
+DB_NAME="dolibarr"; DB_USER="dolibarr"
+DOLIBARR_DB_PASS="${DOLIBARR_DB_PASS:-$(random_password 24)}"
 
-echo "=== Mise à jour du système ==="
 pkg_update
-pkg_upgrade
+pkg_install apache2 mariadb-server curl php libapache2-mod-php php-mysql php-gd php-xml php-zip \
+    php-intl php-curl php-mbstring php-soap
+pkg_install php-imap || warn "php-imap indisponible (retiré de PHP 8.4) : seule la collecte d'e-mails IMAP sera inactive"
+service_enable mariadb
+service_restart mariadb
 
-# Installation PHP
-install_php "$PHP_VERSION"
+info "Base de données ${DB_NAME}"
+mysql_create_db "$DB_NAME" "$DB_USER" "$DOLIBARR_DB_PASS"
 
-# Installation serveur web
-install_webserver "apache"
+if [ -f "${DOLI_DIR}/htdocs/index.php" ]; then
+    warn "Dolibarr est déjà présent dans ${DOLI_DIR} : fichiers conservés"
+else
+    info "Téléchargement de Dolibarr ${DOLIBARR_VERSION}"
+    TGZ="$(mktemp --suffix=.tar.gz)"
+    add_temp_file "$TGZ"
+    download_file "https://github.com/Dolibarr/dolibarr/archive/refs/tags/${DOLIBARR_VERSION}.tar.gz" "$TGZ"
+    mkdir -p "$DOLI_DIR"
+    tar -xzf "$TGZ" -C "$DOLI_DIR" --strip-components=1
+    touch "${DOLI_DIR}/htdocs/conf/conf.php"
+fi
+mkdir -p "$DOCS_DIR"
+chown -R www-data:www-data "$DOLI_DIR" /var/lib/dolibarr
 
-# Installation base de données
-install_database
+cat > /etc/apache2/sites-available/dolibarr.conf <<EOF
+<VirtualHost *:80>
+    ServerName ${DOLIBARR_DOMAIN}
+    DocumentRoot ${DOLI_DIR}/htdocs
 
-# Modules PHP additionnels
-pkg_install "php${PHP_VERSION//./}-gd" "php${PHP_VERSION//./}-xml" "php${PHP_VERSION//./}-zip"
+    <Directory ${DOLI_DIR}/htdocs>
+        AllowOverride All
+        Require all granted
+    </Directory>
 
-# Installation Dolibarr
-cd /var/www
-wget https://github.com/Dolibarr/dolibarr/releases/download/16.0.0/dolibarr-16.0.0.zip || true
-unzip dolibarr-*.zip 2>/dev/null || true
-rm dolibarr-*.zip
+    ErrorLog \${APACHE_LOG_DIR}/dolibarr_error.log
+    CustomLog \${APACHE_LOG_DIR}/dolibarr_access.log combined
+</VirtualHost>
+EOF
+a2ensite -q dolibarr
+a2dissite -q 000-default || true
+apache2ctl configtest
+service_restart apache2
 
-chown -R www-data:www-data $DOLIBARR_DIR
-chmod 0755 $DOLIBARR_DIR
+open_ports 80/tcp
 
+save_credentials /root/dolibarr_identifiants.txt \
+    "Répertoire des documents : ${DOCS_DIR}" \
+    "Base de données          : ${DB_NAME} (serveur localhost)" \
+    "Utilisateur              : ${DB_USER}" \
+    "Mot de passe             : ${DOLIBARR_DB_PASS}"
+
+IP="$(hostname -I | awk '{print $1}')"
 echo
-echo "✅ Dolibarr en cours d'installation"
-echo "Complétez via: http://votre-serveur/dolibarr"
+echo "✅ Dolibarr ${DOLIBARR_VERSION} installé"
+echo "1. Assistant : http://${IP}/install/ (informations dans /root/dolibarr_identifiants.txt)"
+echo "2. Ensuite, verrouiller :"
+echo "   sudo touch ${DOCS_DIR}/install.lock && sudo chmod 444 ${DOLI_DIR}/htdocs/conf/conf.php"

@@ -4,7 +4,7 @@ set -euo pipefail
 
 COMMON_SCRIPT="/tmp/install_common.sh"
 rm -f "$COMMON_SCRIPT"
-curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/procedures/main/install_common.sh" -o "$COMMON_SCRIPT"
 source "$COMMON_SCRIPT"
 
 ensure_root

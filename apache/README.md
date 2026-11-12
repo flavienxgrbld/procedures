@@ -109,8 +109,9 @@ La page par défaut « Apache2 Debian Default Page » doit s'afficher sur `http:
 
 ## Points d'attention
 
-- Les chemins affichés en fin de script (`/etc/apache2/...`) valent pour Debian et Ubuntu. Sur RHEL/Fedora, la configuration se trouve dans `/etc/httpd/`.
-- Le script ouvre les ports uniquement si `ufw` est installé. Avec `firewalld`, lancer `sudo firewall-cmd --permanent --add-service={http,https} && sudo firewall-cmd --reload`.
+- Les noms changent selon la distribution : service et dossier `apache2` sur Debian, Ubuntu et openSUSE, `httpd` sur RHEL, Fedora et Arch. Le script affiche ceux du système en fin d'installation.
+- Le script ouvre les ports 80 et 443 seulement si un pare-feu (`ufw` ou `firewalld`) est actif.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -147,7 +147,7 @@ if [ ! -f "$COMMON_SCRIPT" ]; then
     fi
 
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT" || true
+        curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/procedures/main/install_common.sh" -o "$COMMON_SCRIPT" || true
     fi
 fi
 

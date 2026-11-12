@@ -6,9 +6,9 @@ Alertmanager reçoit les alertes envoyées par Prometheus, les regroupe, supprim
 
 | | |
 |---|---|
-| **Systèmes** | Linux x86_64 avec systemd (Debian, Ubuntu, RHEL, openSUSE, Arch) |
+| **Systèmes** | Linux amd64, arm64 ou armv7 avec systemd (Debian, Ubuntu, RHEL, openSUSE, Arch) |
 | **Méthode** | Binaire officiel (GitHub) |
-| **Version** | 0.26.0 |
+| **Version** | Dernière publiée (0.35.0 au 12/11/2026) |
 | **Ports** | 9093/tcp (interface web et API) |
 | **Script** | `install_alertmanager.sh` |
 
@@ -26,25 +26,33 @@ cd procedures/alertmanager
 sudo bash install_alertmanager.sh
 ```
 
+Le script récupère la dernière version publiée sur GitHub (ou celle de `ALERTMANAGER_VERSION`, par exemple `sudo ALERTMANAGER_VERSION=0.35.0 bash install_alertmanager.sh`), vérifie sa somme SHA-256, détecte l'architecture (amd64, arm64, armv7), crée l'utilisateur système `alertmanager`, le dossier de données `/var/lib/alertmanager` et le service systemd. Une configuration existante n'est pas écrasée.
+
 ## Installation manuelle
 
 ### 1. Créer l'utilisateur de service
 
 ```bash
-sudo useradd -r -s /bin/bash -m -c "Alertmanager Service" alertmanager
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin alertmanager
 ```
 
 ### 2. Télécharger et installer le binaire
 
+Version courante le 12/11/2026 : **0.35.0** (vérifier sur la page des versions GitHub). Remplacer `amd64` par `arm64` sur un Raspberry Pi 64 bits.
+
 ```bash
+VERSION=0.35.0
 cd /tmp
-wget https://github.com/prometheus/alertmanager/releases/download/v0.26.0/alertmanager-0.26.0.linux-amd64.tar.gz
-tar -xzf alertmanager-0.26.0.linux-amd64.tar.gz
-cd alertmanager-0.26.0.linux-amd64
-sudo cp alertmanager amtool /usr/local/bin/
-sudo mkdir -p /etc/alertmanager
+wget https://github.com/prometheus/alertmanager/releases/download/v${VERSION}/alertmanager-${VERSION}.linux-amd64.tar.gz
+wget https://github.com/prometheus/alertmanager/releases/download/v${VERSION}/sha256sums.txt
+grep " alertmanager-${VERSION}.linux-amd64.tar.gz$" sha256sums.txt | sha256sum -c -
+tar -xzf alertmanager-${VERSION}.linux-amd64.tar.gz
+cd alertmanager-${VERSION}.linux-amd64
+sudo install -m 0755 alertmanager amtool /usr/local/bin/
+sudo mkdir -p /etc/alertmanager /var/lib/alertmanager
 sudo cp alertmanager.yml /etc/alertmanager/
-sudo chown -R alertmanager:alertmanager /etc/alertmanager
+sudo chown -R alertmanager:alertmanager /etc/alertmanager /var/lib/alertmanager
+amtool check-config /etc/alertmanager/alertmanager.yml
 ```
 
 ### 3. Créer le service systemd
@@ -55,13 +63,18 @@ sudo nano /etc/systemd/system/alertmanager.service
 
 ```ini
 [Unit]
-Description=Alertmanager
-After=network.target
+Description=Prometheus Alertmanager
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
 User=alertmanager
-ExecStart=/usr/local/bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml
+Group=alertmanager
+ExecStart=/usr/local/bin/alertmanager \
+    --config.file=/etc/alertmanager/alertmanager.yml \
+    --storage.path=/var/lib/alertmanager
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 
 [Install]
@@ -119,9 +132,9 @@ L'interface web est accessible sur `http://<adresse-du-serveur>:9093`.
 
 ## Points d'attention
 
-- Le service écrit ses données dans le dossier courant par défaut. Ajouter `--storage.path=/var/lib/alertmanager` (dossier appartenant à `alertmanager`) pour un emplacement maîtrisé.
-- La configuration fournie dans l'archive est un exemple : il faut définir ses propres récepteurs (`receivers`) avant de recevoir des notifications.
-- La version 0.26.0 est figée dans le script : vérifier la dernière version sur GitHub.
+- La configuration fournie dans l'archive est un exemple (récepteur webhook vers `127.0.0.1:5001`) : définir ses propres récepteurs (`receivers`) avant de compter sur les notifications, puis valider avec `amtool check-config`.
+- L'interface web et l'API (port 9093) n'ont pas d'authentification : ne pas les exposer hors du réseau d'administration.
+- Relu et mis à jour le 12/11/2026 : Alertmanager 0.35.0.
 
 ## Sources
 

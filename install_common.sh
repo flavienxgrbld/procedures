@@ -815,3 +815,86 @@ configure_php() {
 
     success "Configuration PHP terminée"
 }
+
+# ---------------------------------------------------------------------------
+# Fonctions utilitaires ajoutées
+# ---------------------------------------------------------------------------
+
+# version_ge A B : vrai si la version A est supérieure ou égale à B
+version_ge() {
+    [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+# random_password [longueur] : mot de passe alphanumérique aléatoire
+random_password() {
+    local length="${1:-24}"
+    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length" || true
+}
+
+# github_latest_tag owner/depot [valeur_par_defaut]
+# Affiche le tag de la dernière version publiée, ou la valeur par défaut.
+github_latest_tag() {
+    local repo="$1"
+    local fallback="${2:-}"
+    local tag=""
+    tag=$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null \
+        | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/') || true
+    printf '%s' "${tag:-$fallback}"
+}
+
+# install_php_min VERSION_MIN
+# Installe la version de PHP de la distribution si elle est suffisante,
+# sinon VERSION_MIN depuis le dépôt Sury (Debian) ou ppa:ondrej/php (Ubuntu).
+# Définit PHP_VERSION (ex. 8.2) avec la version réellement installée.
+install_php_min() {
+    local min="$1"
+    local distro=""
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        apt-get update -qq || true
+        distro=$(LC_ALL=C apt-cache depends php 2>/dev/null | grep -oE 'php[0-9]+\.[0-9]+' | head -n1 | sed 's/^php//') || true
+    fi
+    if [ -n "$distro" ] && version_ge "$distro" "$min"; then
+        install_php "$distro"
+    else
+        install_php "$min"
+    fi
+    PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
+    version_ge "$PHP_VERSION" "$min" || error_exit "PHP $PHP_VERSION installé, $min minimum requis"
+    info "PHP $PHP_VERSION installé"
+}
+
+# mysql_create_db BASE UTILISATEUR MOT_DE_PASSE
+# Crée (ou met à jour) une base utf8mb4 et un utilisateur local dédié.
+mysql_create_db() {
+    local db="$1" user="$2" pass="$3"
+    mysql -u root <<SQL
+CREATE DATABASE IF NOT EXISTS \`${db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${user}'@'localhost' IDENTIFIED BY '${pass}';
+ALTER USER '${user}'@'localhost' IDENTIFIED BY '${pass}';
+GRANT ALL PRIVILEGES ON \`${db}\`.* TO '${user}'@'localhost';
+FLUSH PRIVILEGES;
+SQL
+}
+
+# save_credentials FICHIER "texte" : enregistre des identifiants lisibles par root seul
+save_credentials() {
+    local file="$1"
+    shift
+    umask 077
+    printf '%s\n' "$@" > "$file"
+    chmod 600 "$file"
+    info "Identifiants enregistrés dans $file"
+}
+
+# open_ports PORT/proto... : ouvre les ports avec ufw ou firewalld s'ils sont actifs
+open_ports() {
+    local p
+    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+        for p in "$@"; do ufw allow "$p" >/dev/null; done
+        info "Ports ouverts dans ufw : $*"
+    elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+        for p in "$@"; do firewall-cmd --permanent --add-port="$p" >/dev/null; done
+        firewall-cmd --reload >/dev/null
+        info "Ports ouverts dans firewalld : $*"
+    fi
+}

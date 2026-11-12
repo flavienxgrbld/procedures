@@ -9,7 +9,7 @@ COMMON_SCRIPT="${REPO_ROOT}/install_common.sh"
 if [ ! -f "$COMMON_SCRIPT" ]; then
     COMMON_SCRIPT="/tmp/install_common.sh"
     if [ ! -f "$COMMON_SCRIPT" ]; then
-        curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+        curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/procedures/main/install_common.sh" -o "$COMMON_SCRIPT"
     fi
 
     if ! bash -n "$COMMON_SCRIPT" >/dev/null 2>&1; then

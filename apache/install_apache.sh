@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Installation d'Apache HTTP Server depuis les paquets de la distribution.
 
 set -euo pipefail
 
@@ -7,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMMON_SCRIPT="${SCRIPT_DIR}/../install_common.sh"
 if [ ! -f "$COMMON_SCRIPT" ]; then
     COMMON_SCRIPT="$(mktemp)"
-    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/procedures/main/install_common.sh" -o "$COMMON_SCRIPT"
 fi
 # shellcheck source=../install_common.sh
 source "$COMMON_SCRIPT"
@@ -18,33 +19,33 @@ detect_package_manager
 
 info "Apache - Serveur web modulaire"
 
-echo "=== Installation d'Apache ==="
-
+pkg_update
 case "$PKG_MANAGER" in
     apt)
         pkg_install apache2 apache2-utils
+        SERVICE="apache2"; CONF_DIR="/etc/apache2"; SITES_DIR="/etc/apache2/sites-available"
         ;;
     dnf|yum)
-        pkg_install httpd httpd-utils
+        pkg_install httpd httpd-tools mod_ssl
+        SERVICE="httpd"; CONF_DIR="/etc/httpd"; SITES_DIR="/etc/httpd/conf.d"
         ;;
     zypper)
         pkg_install apache2 apache2-utils
+        SERVICE="apache2"; CONF_DIR="/etc/apache2"; SITES_DIR="/etc/apache2/vhosts.d"
         ;;
     pacman)
         pkg_install apache
+        SERVICE="httpd"; CONF_DIR="/etc/httpd"; SITES_DIR="/etc/httpd/conf/extra"
         ;;
 esac
 
-# Service
-systemctl enable apache2 2>/dev/null || systemctl enable httpd
-systemctl start apache2 2>/dev/null || systemctl start httpd
+systemctl enable --now "$SERVICE"
+check_service_status "$SERVICE"
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 80/tcp
-    ufw allow 443/tcp
-fi
+open_ports 80/tcp 443/tcp
 
 echo
-echo "✅ Apache installé avec succès"
-echo "Fichiers de configuration: /etc/apache2/apache2.conf"
-echo "Répertoire de sites: /etc/apache2/sites-available"
+echo "✅ Apache installé (service ${SERVICE})"
+echo "Configuration : ${CONF_DIR}"
+echo "Sites         : ${SITES_DIR}"
+echo "Test          : curl -I http://localhost/"

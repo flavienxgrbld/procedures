@@ -2,13 +2,13 @@
 
 ## Description
 
-Artica est une solution de proxy, de filtrage web et de sécurité réseau administrable depuis une interface web (proxy Squid, filtrage, DNS, pare-feu, statistiques). Cette procédure prépare un serveur Debian, ajoute le dépôt Artica et installe le paquet.
+Artica est une solution de proxy, de filtrage web et de sécurité réseau administrable depuis une interface web (proxy Squid, filtrage, DNS, pare-feu, statistiques). Artica s'installe soit depuis l'image ISO officielle (méthode recommandée), soit sur un Debian déjà installé avec l'installateur officiel de l'éditeur, que lance le script.
 
 | | |
 |---|---|
-| **Systèmes** | Debian (recommandé par l'éditeur) ; essais sur RHEL/openSUSE |
-| **Méthode** | Dépôt de paquets Artica |
-| **Ports** | 80 et 443 (interface), 3128 (proxy), 8080 et 8443 (consoles) |
+| **Systèmes** | Debian amd64 uniquement (ISO actuelle : Artica 4.50 sur Debian 12) |
+| **Méthode** | Image ISO officielle, ou installateur officiel `install-manuall.sh` sur Debian |
+| **Ports** | 9000/tcp (interface d'administration HTTPS), 3128/tcp (proxy) |
 | **Script** | `install_artica.sh` |
 
 ## Prérequis
@@ -19,25 +19,18 @@ Artica est une solution de proxy, de filtrage web et de sécurité réseau admin
 
 ## Installation automatique
 
+> ⚠️ Artica transforme tout le système (environ 630 paquets) et **ne se désinstalle pas**. L'éditeur déconseille de l'installer sur un serveur déjà en production : utiliser une VM dédiée.
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/artica
-sudo bash install_artica.sh
+sudo ARTICA_CONFIRM=oui bash install_artica.sh
+sudo reboot
 ```
 
-Les ports et l'URL du dépôt peuvent être ajustés par variables d'environnement :
+Le script vérifie qu'il s'agit d'un Debian 64 bits, télécharge l'installateur officiel indiqué par le wiki Artica (`http://articatech.net/download/v4/install-manuall.sh`) et le lance. L'installateur pose une question sur le mode : répondre **No** pour l'installation complète (proxy, messagerie, DNS prêts à l'emploi), **Yes** pour un système minimal. Sans `ARTICA_CONFIRM=oui`, le script s'arrête avant toute modification.
 
-```bash
-sudo ARTICA_HTTP_PORT=80 ARTICA_PROXY_PORT=3128 ARTICA_REPO_URL=https://download.artica.fr/ bash install_artica.sh
-```
-
-| Variable | Valeur par défaut |
-|---|---|
-| `ARTICA_REPO_URL` | `https://download.artica.fr/` |
-| `ARTICA_PACKAGE` | `artica` |
-| `ARTICA_SERVICE` | `artica` |
-| `ARTICA_HTTP_PORT` / `ARTICA_HTTPS_PORT` | `80` / `443` |
-| `ARTICA_PROXY_PORT` | `3128` |
+Une autre URL d'installateur peut être indiquée avec `ARTICA_INSTALLER_URL`.
 
 ## Installation manuelle (image ISO officielle, recommandée)
 
@@ -68,8 +61,8 @@ Sur les postes, définir le proxy `<adresse-du-serveur>:3128` (paramètres rése
 ## Vérification
 
 ```bash
-systemctl status artica
-ss -tlnp | grep -E ':(80|443|3128)\b'
+systemctl list-units --type=service | grep -iE 'artica|squid'
+ss -tlnp | grep -E ':(9000|3128)\b'
 curl -x http://<adresse-du-serveur>:3128 -I https://www.debian.org
 ```
 
@@ -80,10 +73,13 @@ curl -x http://<adresse-du-serveur>:3128 -I https://www.debian.org
 
 ## Points d'attention
 
-- Le dépôt utilisé par défaut (`https://download.artica.fr/`) ne répond pas (vérifié le 13/10/2026). Le script ne peut donc pas installer Artica tel quel : il prépare le système, puis signale que le paquet est introuvable. Utiliser l'ISO officielle, ou indiquer un dépôt valide avec `ARTICA_REPO_URL`.
-- Sur une distribution sans paquets gérés (`pacman` ou autre), le script appelle la fonction `fatal`, qui n'existe pas dans la bibliothèque commune : il s'arrête avec une erreur « command not found ».
+- L'installateur sur Debian existant est décrit par le wiki Artica pour la version 4.30 LTS, sur Debian 10. Pour Artica 4.50 (Debian 12), l'éditeur met en avant les images ISO : c'est la méthode à privilégier.
+- L'installateur est téléchargé en HTTP (adresse donnée par l'éditeur) : il n'est pas authentifié. Sur un réseau non maîtrisé, préférer l'ISO.
+- Artica ne s'installe ni sur RHEL/openSUSE ni sur processeur ARM ; l'ancien dépôt `download.artica.fr` utilisé par la version précédente du script n'existe pas.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 
 - [Site officiel Artica](https://artica-proxy.com/)
 - [Documentation Artica](https://wiki.articatech.com/)
+- [Wiki Artica — installation sur un Debian déjà installé](https://wiki.articatech.com/getting-started/install-manual)

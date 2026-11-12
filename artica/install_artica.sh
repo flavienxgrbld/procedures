@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# Installation d'Artica sur un Debian déjà installé, avec l'installateur officiel
+# (méthode « Manual installation » du wiki Artica).
+#
+# ATTENTION : Artica transforme tout le système et ne se désinstalle pas.
+# À n'utiliser que sur une machine (virtuelle) dédiée.
+#
+# Variables :
+#   ARTICA_CONFIRM=oui        obligatoire pour lancer l'installation
+#   ARTICA_INSTALLER_URL      URL de l'installateur (défaut : celle du wiki officiel)
 
 set -euo pipefail
 
@@ -7,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMMON_SCRIPT="${SCRIPT_DIR}/../install_common.sh"
 if [ ! -f "$COMMON_SCRIPT" ]; then
     COMMON_SCRIPT="$(mktemp)"
-    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/procedures/main/install_common.sh" -o "$COMMON_SCRIPT"
 fi
 # shellcheck source=../install_common.sh
 source "$COMMON_SCRIPT"
@@ -16,108 +25,44 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Artica - Gestion, proxy et sécurité réseau"
+info "Artica - Proxy, filtrage web et sécurité réseau"
 
-ARTICA_REPO_URL="${ARTICA_REPO_URL:-https://download.artica.fr/}"
-ARTICA_PACKAGE="${ARTICA_PACKAGE:-artica}"
-ARTICA_SERVICE="${ARTICA_SERVICE:-artica}"
-ARTICA_HTTP_PORT="${ARTICA_HTTP_PORT:-80}"
-ARTICA_HTTPS_PORT="${ARTICA_HTTPS_PORT:-443}"
-ARTICA_PROXY_PORT="${ARTICA_PROXY_PORT:-3128}"
+ARTICA_INSTALLER_URL="${ARTICA_INSTALLER_URL:-http://articatech.net/download/v4/install-manuall.sh}"
 
-echo "=== Préparation de l'environnement Artica ==="
-case "$PKG_MANAGER" in
-    apt)
-        pkg_install ca-certificates curl gnupg wget lsb-release git apt-transport-https
+[ "$OS_ID" = "debian" ] || error_exit "Artica ne s'installe que sur Debian (système détecté : ${OS_NAME})"
+[ "$(uname -m)" = "x86_64" ] || error_exit "Artica n'existe qu'en 64 bits x86 (amd64)"
 
-        mkdir -p /usr/share/keyrings
-        if [ ! -f /usr/share/keyrings/artica-archive-keyring.gpg ]; then
-            curl -fsSL "${ARTICA_REPO_URL%/}/artica.gpg" | gpg --dearmor -o /usr/share/keyrings/artica-archive-keyring.gpg 2>/dev/null || true
-        fi
+if [ "${ARTICA_CONFIRM:-}" != "oui" ]; then
+    cat >&2 <<'EOF'
+Artica modifie l'ensemble du système (environ 630 paquets, configuration réseau,
+services) et ne peut pas être désinstallé. L'éditeur déconseille de l'installer
+sur un serveur déjà en production.
 
-        if [ -f /usr/share/keyrings/artica-archive-keyring.gpg ]; then
-            echo "deb [signed-by=/usr/share/keyrings/artica-archive-keyring.gpg] ${ARTICA_REPO_URL} stable main" | tee /etc/apt/sources.list.d/artica.list > /dev/null
-        else
-            warn "Le dépôt Artica officiel n'a pas été détecté ; l'installation continuera selon le packaging local disponible."
-        fi
-        pkg_update
-        ;;
-    dnf|yum)
-        pkg_install ca-certificates curl gnupg wget git
-        if command -v dnf >/dev/null 2>&1; then
-            dnf config-manager --add-repo "${ARTICA_REPO_URL}" 2>/dev/null || true
-        else
-            yum-config-manager --add-repo "${ARTICA_REPO_URL}" 2>/dev/null || true
-        fi
-        ;;
-    zypper)
-        pkg_install ca-certificates curl gnupg wget git
-        zypper addrepo -f "${ARTICA_REPO_URL}" artica-repo 2>/dev/null || true
-        ;;
-    pacman)
-        pkg_install ca-certificates curl gnupg wget git
-        warn "Artica n'a pas de packaging natif standard sur Arch Linux ; vérifiez la compatibilité officielle avant installation."
-        ;;
-    *)
-        fatal "Gestionnaire de paquets non supporté pour Artica : $PKG_MANAGER"
-        ;;
-esac
-
-echo "=== Installation du paquet Artica ==="
-case "$PKG_MANAGER" in
-    apt)
-        if apt-cache show "$ARTICA_PACKAGE" >/dev/null 2>&1; then
-            pkg_install "$ARTICA_PACKAGE"
-        else
-            warn "Le paquet '$ARTICA_PACKAGE' n'est pas disponible dans le dépôt configuré. Vérifiez la documentation Artica de votre version et de votre distribution."
-        fi
-        ;;
-    dnf|yum)
-        if dnf list "$ARTICA_PACKAGE" >/dev/null 2>&1 || yum list "$ARTICA_PACKAGE" >/dev/null 2>&1; then
-            pkg_install "$ARTICA_PACKAGE"
-        else
-            warn "Le paquet '$ARTICA_PACKAGE' n'est pas disponible dans le dépôt actif. Vérifiez la compatibilité du dépôt officiel."
-        fi
-        ;;
-    zypper)
-        if zypper search -i "$ARTICA_PACKAGE" >/dev/null 2>&1; then
-            pkg_install "$ARTICA_PACKAGE"
-        else
-            warn "Le paquet '$ARTICA_PACKAGE' est indisponible sur ce système. Vérifiez le dépôt et la version concernée."
-        fi
-        ;;
-    pacman)
-        warn "Aucune installation Artica standard n'a été lancée sur cette distribution. Consultez la procédure officielle du projet."
-        ;;
-esac
-
-echo "=== Activation du service ==="
-if systemctl list-unit-files | grep -q "^${ARTICA_SERVICE}.service"; then
-    systemctl enable --now "$ARTICA_SERVICE" 2>/dev/null || true
-else
-    warn "Le service '$ARTICA_SERVICE' n'a pas été détecté. Vérifiez le nom exact du service Artica sur votre système."
+Pour confirmer, relancer avec :
+    sudo ARTICA_CONFIRM=oui bash install_artica.sh
+EOF
+    exit 1
 fi
 
-echo "=== Configuration du firewall ==="
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow "$ARTICA_HTTP_PORT"/tcp 2>/dev/null || true
-    ufw allow "$ARTICA_HTTPS_PORT"/tcp 2>/dev/null || true
-    ufw allow "$ARTICA_PROXY_PORT"/tcp 2>/dev/null || true
-    ufw allow 8080/tcp 2>/dev/null || true
-    ufw allow 8443/tcp 2>/dev/null || true
+disk_gb=$(df -BG --output=avail / | tail -n1 | tr -dc '0-9')
+if [ "${disk_gb:-0}" -lt 50 ]; then
+    warn "Espace libre sur / : ${disk_gb} Go (50 Go conseillés par l'éditeur)"
 fi
 
-if command -v firewall-cmd >/dev/null 2>&1; then
-    firewall-cmd --permanent --add-port="${ARTICA_HTTP_PORT}/tcp" 2>/dev/null || true
-    firewall-cmd --permanent --add-port="${ARTICA_HTTPS_PORT}/tcp" 2>/dev/null || true
-    firewall-cmd --permanent --add-port="${ARTICA_PROXY_PORT}/tcp" 2>/dev/null || true
-    firewall-cmd --permanent --add-port=8080/tcp 2>/dev/null || true
-    firewall-cmd --permanent --add-port=8443/tcp 2>/dev/null || true
-    firewall-cmd --reload 2>/dev/null || true
-fi
+pkg_update
+pkg_install wget ca-certificates
+
+INSTALLER="$(mktemp --suffix=.sh)"
+add_temp_file "$INSTALLER"
+info "Téléchargement de l'installateur officiel : ${ARTICA_INSTALLER_URL}"
+download_file "$ARTICA_INSTALLER_URL" "$INSTALLER"
+head -n1 "$INSTALLER" | grep -q '^#!' || error_exit "Le fichier téléchargé n'est pas un script : vérifier ARTICA_INSTALLER_URL"
+chmod 0755 "$INSTALLER"
+
+info "Lancement de l'installateur Artica (répondre « No » pour le mode complet)"
+"$INSTALLER"
 
 echo
-printf "✅ Artica a été préparé sur le système.\n"
-printf "Service: %s\n" "${ARTICA_SERVICE}"
-printf "Interface web: http://%s:%s\n" "$(hostname -I | awk '{print $1}')" "${ARTICA_HTTP_PORT}"
-printf "Documentation: adaptez l'URL du dépôt officiel Artica selon votre distribution et votre version.\n"
+echo "✅ Installation d'Artica terminée."
+echo "Redémarrer le serveur : sudo reboot"
+echo "Puis ouvrir l'interface : https://$(hostname -I | awk '{print $1}'):9000"

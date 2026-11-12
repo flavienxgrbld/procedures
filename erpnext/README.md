@@ -25,7 +25,18 @@ cd procedures/erpnext
 sudo bash install_erpnext.sh
 ```
 
-Lire les points d'attention : en l'état, le script s'arrête avant la fin.
+Le script fait toutes les étapes ci-dessous sans question : dépendances, MariaDB en `utf8mb4`, utilisateur `frappe`, Node.js 20 et Yarn (nvm), Bench (pipx), création du bench et du site, installation d'ERPNext puis mise en production avec Nginx et Supervisor. Le mot de passe du compte `Administrator` et celui de root MariaDB sont enregistrés dans `/root/erpnext_identifiants.txt`. Compter 15 à 30 minutes.
+
+```bash
+sudo ERP_SITE=erp.exemple.local bash install_erpnext.sh
+```
+
+| Variable | Défaut |
+|---|---|
+| `ERP_SITE` | nom complet de la machine |
+| `ERP_BRANCH` | `version-15` |
+| `ERP_ADMIN_PASS` | généré |
+| `ERP_PRODUCTION` | `oui` (Nginx + Supervisor) ; `non` pour un test avec `bench start` |
 
 ## Installation manuelle
 
@@ -42,7 +53,8 @@ su - frappe
 ```bash
 sudo apt update
 sudo apt install -y git python3-dev python3-pip python3-venv pipx redis-server \
-  mariadb-server mariadb-client xvfb libfontconfig wkhtmltopdf curl
+  mariadb-server mariadb-client libmariadb-dev pkg-config xvfb libfontconfig wkhtmltopdf curl \
+  nginx supervisor cron
 ```
 
 ### 3. Configurer MariaDB
@@ -69,9 +81,9 @@ sudo systemctl restart mariadb
 ### 4. Installer Node.js et Yarn
 
 ```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 source ~/.bashrc
-nvm install 18
+nvm install 20
 npm install -g yarn
 ```
 
@@ -138,10 +150,10 @@ Se connecter avec `Administrator` et le mot de passe défini à l'étape 6 : l'a
 
 ## Points d'attention
 
-- Le script installe `frappe-bench` avec `pip3 install` : sur Debian 12 et Ubuntu 23.04+, cette commande est refusée (« externally-managed-environment »). Il faut passer par `pipx` (étape 5).
-- Il lance les commandes `bench new-site`, `get-app` et `install-app` depuis le dossier personnel de l'utilisateur au lieu du dossier du bench : elles échouent. Il n'installe ni Node.js, ni Yarn, ni wkhtmltopdf, et ne configure pas MariaDB en `utf8mb4`.
-- Le script vise la version 14 : la version 15 est la version stable actuelle.
-- Le site `erp.exemple.local` doit être résolu par le DNS (ou ajouté dans `/etc/hosts`) pour fonctionner en production, car Nginx sert le site selon son nom.
+- La procédure installe ERPNext **15**, toujours maintenu (15.124 au 12/11/2026) et compatible avec Python et MariaDB des distributions. La version **16** existe, mais elle demande Python 3.14, Node.js 24 et MariaDB 11.8, absents des dépôts de Debian 12 et Ubuntu 24.04 : à réserver à une installation faite à la main.
+- Le site est servi par Nginx **selon son nom** : `ERP_SITE` doit être résolu par le DNS des postes (ou ajouté dans leur `/etc/hosts`). Une visite par l'adresse IP affiche une erreur « site not found ».
+- Debian 13 n'est pas pris en charge par le script (`wkhtmltopdf`, utilisé pour les PDF, n'y est plus disponible).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

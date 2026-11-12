@@ -6,7 +6,7 @@ La suite Elastic, ou ELK, centralise et analyse les journaux. **Elasticsearch** 
 
 | | |
 |---|---|
-| **Systèmes** | Debian, Ubuntu (dépôt APT Elastic) ; RHEL (dépôt YUM) |
+| **Systèmes** | Debian, Ubuntu (dépôt APT Elastic) ; RHEL possible à la main (dépôt YUM) |
 | **Méthode** | Dépôt officiel `artifacts.elastic.co` |
 | **Ports** | 9200 (Elasticsearch), 5601 (Kibana), 5044 (Logstash / Beats) |
 | **Script** | `install_elk.sh` |
@@ -24,7 +24,13 @@ cd procedures/elk
 sudo bash install_elk.sh
 ```
 
-Le script installe la branche **7.x**. La procédure manuelle ci-dessous utilise la branche 8.x, actuelle, dont la sécurité est activée par défaut.
+Le script ajoute le dépôt Elastic 9.x, installe Elasticsearch (sécurité activée : TLS et authentification), définit un mot de passe pour le compte `elastic`, installe Kibana et l'inscrit auprès d'Elasticsearch avec un jeton d'inscription : il n'y a plus d'étape dans le navigateur. Les identifiants sont enregistrés dans `/root/elk_identifiants.txt`.
+
+Logstash est facultatif (entrée Beats sur le port 5044) :
+
+```bash
+sudo ELK_LOGSTASH=oui bash install_elk.sh
+```
 
 ## Installation manuelle
 
@@ -34,8 +40,8 @@ Le script installe la branche **7.x**. La procédure manuelle ci-dessous utilise
 sudo apt update
 sudo apt install -y apt-transport-https gnupg curl
 curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /usr/share/keyrings/elasticsearch-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/elastic-8.x.list
+echo "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/9.x/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/elastic-9.x.list
 sudo apt update
 ```
 
@@ -51,11 +57,7 @@ sudo apt install -y elasticsearch
 sudo /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic
 ```
 
-Pour que Kibana et les autres machines puissent joindre Elasticsearch, régler dans `/etc/elasticsearch/elasticsearch.yml` :
-
-```yaml
-network.host: 0.0.0.0
-```
+La configuration automatique du paquet fait déjà écouter l'API HTTPS sur toutes les interfaces (`http.host: 0.0.0.0` dans `/etc/elasticsearch/elasticsearch.yml`). Ne pas ajouter `network.host: 0.0.0.0` sur un serveur seul : Elasticsearch passerait en mode production et refuserait de démarrer sans réglages supplémentaires (`vm.max_map_count`, découverte du cluster).
 
 ```bash
 sudo systemctl daemon-reload
@@ -86,6 +88,8 @@ Ouvrir `http://<adresse-du-serveur>:5601`, coller le jeton, puis saisir le code 
 ```bash
 sudo /usr/share/kibana/bin/kibana-verification-code
 ```
+
+Sans navigateur, l'inscription peut aussi se faire en ligne de commande (c'est ce que fait le script) : `sudo /usr/share/kibana/bin/kibana-setup --enrollment-token <jeton>`.
 
 Se connecter avec le compte `elastic`.
 
@@ -138,9 +142,10 @@ Elasticsearch répond avec le nom du cluster et sa version. Dans Kibana, *Discov
 
 ## Points d'attention
 
-- Le script installe la branche 7.x, sans sécurité activée : Elasticsearch répond sans authentification sur le port 9200 dès que celui-ci est ouvert.
-- Le script installe `openjdk-11-jre`, inutile : Elasticsearch et Logstash embarquent leur propre Java. Il utilise aussi `apt-key`, retiré des versions récentes de Debian et Ubuntu.
-- Le script ouvre le port 5000 pour Logstash, alors que l'entrée Beats utilise le port 5044 par convention.
+- Elasticsearch et Kibana demandent ensemble **4 Go de RAM** au minimum ; en dessous, Elasticsearch peut être arrêté par le système (manque de mémoire).
+- L'entrée Logstash créée par le script affiche les événements reçus dans son journal (`stdout`) : remplacer la sortie par Elasticsearch (avec un compte dédié et le certificat `http_ca.crt`) avant usage réel.
+- Kibana est publié en HTTP sur le port 5601 : pour un accès hors du réseau d'administration, le placer derrière un proxy inverse HTTPS.
+- Relu et mis à jour le 12/11/2026 : branche Elastic 9.x (9.5).
 
 ## Sources
 

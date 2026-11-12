@@ -25,7 +25,7 @@ cd procedures/gitea_self_hosted
 sudo bash install_gitea_self_hosted.sh
 ```
 
-Le script crée l'utilisateur `git`, installe le binaire Gitea 1.20.0 et démarre le service. L'installation se termine dans le navigateur (étape 5).
+Le script installe Git, crée l'utilisateur `git` et les dossiers, télécharge la dernière version publiée (ou `GITEA_VERSION`) pour l'architecture de la machine en vérifiant sa somme SHA-256, puis crée et démarre le service. Il reste l'assistant web (étape 5) et le verrouillage des droits sur `/etc/gitea`, que le script rappelle. Relancé, il met le binaire à jour sans toucher à la configuration. Variable facultative : `GITEA_PORT`.
 
 ## Installation manuelle
 
@@ -50,10 +50,10 @@ sudo chmod 770 /etc/gitea
 
 ### 3. Installer le binaire
 
-Prendre la dernière version sur la page des versions (ici la 28.1.0) :
+Prendre la dernière version sur la page des versions (28.3.0 au 12/11/2026 ; Gitea est passé d'une numérotation 1.x à 28.x) :
 
 ```bash
-sudo wget -O /usr/local/bin/gitea https://github.com/go-gitea/gitea/releases/download/v28.1.0/gitea-28.1.0-linux-amd64
+sudo wget -O /usr/local/bin/gitea https://github.com/go-gitea/gitea/releases/download/v28.3.0/gitea-28.3.0-linux-amd64
 sudo chmod +x /usr/local/bin/gitea
 gitea --version
 ```
@@ -125,9 +125,10 @@ Créer un dépôt, puis le cloner en HTTP et en SSH (`git@<serveur>:utilisateur/
 
 ## Points d'attention
 
-- Le script n'installe pas `git`, dont Gitea a besoin pour fonctionner.
-- Le script installe Gitea 1.20.0, une version ancienne qui ne reçoit plus de correctifs de sécurité. Le fichier de service qu'il crée contient la clé `RestartPolicy=always`, qui n'existe pas dans systemd (ignorée avec un avertissement).
-- Après l'assistant, `/etc/gitea` reste modifiable par l'utilisateur `git`. Remettre des droits plus stricts (étape 5).
+- Tant que l'assistant n'a pas été validé, n'importe qui peut configurer l'instance et créer le compte administrateur : le faire dès la fin de l'installation.
+- Après l'assistant, `/etc/gitea` reste modifiable par l'utilisateur `git` : remettre des droits plus stricts (étape 5).
+- Pour cloner en SSH, Gitea utilise le serveur SSH du système avec le compte `git` (`git@serveur:utilisateur/depot.git`).
+- Relu et mis à jour le 12/11/2026 (Gitea 28.3).
 
 ## Sources
 

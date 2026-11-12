@@ -18,13 +18,15 @@ HAProxy est un répartiteur de charge et un proxy inverse très performant, pour
 
 ## Installation automatique
 
+Indiquer les serveurs web à répartir :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/haproxy
-sudo bash install_haproxy.sh
+sudo HAPROXY_BACKENDS="192.168.1.21:80 192.168.1.22:80" bash install_haproxy.sh
 ```
 
-Le script écrit une configuration d'exemple pointant vers `127.0.0.1:8001` et `127.0.0.1:8002`. Remplacer ces serveurs par les vrais avant usage (étape 2).
+Le script installe HAProxy, sauvegarde la configuration d'origine (`haproxy.cfg.orig`), écrit la configuration de l'étape 2 avec ces serveurs, la vérifie (`haproxy -c`) et redémarre le service. La page de statistiques est sur le port 8404, protégée par un mot de passe aléatoire enregistré dans `/root/haproxy_identifiants.txt`. Variables facultatives : `HAPROXY_PORT`, `HAPROXY_CHECK` (chemin testé, défaut `/`), `STATS_PASS`.
 
 ## Installation manuelle
 
@@ -119,8 +121,10 @@ Avec deux pages d'accueil différentes sur les serveurs, les réponses alternent
 
 ## Points d'attention
 
-- La configuration du script envoie les journaux vers `stdout`, alors qu'HAProxy tourne en tâche de fond (`daemon`) : les journaux sont perdus. Elle répartit aussi vers deux serveurs locaux fictifs (ports 8001 et 8002), ce qui donne une erreur 503 tant qu'ils n'existent pas.
-- Le script publie la page `/stats` sur le site lui-même, sans mot de passe : n'importe quel visiteur voit l'architecture. La configuration ci-dessus la place sur un port séparé, protégée par un mot de passe.
+- Un serveur est retiré de la répartition dès que sa vérification (`option httpchk`) échoue : si tous échouent, HAProxy répond 503. Choisir pour `HAPROXY_CHECK` une page qui répond 200 sur chaque serveur.
+- Les serveurs web voient l'adresse d'HAProxy comme client : l'adresse réelle est dans l'en-tête `X-Forwarded-For` (`option forwardfor`), à exploiter dans leurs journaux.
+- Ne pas exposer le port 8404 hors du réseau d'administration.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

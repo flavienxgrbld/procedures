@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# Gitpod auto-hébergé n'est plus distribué : ce script installe à la place
+# OpenVSCode Server (VS Code dans le navigateur, publié par l'équipe Gitpod)
+# avec l'image Docker officielle, protégé par un jeton de connexion.
+#
+# Variables modifiables :
+#   OVS_PORT   port publié (défaut : 3000)
+#   OVS_TOKEN  jeton de connexion (défaut : généré)
 
 set -euo pipefail
 
@@ -16,17 +23,38 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Gitpod - Environnement de développement en ligne"
+info "OpenVSCode Server (remplaçant de Gitpod auto-hébergé)"
 
-echo "=== Installation de Gitpod ==="
-pkg_install docker.io kubernetes-client
+APP_DIR="/opt/openvscode"
+OVS_PORT="${OVS_PORT:-3000}"
 
-echo "⚠️  Gitpod nécessite:"
-echo "  - Docker ou Kubernetes"
-echo "  - Configuration avancée"
-echo "  - Domaine avec DNS"
-echo ""
-echo "Installation déploiement personnalisé:"
-echo "https://www.gitpod.io/docs/self-hosted/"
-echo ""
-echo "Pour développement local: utiliser version SaaS"
+ensure_docker
+mkdir -p "${APP_DIR}/workspace"
+chown -R 1000:1000 "${APP_DIR}/workspace"
+
+if [ ! -f "${APP_DIR}/.env" ]; then
+    (umask 077; printf 'OVS_PORT=%s\nOVS_TOKEN=%s\n' "$OVS_PORT" "${OVS_TOKEN:-$(random_password 32)}" > "${APP_DIR}/.env")
+fi
+
+cat > "${APP_DIR}/compose.yaml" <<'EOF'
+services:
+  openvscode:
+    image: gitpod/openvscode-server:latest
+    container_name: openvscode
+    restart: unless-stopped
+    ports:
+      - "${OVS_PORT}:3000"
+    command: --host 0.0.0.0 --connection-token ${OVS_TOKEN}
+    volumes:
+      - ./workspace:/home/workspace
+EOF
+
+compose_up "$APP_DIR"
+# shellcheck disable=SC1091
+. "${APP_DIR}/.env"
+open_ports "${OVS_PORT}/tcp"
+
+echo
+echo "✅ OpenVSCode Server démarré"
+echo "Adresse : http://$(hostname -I | awk '{print $1}'):${OVS_PORT}/?tkn=<jeton>  (jeton dans ${APP_DIR}/.env)"
+echo "Fichiers : ${APP_DIR}/workspace"

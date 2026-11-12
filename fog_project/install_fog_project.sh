@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation de FOG Project avec l'installateur officiel (bin/installfog.sh),
+# depuis la branche stable du dépôt GitHub. L'installateur reste interactif.
+#
+# Variables modifiables :
+#   FOG_BRANCH     branche ou version (défaut : master, la branche stable)
+#   FOG_BASE_DIR   dossier des sources (défaut : /opt/fogproject)
 
 set -euo pipefail
 
@@ -16,73 +22,44 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "FOG Project - Serveur de déploiement / imaging" 
+info "FOG Project - Clonage et déploiement de postes par le réseau"
 
-FOG_REPO_URL="${FOG_REPO_URL:-https://github.com/FOGProject/fogproject.git}"
-FOG_INSTALLER="${FOG_INSTALLER:-bin/installfog.sh}"
+FOG_BRANCH="${FOG_BRANCH:-master}"
 FOG_BASE_DIR="${FOG_BASE_DIR:-/opt/fogproject}"
 
 case "$PKG_MANAGER" in
-    apt)
-        pkg_install ca-certificates curl gnupg wget git tar gzip lsb-release
-        ;;
-    dnf|yum)
-        pkg_install ca-certificates curl gnupg wget git tar gzip
-        ;;
-    zypper)
-        pkg_install ca-certificates curl gnupg wget git tar gzip
-        ;;
-    pacman)
-        pkg_install ca-certificates curl gnupg wget git tar gzip
-        ;;
-    *)
-        fatal "Gestionnaire de paquets non supporté pour FOG Project : $PKG_MANAGER"
-        ;;
+    apt|dnf|yum) ;;
+    *) error_exit "FOG Project prend en charge Debian, Ubuntu et la famille Red Hat (gestionnaire détecté : $PKG_MANAGER)" ;;
 esac
 
-echo "=== Préparation du serveur FOG ==="
+# FOG a besoin d'une adresse IP fixe : on prévient si l'interface est en DHCP
+IFACE="$(ip -4 route show default | awk '{print $5; exit}')"
+if ip -4 addr show dev "$IFACE" 2>/dev/null | grep -q dynamic; then
+    warn "L'interface ${IFACE} reçoit son adresse par DHCP : configurer une IP fixe avant d'installer FOG (étape 1 du README)."
+fi
 
-if [ ! -d "$FOG_BASE_DIR" ]; then
-    git clone "$FOG_REPO_URL" "$FOG_BASE_DIR"
+pkg_update
+pkg_install git ca-certificates curl tar gzip
+
+if [ -d "${FOG_BASE_DIR}/.git" ]; then
+    info "Mise à jour des sources dans ${FOG_BASE_DIR}"
+    git -C "$FOG_BASE_DIR" fetch --depth 1 origin "$FOG_BRANCH"
+    git -C "$FOG_BASE_DIR" checkout -q FETCH_HEAD
 else
-    warn "Le dossier $FOG_BASE_DIR existe déjà. Vérification du dépôt local."
-    git -C "$FOG_BASE_DIR" pull --ff-only 2>/dev/null || true
+    info "Récupération de FOG (${FOG_BRANCH})"
+    git clone --depth 1 --branch "$FOG_BRANCH" https://github.com/FOGProject/fogproject.git "$FOG_BASE_DIR"
 fi
+[ -f "${FOG_BASE_DIR}/bin/installfog.sh" ] || error_exit "bin/installfog.sh introuvable dans ${FOG_BASE_DIR}"
 
-if [ ! -f "$FOG_BASE_DIR/$FOG_INSTALLER" ]; then
-    fatal "Le script d'installation FOG n'a pas été trouvé dans $FOG_BASE_DIR. Vérifiez le dépôt officiel et la version utilisée."
-fi
+# Interface web, TFTP, FTP, NFS (DHCP seulement si FOG le fournit : port ouvert par l'utilisateur)
+open_ports 80/tcp 443/tcp 69/udp 21/tcp 2049/tcp 2049/udp 111/tcp 111/udp
 
-echo "=== Configuration du réseau et des services ==="
-warn "FOG Project nécessite souvent une IP statique, DHCP et PXE correctement configurés."
-warn "Le serveur devra être validé via le script d'installation officiel du projet."
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 80/tcp 2>/dev/null || true
-    ufw allow 443/tcp 2>/dev/null || true
-    ufw allow 67/udp 2>/dev/null || true
-    ufw allow 69/udp 2>/dev/null || true
-fi
-
-if command -v firewall-cmd >/dev/null 2>&1; then
-    firewall-cmd --permanent --add-port=80/tcp 2>/dev/null || true
-    firewall-cmd --permanent --add-port=443/tcp 2>/dev/null || true
-    firewall-cmd --permanent --add-port=67/udp 2>/dev/null || true
-    firewall-cmd --permanent --add-port=69/udp 2>/dev/null || true
-    firewall-cmd --reload 2>/dev/null || true
-fi
-
-echo "=== Lancement de l'installateur FOG ==="
-cd "$FOG_BASE_DIR"
-if [ -x "$FOG_BASE_DIR/$FOG_INSTALLER" ]; then
-    bash "$FOG_BASE_DIR/$FOG_INSTALLER"
-else
-    warn "Le script d'installation n'est pas exécutable. Tentative d'exécution via bash."
-    bash "$FOG_BASE_DIR/$FOG_INSTALLER"
-fi
+info "Lancement de l'installateur officiel (questions : voir le tableau de l'étape 3 du README)"
+cd "${FOG_BASE_DIR}/bin"
+bash ./installfog.sh
 
 echo
-printf "✅ Préparation FOG Project terminée.\n"
-printf "Répertoire source: %s\n" "$FOG_BASE_DIR"
-printf "Le script officiel de FOG a été lancé.\n"
-printf "Vérifiez le réseau PXE/DHCP et l'interface web avant déploiement.\n"
+echo "✅ Installation de FOG terminée"
+echo "Interface : http://$(hostname -I | awk '{print $1}')/fog/management"
+echo "Compte par défaut : fog / password (à changer immédiatement)"
+echo "Si FOG fournit le DHCP : ouvrir aussi le port 67/udp."

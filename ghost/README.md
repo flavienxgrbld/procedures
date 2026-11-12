@@ -20,22 +20,30 @@ Ghost est une plateforme de publication moderne pour blogs et newsletters, rapid
 
 ## Installation automatique
 
+Sur Ubuntu 22.04 ou 24.04, avec un nom de domaine public qui pointe déjà vers le serveur :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/ghost
-sudo bash install_ghost.sh
+sudo GHOST_URL=https://blog.exemple.fr GHOST_SSL_EMAIL=admin@exemple.fr bash install_ghost.sh
 ```
 
-Lire les points d'attention : la méthode du script entre en conflit avec Ghost-CLI.
+Le script installe Nginx, MySQL 8 et Node.js 22, crée une base et un utilisateur MySQL dédiés, installe Ghost-CLI, crée le compte d'administration `ghostadmin`, puis lance `ghost install` sans question (Nginx, certificat Let's Encrypt, service systemd). Avec une adresse en `http://` (labo sans domaine public), le HTTPS n'est pas configuré. Les identifiants de la base sont enregistrés dans `/root/ghost_identifiants.txt`.
 
 ## Installation manuelle
 
 ### 1. Créer un utilisateur d'administration
 
 ```bash
-sudo adduser flavien
-sudo usermod -aG sudo flavien
-su - flavien
+sudo adduser ghostadmin
+sudo usermod -aG sudo ghostadmin
+su - ghostadmin
+```
+
+Ne pas appeler ce compte `ghost` : Ghost-CLI crée lui-même un utilisateur `ghost` pour faire tourner le service.
+
+```bash
+# (suite dans la session ghostadmin)
 ```
 
 ### 2. Installer Nginx et MySQL 8
@@ -46,14 +54,17 @@ sudo apt install -y nginx mysql-server
 sudo ufw allow 'Nginx Full'
 ```
 
-Définir un mot de passe pour le compte `root` de MySQL (utilisé par Ghost-CLI pour créer sa base) :
+Créer la base et un utilisateur MySQL dédié à Ghost :
 
 ```bash
 sudo mysql
 ```
 
 ```sql
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'MotDePasseFort';
+CREATE DATABASE ghost_prod CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER 'ghost_db'@'localhost' IDENTIFIED BY 'MotDePasseFort';
+GRANT ALL PRIVILEGES ON ghost_prod.* TO 'ghost_db'@'localhost';
+FLUSH PRIVILEGES;
 EXIT;
 ```
 
@@ -91,9 +102,9 @@ Réponses :
 | Question | Réponse |
 |---|---|
 | Blog URL | `https://blog.exemple.fr` |
-| MySQL hostname / username / password | `localhost` / `root` / mot de passe de l'étape 2 |
+| MySQL hostname / username / password | `localhost` / `ghost_db` / mot de passe de l'étape 2 |
 | Ghost database name | `ghost_prod` |
-| Set up a ghost MySQL user? | `Y` |
+| Set up a ghost MySQL user? | `n` (l'utilisateur dédié existe déjà) |
 | Set up Nginx? | `Y` |
 | Set up SSL? | `Y` (adresse e-mail pour Let's Encrypt) |
 | Set up systemd? | `Y` |
@@ -134,9 +145,10 @@ ghost doctor
 
 ## Points d'attention
 
-- Le script crée un utilisateur système nommé `ghost` et lance `ghost install` avec lui. La documentation de Ghost interdit ce nom, car Ghost-CLI crée lui-même un utilisateur `ghost` pour faire tourner le service : l'installation échoue ou se retrouve avec des droits incohérents. Il faut aussi un compte avec `sudo`.
-- Le script installe Node.js 18, qui n'est plus pris en charge par les versions récentes de Ghost.
-- Il n'installe ni Nginx, ni MySQL, que Ghost-CLI attend en production. Ghost ne prend pas en charge MariaDB en production.
+- Ghost ne prend en charge en production qu'Ubuntu, MySQL 8 (pas MariaDB) et une version LTS de Node.js prise en charge (22 au 12/11/2026).
+- La commande `ghost` se lance toujours depuis le compte d'administration (`ghostadmin`), jamais en root.
+- Le certificat Let's Encrypt n'est obtenu que si le domaine pointe vers le serveur et que les ports 80 et 443 sont joignables depuis Internet.
+- Relu et mis à jour le 12/11/2026 (Ghost 6).
 
 ## Sources
 

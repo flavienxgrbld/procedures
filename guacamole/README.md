@@ -25,7 +25,7 @@ cd procedures/guacamole
 sudo bash install_guacamole.sh
 ```
 
-Lire les points d'attention : sans initialisation de la base, la connexion échoue.
+Le script installe Docker s'il est absent, génère `initdb.sql` avec l'image officielle (étape 2), écrit le `compose.yaml` de l'étape 3 avec des mots de passe MySQL aléatoires (fichier `/opt/guacamole/.env`, lisible par root seul) et démarre les trois conteneurs. Il reste à changer le mot de passe de `guacadmin` (étape 5). Variables facultatives : `GUAC_VERSION` (défaut 1.6.0), `GUAC_PORT`.
 
 ## Installation manuelle
 
@@ -41,7 +41,7 @@ cd /opt/guacamole
 L'image Guacamole fournit le script SQL qui crée les tables et le compte administrateur :
 
 ```bash
-sudo docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --mysql | sudo tee init/initdb.sql > /dev/null
+sudo docker run --rm guacamole/guacamole:1.6.0 /opt/guacamole/bin/initdb.sh --mysql | sudo tee init/initdb.sql > /dev/null
 ```
 
 ### 3. Décrire les services
@@ -51,11 +51,11 @@ sudo docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --mysql | 
 ```yaml
 services:
   guacd:
-    image: guacamole/guacd:latest
+    image: guacamole/guacd:1.6.0
     restart: unless-stopped
 
   mysql:
-    image: mysql:8.0
+    image: mysql:8.4
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: MotDePasseRoot
@@ -67,7 +67,7 @@ services:
       - mysql_data:/var/lib/mysql
 
   guacamole:
-    image: guacamole/guacamole:latest
+    image: guacamole/guacamole:1.6.0
     restart: unless-stopped
     depends_on:
       - guacd
@@ -92,7 +92,7 @@ sudo docker compose up -d
 sudo ufw allow 8080/tcp
 ```
 
-Au premier démarrage, MySQL exécute `initdb.sql` (une à deux minutes).
+Au premier démarrage, MySQL exécute `initdb.sql` (une à deux minutes). Garder la même version pour `guacd` et `guacamole`.
 
 ### 5. Première connexion
 
@@ -119,9 +119,10 @@ sudo docker compose logs guacamole | tail -30
 
 ## Points d'attention
 
-- Le `docker-compose.yml` du script ne fournit pas le script `initdb.sql` à MySQL : la base reste vide, et l'identifiant `guacadmin / guacadmin` qu'il affiche ne fonctionne pas.
-- Le script laisse des mots de passe faibles (`root`, `guacamole`) dans le fichier Compose : les remplacer.
+- Le compte `guacadmin` / `guacadmin` est créé par `initdb.sql` : changer son mot de passe dès la première connexion, ou créer un autre administrateur et le supprimer.
+- `initdb.sql` n'est lu qu'au premier démarrage de MySQL (volume vide). Pour repartir de zéro : `docker compose down -v`, puis `docker compose up -d`.
 - Exposée sur Internet, l'interface doit passer par HTTPS (proxy inverse) et, idéalement, une double authentification (extension TOTP).
+- Relu et mis à jour le 12/11/2026 (Guacamole 1.6.0).
 
 ## Sources
 

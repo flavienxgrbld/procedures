@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation de Focalboard (serveur autonome) avec l'image Docker officielle.
+#
+# Variables modifiables :
+#   FOCALBOARD_PORT  port publié (défaut : 8000)
 
 set -euo pipefail
 
@@ -16,25 +20,32 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Focalboard - Tableau blanc collaboratif"
+info "Focalboard - Gestion de projets en tableaux"
 
-echo "=== Installation de Focalboard ==="
-pkg_install docker.io
+APP_DIR="/opt/focalboard"
+FOCALBOARD_PORT="${FOCALBOARD_PORT:-8000}"
 
-docker run -d \
-  -p 8000:8000 \
-  --name focalboard \
-  --restart=always \
-  -v focalboard_data:/data \
-  mattermost/focalboard:latest
+ensure_docker
+mkdir -p "$APP_DIR"
+cat > "${APP_DIR}/compose.yaml" <<EOF
+services:
+  focalboard:
+    image: mattermost/focalboard:latest
+    container_name: focalboard
+    restart: unless-stopped
+    ports:
+      - "${FOCALBOARD_PORT}:8000"
+    volumes:
+      # Emplacement des données d'après le Dockerfile officiel
+      - focalboard_data:/opt/focalboard/data
 
-docker volume create focalboard_data
+volumes:
+  focalboard_data:
+EOF
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8000/tcp
-fi
+compose_up "$APP_DIR"
+open_ports "${FOCALBOARD_PORT}/tcp"
 
 echo
-echo "✅ Focalboard en cours d'installation"
-echo "URL: http://votre-serveur:8000"
-echo "Identifiant par défaut: admin@example.com / Password1!"
+echo "✅ Focalboard démarré : http://$(hostname -I | awk '{print $1}'):${FOCALBOARD_PORT}"
+echo "Première visite : créer son compte avec le lien « Register » (le premier compte n'a pas de droits particuliers)."

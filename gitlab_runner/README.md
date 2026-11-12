@@ -19,13 +19,15 @@ GitLab Runner est l'agent qui exécute les tâches d'intégration et de déploie
 
 ## Installation automatique
 
+Créer d'abord le runner dans GitLab (étape 2) pour obtenir son jeton `glrt-`, puis :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/gitlab_runner
-sudo bash install_gitlab_runner.sh
+sudo RUNNER_URL=https://gitlab.com RUNNER_TOKEN=glrt-XXXXXXXXXXXXXXXX bash install_gitlab_runner.sh
 ```
 
-Le script ajoute le dépôt et installe `gitlab-runner`. Il reste à enregistrer le runner (étapes 2 et 3).
+Le script ajoute le dépôt officiel, installe `gitlab-runner`, installe Docker si l'exécuteur est `docker` (par défaut) en ajoutant `gitlab-runner` au groupe `docker`, puis enregistre le runner sans question et vérifie la connexion. Sans `RUNNER_TOKEN`, il s'arrête après l'installation. Variables : `RUNNER_EXECUTOR` (`docker` ou `shell`), `RUNNER_IMAGE` (défaut `alpine:latest`).
 
 ## Installation manuelle
 
@@ -105,8 +107,9 @@ Dans GitLab, le runner apparaît en vert dans la page *Runners*, et le pipeline 
 
 ## Points d'attention
 
-- Le message du script parle de *registration token* : cette méthode est dépréciée par GitLab. On crée maintenant le runner dans l'interface, qui fournit un jeton `glrt-` (étape 2).
-- L'exécuteur `shell` lance les jobs directement sur le serveur, avec les droits de l'utilisateur `gitlab-runner` : le réserver à des projets de confiance.
+- L'exécuteur `shell` lance les jobs directement sur le serveur, avec les droits de l'utilisateur `gitlab-runner` : le réserver à des projets de confiance. Avec l'exécuteur `docker`, l'appartenance au groupe `docker` donne aussi des droits élevés sur l'hôte : un runner ne doit pas tourner sur un serveur qui héberge autre chose de sensible.
+- Les jetons d'enregistrement (`registration token`) sont dépréciés par GitLab : utiliser le jeton `glrt-` créé dans l'interface.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

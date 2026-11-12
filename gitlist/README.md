@@ -26,7 +26,11 @@ cd procedures/gitlist
 sudo bash install_gitlist.sh
 ```
 
-Lire les points d'attention : le script ne parvient plus à télécharger GitList.
+Le script installe Apache, PHP et Git, télécharge l'archive de version 2.0.1, indique le dossier des dépôts (`/srv/git` ou `GITLIST_REPOS`), prépare le cache et publie le dossier `public/` avec Apache. Pour protéger l'accès par mot de passe (recommandé) :
+
+```bash
+sudo GITLIST_USER=lecteur GITLIST_PASS=MotDePasseFort bash install_gitlist.sh
+```
 
 ## Installation manuelle
 
@@ -56,10 +60,11 @@ Dans `/var/www/gitlist/config/config.yml` :
   default_repository_dir: /srv/git
 ```
 
-Le serveur web doit pouvoir lire ce dossier :
+Le serveur web doit pouvoir lire ce dossier, et Git doit accepter des dépôts appartenant à un autre utilisateur que `www-data` :
 
 ```bash
 sudo chmod -R o+rX /srv/git
+sudo git config --system --add safe.directory '*'
 ```
 
 ### 4. Créer les dossiers de cache et de journaux
@@ -107,10 +112,10 @@ Ouvrir `http://<adresse-du-serveur>/` : la liste des dépôts de `/srv/git` s'af
 
 ## Points d'attention
 
-- Le script télécharge `github.com/dlhsmp/GitList/archive/master.zip`, qui n'existe pas (erreur 404, vérifié le 13/10/2026) : il s'arrête au téléchargement. Le projet officiel est `klaussilveira/gitlist`.
-- Même avec le bon dépôt, l'archive du code source ne convient pas : le projet demande d'utiliser l'archive de version (`gitlist-<version>.zip`), qui contient les dépendances.
-- Le script ne configure pas l'emplacement des dépôts et garde le site Apache par défaut `000-default` actif.
-- GitList ne gère ni comptes ni droits : le protéger (authentification Apache, réseau interne) si les dépôts sont privés.
+- GitList ne gère ni comptes ni droits : sans `GITLIST_USER`/`GITLIST_PASS` (authentification Apache), tous les dépôts du dossier sont visibles par quiconque accède au serveur.
+- La dernière version publiée avec son archive d'installation est la 2.0.1 (le tag 2.0.2 n'a pas d'archive). Ne pas utiliser l'archive du code source, qui ne contient pas les dépendances.
+- Le script désactive le site Apache par défaut (`000-default`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

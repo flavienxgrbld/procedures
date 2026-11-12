@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Gitea (binaire officiel, dernière version) en service systemd.
+#
+# Variables modifiables :
+#   GITEA_VERSION  version à installer, ex. 28.3.0 (défaut : dernière publiée)
+#   GITEA_PORT     port HTTP (défaut : 3000)
 
 set -euo pipefail
 
@@ -16,60 +21,76 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Gitea - Service Git auto-hébergé simplifié"
+info "Gitea - Forge Git auto-hébergée"
+command -v systemctl >/dev/null 2>&1 || error_exit "systemd est requis"
 
-GITEA_DIR="/var/lib/gitea"
-GITEA_USER="git"
+GITEA_VERSION="${GITEA_VERSION:-$(github_latest_tag go-gitea/gitea v28.3.0)}"
+GITEA_VERSION="${GITEA_VERSION#v}"
+GITEA_PORT="${GITEA_PORT:-3000}"
+case "$(uname -m)" in
+    x86_64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    armv7l) ARCH="arm-6" ;;
+    *) error_exit "Architecture non gérée : $(uname -m)" ;;
+esac
 
-echo "=== Installation de Gitea ==="
+pkg_update
+pkg_install git curl
 
-# Création utilisateur
-if ! id "$GITEA_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$GITEA_DIR" -c "Gitea Service" "$GITEA_USER"
+if ! id git >/dev/null 2>&1; then
+    useradd --system --shell /bin/bash --create-home --home-dir /home/git --user-group git
+fi
+mkdir -p /var/lib/gitea/{custom,data,log} /etc/gitea
+chown -R git:git /var/lib/gitea
+chmod -R 750 /var/lib/gitea
+if [ ! -f /etc/gitea/app.ini ]; then
+    # L'assistant web doit pouvoir écrire app.ini
+    chown root:git /etc/gitea
+    chmod 770 /etc/gitea
 fi
 
-# Dossiers
-mkdir -p $GITEA_DIR
-chown "$GITEA_USER:$GITEA_USER" $GITEA_DIR
+info "Téléchargement de Gitea ${GITEA_VERSION} (${ARCH})"
+NAME="gitea-${GITEA_VERSION}-linux-${ARCH}"
+BASE="https://github.com/go-gitea/gitea/releases/download/v${GITEA_VERSION}"
+TMP_DIR="$(mktemp -d)"
+add_temp_file "$TMP_DIR"
+download_file "${BASE}/${NAME}" "${TMP_DIR}/${NAME}"
+download_file "${BASE}/${NAME}.sha256" "${TMP_DIR}/${NAME}.sha256"
+(cd "$TMP_DIR" && sha256sum -c "${NAME}.sha256") || error_exit "Somme de contrôle invalide"
+install -m 0755 "${TMP_DIR}/${NAME}" /usr/local/bin/gitea
+/usr/local/bin/gitea --version
 
-# Installation Gitea
-GITEA_VERSION="1.20.0"
-cd /usr/local/bin
-wget "https://github.com/go-gitea/gitea/releases/download/v${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-amd64" -O gitea
-chmod +x gitea
-
-# Service systemd
-cat > /etc/systemd/system/gitea.service <<'EOF'
+cat > /etc/systemd/system/gitea.service <<EOF
 [Unit]
 Description=Gitea
-After=syslog.target network.target
+After=network.target
 
 [Service]
-RestartPolicy=always
 Type=simple
 User=git
+Group=git
 WorkingDirectory=/var/lib/gitea
-ExecStart=/usr/local/bin/gitea web -c /etc/gitea/app.ini
-Restart=on-failure
+ExecStart=/usr/local/bin/gitea web --config /etc/gitea/app.ini --port ${GITEA_PORT}
+Restart=always
+Environment=USER=git HOME=/home/git GITEA_WORK_DIR=/var/lib/gitea
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-mkdir -p /etc/gitea
-chown -R "$GITEA_USER:$GITEA_USER" /etc/gitea
-chmod 770 /etc/gitea
-
 systemctl daemon-reload
 systemctl enable gitea
-systemctl start gitea
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 3000/tcp
-    ufw allow 22/tcp
-fi
+systemctl restart gitea
+sleep 2
+check_service_status gitea
+open_ports "${GITEA_PORT}/tcp"
 
 echo
-echo "✅ Gitea installé avec succès"
-echo "URL: http://votre-serveur:3000"
-echo "SSH: votre-serveur:22"
+echo "✅ Gitea ${GITEA_VERSION} installé"
+if [ -f /etc/gitea/app.ini ]; then
+    echo "Configuration existante conservée (/etc/gitea/app.ini)"
+else
+    echo "1. Assistant : http://$(hostname -I | awk '{print $1}'):${GITEA_PORT}"
+    echo "2. Ensuite, verrouiller la configuration :"
+    echo "   sudo chmod 750 /etc/gitea && sudo chmod 640 /etc/gitea/app.ini"
+fi

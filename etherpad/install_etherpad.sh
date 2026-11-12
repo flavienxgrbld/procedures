@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation d'Etherpad avec l'image Docker officielle et une base PostgreSQL.
+#
+# Variables modifiables :
+#   ETHERPAD_TITLE       titre de l'instance (défaut : Etherpad)
+#   ETHERPAD_ADMIN_PASS  mot de passe du compte admin (défaut : généré)
+#   ETHERPAD_PORT        port publié (défaut : 9001)
 
 set -euo pipefail
 
@@ -16,53 +22,74 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Crowdfunding - EtherPad alternative collaborative writing"
+info "Etherpad - Éditeur de texte collaboratif"
 
-ETHERPAD_DIR="/opt/etherpad"
-ETHERPAD_USER="etherpad"
+APP_DIR="/opt/etherpad"
+ETHERPAD_TITLE="${ETHERPAD_TITLE:-Etherpad}"
+ETHERPAD_PORT="${ETHERPAD_PORT:-9001}"
 
-echo "=== Installation d'Etherpad Lite ==="
-pkg_install nodejs npm git python3
+ensure_docker
+mkdir -p "$APP_DIR"
+chmod 700 "$APP_DIR"
 
-# Création utilisateur
-if ! id "$ETHERPAD_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$ETHERPAD_DIR" -c "Etherpad Service" "$ETHERPAD_USER"
+# Les mots de passe sont conservés d'une exécution à l'autre (.env)
+if [ -f "${APP_DIR}/.env" ]; then
+    info "Configuration existante conservée : ${APP_DIR}/.env"
+else
+    (umask 077; cat > "${APP_DIR}/.env") <<EOF
+ETHERPAD_TITLE=${ETHERPAD_TITLE}
+ETHERPAD_PORT=${ETHERPAD_PORT}
+ADMIN_PASSWORD=${ETHERPAD_ADMIN_PASS:-$(random_password 20)}
+DB_PASS=$(random_password 24)
+EOF
 fi
 
-mkdir -p $ETHERPAD_DIR
-cd $ETHERPAD_DIR
+cat > "${APP_DIR}/compose.yaml" <<'EOF'
+services:
+  etherpad:
+    image: etherpad/etherpad:latest
+    container_name: etherpad
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "${ETHERPAD_PORT}:9001"
+    environment:
+      TITLE: "${ETHERPAD_TITLE}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: etherpad
+      DB_USER: etherpad
+      DB_PASS: "${DB_PASS}"
+      TRUST_PROXY: "true"
+    volumes:
+      - etherpad_var:/opt/etherpad-lite/var
 
-# Clone repository
-git clone https://github.com/ether/etherpad-lite.git . || true
+  postgres:
+    image: postgres:17
+    container_name: etherpad-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: etherpad
+      POSTGRES_USER: etherpad
+      POSTGRES_PASSWORD: "${DB_PASS}"
+    volumes:
+      - etherpad_db:/var/lib/postgresql/data
 
-# Installation
-npm install
-
-# Service
-cat > /etc/systemd/system/etherpad.service <<'EOF'
-[Unit]
-Description=Etherpad Lite
-After=network.target
-
-[Service]
-Type=simple
-User=etherpad
-WorkingDirectory=/opt/etherpad
-ExecStart=/opt/etherpad/bin/run.sh
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
+volumes:
+  etherpad_var:
+  etherpad_db:
 EOF
 
-systemctl daemon-reload
-systemctl enable etherpad
-systemctl start etherpad
+compose_up "$APP_DIR"
+open_ports "${ETHERPAD_PORT}/tcp"
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 9001/tcp
-fi
-
+# shellcheck disable=SC1091
+. "${APP_DIR}/.env"
+IP="$(hostname -I | awk '{print $1}')"
 echo
-echo "✅ Etherpad Lite en cours d'installation"
-echo "URL: http://votre-serveur:9001"
+echo "✅ Etherpad démarré"
+echo "Pads           : http://${IP}:${ETHERPAD_PORT}"
+echo "Administration : http://${IP}:${ETHERPAD_PORT}/admin (compte admin, mot de passe dans ${APP_DIR}/.env)"

@@ -24,7 +24,7 @@ cd procedures/focalboard
 sudo bash install_focalboard.sh
 ```
 
-Le script installe `docker.io`, puis démarre le conteneur `focalboard` sur le port 8000.
+Le script installe Docker s'il est absent, écrit `/opt/focalboard/compose.yaml` (volume nommé monté sur `/opt/focalboard/data`, l'emplacement des données de l'image) et démarre le conteneur. Relancé, il met l'image à jour sans toucher aux tableaux. Variable facultative : `FOCALBOARD_PORT`.
 
 ## Installation manuelle
 
@@ -88,9 +88,9 @@ sudo docker run --rm -v focalboard_focalboard_data:/data -v "$PWD":/backup alpin
 
 ## Points d'attention
 
-- Le script monte son volume sur `/data` dans le conteneur, alors que l'image enregistre ses données dans `/opt/focalboard/data` (d'après le `Dockerfile` officiel). Les tableaux finissent dans un volume anonyme et sont perdus si le conteneur est recréé. Il crée aussi le volume après avoir démarré le conteneur, ce qui est inutile car Docker le crée automatiquement.
-- Le script affiche des identifiants par défaut (`admin@example.com` / `Password1!`) qui ne figurent pas dans la documentation du projet : à la première visite, il faut créer son compte.
-- Focalboard est maintenu par la communauté (organisation `mattermost-community` sur GitHub). Pour une équipe qui utilise déjà Mattermost, l'équivalent intégré est le module *Boards*.
+- Focalboard n'a plus de version officielle de Mattermost : le projet est maintenu par la communauté (organisation `mattermost-community` sur GitHub) et l'image Docker est rarement mise à jour. Pour une équipe qui utilise Mattermost, l'équivalent intégré est le module *Boards*.
+- N'importe qui peut créer un compte sur la page d'accueil : limiter l'accès au réseau interne, ou passer par un proxy inverse authentifié.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -62,8 +62,7 @@ if [ -f "$RCLONE_CONF" ] && grep -q '^\[b2\]' "$RCLONE_CONF"; then
     backup_file "$RCLONE_CONF"
     rclone config delete b2 --config "$RCLONE_CONF"
 fi
-umask 077
-cat >> "$RCLONE_CONF" <<EOF
+(umask 077; cat >> "$RCLONE_CONF") <<EOF
 [b2]
 type = b2
 account = ${B2_KEY_ID}

@@ -24,7 +24,7 @@ cd procedures/filebrowser
 sudo bash install_filebrowser.sh
 ```
 
-Lire les points d'attention : la configuration du script reste incomplète.
+Le script installe la dernière version avec le script officiel `get.sh`, crée l'utilisateur système `filebrowser`, la base `/var/lib/filebrowser/filebrowser.db` et le dossier partagé `/srv/partage`, définit lui-même le mot de passe du compte `admin` (enregistré dans `/root/filebrowser_identifiants.txt`) puis crée un service systemd restreint à ces deux dossiers. Variables facultatives : `FB_ROOT`, `FB_PORT`, `FB_ADMIN_PASS` (12 caractères minimum).
 
 ## Installation manuelle
 
@@ -107,10 +107,9 @@ curl -I http://localhost:8080
 
 ## Points d'attention
 
-- Le script lance `filebrowser -c /etc/filebrowser/filebrowser.json` sans créer ce fichier, en root et depuis le dossier `/`. File Browser utilise alors ses valeurs par défaut : sa racine devient le dossier courant, c'est-à-dire **tout le système de fichiers**, accessible avec les droits root.
-- Le script ouvre le port 80, alors que File Browser écoute sur le port 8080 par défaut. Le couple `admin / admin` qu'il affiche ne vaut que pour les anciennes versions.
-- La version 2.26.0 est figée dans le script ; le script officiel `get.sh` (étape 1) installe la dernière version.
+- Le service tourne sous l'utilisateur `filebrowser` : il ne voit que le dossier partagé, et les fichiers déposés lui appartiennent. Pour partager un dossier existant, lui donner les droits (`chown` ou ACL).
 - Pour un accès depuis Internet, placer File Browser derrière un proxy inverse avec HTTPS (Nginx ou Apache et `certbot`).
+- Relu et mis à jour le 12/11/2026 (File Browser 2.63).
 
 ## Sources
 

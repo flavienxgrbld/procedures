@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation d'Elasticsearch et Kibana (sécurité activée), et en option Logstash,
+# depuis le dépôt officiel Elastic.
+#
+# Variables modifiables :
+#   ELK_MAJOR      branche Elastic (défaut : 9)
+#   ELK_LOGSTASH   oui pour installer aussi Logstash avec une entrée Beats sur 5044 (défaut : non)
 
 set -euo pipefail
 
@@ -15,43 +21,86 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Elastic Stack (ELK) - Logging et analytics"
+info "Suite Elastic (ELK) - Centralisation des journaux"
 
-echo "=== Installation d'Elasticsearch ==="
-pkg_install openjdk-11-jre curl
+ELK_MAJOR="${ELK_MAJOR:-9}"
+ELK_LOGSTASH="${ELK_LOGSTASH:-non}"
 
-case "$PKG_MANAGER" in
-    apt)
-        wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
-        echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | tee -a /etc/apt/sources.list.d/elastic-7.x.list
-        pkg_update
-        pkg_install elasticsearch kibana logstash filebeat
-        ;;
-    dnf|yum)
-        rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
-        echo '[elastic-7.x]
-name=Elastic repository for 7.x packages
-baseurl=https://artifacts.elastic.co/packages/7.x/yum
-gpgcheck=1
-gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-enabled=1
-autorefresh=1
-type=rpm-md' | tee /etc/yum.repos.d/elastic.repo
-        pkg_install elasticsearch kibana logstash filebeat
-        ;;
-esac
+mem_mb=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
+[ "$mem_mb" -ge 3800 ] || warn "Mémoire : ${mem_mb} Mo. Elasticsearch + Kibana demandent 4 Go au minimum."
 
-systemctl enable elasticsearch kibana
-systemctl start elasticsearch kibana
+info "Dépôt Elastic ${ELK_MAJOR}.x"
+pkg_update
+pkg_install apt-transport-https gnupg curl ca-certificates
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor --yes -o /etc/apt/keyrings/elasticsearch.gpg
+echo "deb [signed-by=/etc/apt/keyrings/elasticsearch.gpg] https://artifacts.elastic.co/packages/${ELK_MAJOR}.x/apt stable main" \
+    > /etc/apt/sources.list.d/elastic-${ELK_MAJOR}.x.list
+pkg_update
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 9200/tcp  # Elasticsearch
-    ufw allow 5601/tcp  # Kibana
-    ufw allow 5000/tcp  # Logstash
+info "Installation d'Elasticsearch (configuration de sécurité automatique : TLS + mots de passe)"
+pkg_install elasticsearch
+systemctl daemon-reload
+systemctl enable elasticsearch
+systemctl restart elasticsearch
+check_service_status elasticsearch
+
+info "Mot de passe du compte elastic"
+ELASTIC_PASS=$(/usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic -b -s)
+[ -n "$ELASTIC_PASS" ] || error_exit "Impossible de définir le mot de passe du compte elastic"
+
+info "Installation de Kibana"
+pkg_install kibana
+KIBANA_YML=/etc/kibana/kibana.yml
+backup_file "$KIBANA_YML"
+if grep -qE '^#?server\.host:' "$KIBANA_YML"; then
+    sed -i -E 's|^#?server\.host:.*|server.host: "0.0.0.0"|' "$KIBANA_YML"
+else
+    echo 'server.host: "0.0.0.0"' >> "$KIBANA_YML"
+fi
+if ! grep -q '^elasticsearch.hosts' "$KIBANA_YML"; then
+    info "Inscription de Kibana auprès d'Elasticsearch (jeton d'inscription)"
+    TOKEN=$(/usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana)
+    /usr/share/kibana/bin/kibana-setup --enrollment-token "$TOKEN"
+fi
+systemctl enable kibana
+systemctl restart kibana
+check_service_status kibana
+
+ports=(9200/tcp 5601/tcp)
+if [ "$ELK_LOGSTASH" = "oui" ]; then
+    info "Installation de Logstash (entrée Beats sur le port 5044)"
+    pkg_install logstash
+    if [ ! -f /etc/logstash/conf.d/beats.conf ]; then
+        cat > /etc/logstash/conf.d/beats.conf <<'EOF'
+# Entrée Beats -> sortie à configurer (voir le README)
+input {
+  beats {
+    port => 5044
+  }
+}
+output {
+  stdout { codec => rubydebug }
+}
+EOF
+    fi
+    systemctl enable logstash
+    systemctl restart logstash
+    ports+=(5044/tcp)
 fi
 
+open_ports "${ports[@]}"
+
+save_credentials /root/elk_identifiants.txt \
+    "Compte Elasticsearch / Kibana : elastic" \
+    "Mot de passe                  : ${ELASTIC_PASS}" \
+    "Certificat d'autorité         : /etc/elasticsearch/certs/http_ca.crt"
+
+IP="$(hostname -I | awk '{print $1}')"
 echo
-echo "✅ Elastic Stack en cours d'installation"
-echo "Elasticsearch: http://votre-serveur:9200"
-echo "Kibana: http://votre-serveur:5601"
+echo "✅ Elasticsearch et Kibana installés (sécurité activée)"
+echo "Kibana        : http://${IP}:5601 (compte elastic, mot de passe dans /root/elk_identifiants.txt)"
+echo "Elasticsearch : https://${IP}:9200"
+echo "Test          : sudo curl --cacert /etc/elasticsearch/certs/http_ca.crt -u elastic https://localhost:9200"

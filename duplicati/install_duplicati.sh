@@ -83,8 +83,7 @@ fi
 
 info "Options du serveur dans ${OPTS_FILE} (écoute : ${DUPLICATI_LISTEN})"
 backup_file "$OPTS_FILE"
-umask 077
-cat > "$OPTS_FILE" <<EOF
+(umask 077; cat > "$OPTS_FILE") <<EOF
 # Options passées à duplicati-server (fichier généré par install_duplicati.sh)
 DAEMON_OPTS="--webservice-interface=${DUPLICATI_LISTEN} --webservice-port=8200 --webservice-password=${DUPLICATI_PASSWORD}"
 EOF

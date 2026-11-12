@@ -24,7 +24,7 @@ cd procedures/fail2ban
 sudo bash install_fail2ban.sh
 ```
 
-Lire les points d'attention : sur Debian 12, la configuration du script empêche Fail2ban de démarrer.
+Le script installe Fail2ban (et `python3-systemd`), écrit un `jail.local` court identique à l'étape 2, teste la configuration puis démarre le service. Pour éviter de se bannir soi-même, il ajoute automatiquement à `ignoreip` le réseau local du serveur et l'adresse de la session SSH en cours. Variables facultatives : `F2B_IGNOREIP`, `F2B_BANTIME`, `F2B_MAXRETRY`.
 
 ## Installation manuelle
 
@@ -113,9 +113,10 @@ Pour tester, se tromper de mot de passe SSH plusieurs fois depuis une autre mach
 
 ## Points d'attention
 
-- Le script règle la règle `sshd` sur `logpath = /var/log/auth.log`. Sur Debian 12, ce fichier n'existe plus par défaut (les journaux passent par journald) : Fail2ban refuse alors de démarrer.
-- Le script copie tout `jail.conf` dans `jail.local`, puis y ajoute une seconde section `[sshd]`. Ce doublon complique la lecture et peut être refusé. Un `jail.local` court, ne contenant que les modifications, est la méthode recommandée.
-- Le script ne définit pas `ignoreip` : un administrateur qui se trompe de mot de passe peut bannir sa propre adresse.
+- Vérifier la ligne `ignoreip` après l'installation : une adresse d'administration absente peut être bannie au bout de 5 échecs.
+- Fail2ban réduit le bruit des attaques mais ne remplace pas l'authentification SSH par clé (`PasswordAuthentication no`).
+- Sur RHEL, Rocky ou AlmaLinux, Fail2ban vient du dépôt EPEL, que le script installe.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

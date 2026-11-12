@@ -881,8 +881,7 @@ SQL
 save_credentials() {
     local file="$1"
     shift
-    umask 077
-    printf '%s\n' "$@" > "$file"
+    ( umask 077; printf '%s\n' "$@" > "$file" )
     chmod 600 "$file"
     info "Identifiants enregistrés dans $file"
 }
@@ -898,4 +897,33 @@ open_ports() {
         firewall-cmd --reload >/dev/null
         info "Ports ouverts dans firewalld : $*"
     fi
+}
+
+# ensure_docker : installe Docker Engine + Compose s'ils sont absents
+# (avec la procédure docker/ de ce dépôt si elle est présente, sinon get.docker.com).
+ensure_docker() {
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+        systemctl enable --now docker >/dev/null 2>&1 || true
+        return 0
+    fi
+    info "Docker absent : installation"
+    local here
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "${here}/docker/install_docker.sh" ]; then
+        bash "${here}/docker/install_docker.sh"
+    else
+        local tmp
+        tmp="$(mktemp)"
+        download_file https://get.docker.com "$tmp"
+        sh "$tmp"
+        rm -f "$tmp"
+        systemctl enable --now docker
+    fi
+    docker compose version >/dev/null 2>&1 || error_exit "Docker Compose indisponible après l'installation"
+}
+
+# compose_up DOSSIER : démarre (ou met à jour) la pile Docker Compose du dossier
+compose_up() {
+    local dir="$1"
+    (cd "$dir" && docker compose pull && docker compose up -d)
 }

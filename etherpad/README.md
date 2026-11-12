@@ -7,7 +7,7 @@ Etherpad est un éditeur de texte collaboratif en temps réel : plusieurs person
 | | |
 |---|---|
 | **Systèmes** | Toute distribution avec Docker |
-| **Méthode** | Image Docker officielle `etherpad/etherpad` (manuel) ; sources Node.js (script) |
+| **Méthode** | Image Docker officielle `etherpad/etherpad` + PostgreSQL |
 | **Ports** | 9001/tcp |
 | **Script** | `install_etherpad.sh` |
 
@@ -24,7 +24,7 @@ cd procedures/etherpad
 sudo bash install_etherpad.sh
 ```
 
-Lire les points d'attention : en l'état, le script n'arrive pas à récupérer le code d'Etherpad.
+Le script installe Docker s'il est absent, écrit `/opt/etherpad/compose.yaml` (Etherpad + PostgreSQL) et un fichier `/opt/etherpad/.env` avec des mots de passe aléatoires, puis démarre les conteneurs. Relancé plus tard, il met les images à jour en gardant les mots de passe. Variables facultatives : `ETHERPAD_TITLE`, `ETHERPAD_ADMIN_PASS`, `ETHERPAD_PORT`.
 
 ## Installation manuelle (Docker)
 
@@ -45,18 +45,39 @@ services:
     image: etherpad/etherpad:latest
     container_name: etherpad
     restart: unless-stopped
+    depends_on:
+      - postgres
     ports:
       - "9001:9001"
     environment:
       TITLE: "Etherpad du labo"
       ADMIN_PASSWORD: "MotDePasseFort"
-      DEFAULT_PAD_TEXT: "Bienvenue sur ce pad."
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: etherpad
+      DB_USER: etherpad
+      DB_PASS: "AutreMotDePasseFort"
     volumes:
-      - etherpad_data:/opt/etherpad-lite/var
+      - etherpad_var:/opt/etherpad-lite/var
+
+  postgres:
+    image: postgres:17
+    container_name: etherpad-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: etherpad
+      POSTGRES_USER: etherpad
+      POSTGRES_PASSWORD: "AutreMotDePasseFort"
+    volumes:
+      - etherpad_db:/var/lib/postgresql/data
 
 volumes:
-  etherpad_data:
+  etherpad_var:
+  etherpad_db:
 ```
+
+La base PostgreSQL remplace la base par défaut d'Etherpad (`dirty.db`), réservée aux tests.
 
 ### 3. Démarrer
 
@@ -85,10 +106,10 @@ curl -I http://localhost:9001
 
 ## Points d'attention
 
-- Le script crée l'utilisateur `etherpad` avec son dossier personnel `/opt/etherpad`. Ce dossier n'est donc pas vide (fichiers `.bashrc`, `.profile`), et le `git clone ... .` qui suit échoue silencieusement (`|| true`). Le `npm install` suivant ne trouve aucun projet et arrête le script.
-- Même avec le code présent, les fichiers appartiendraient à `root` alors que le service tourne sous `etherpad`, qui ne pourrait pas écrire ses données.
-- La base par défaut d'Etherpad (`dirty.db`) est réservée aux tests. En production, configurer une base PostgreSQL ou MySQL (variables `DB_TYPE`, `DB_HOST`, etc.).
-- Le message affiché par le script (« Crowdfunding ») ne correspond pas au service installé.
+- Par défaut, n'importe quel visiteur peut créer et modifier des pads : sur un serveur accessible depuis Internet, activer l'authentification (`REQUIRE_AUTHENTICATION`) ou limiter l'accès au réseau interne.
+- Les ports publiés par Docker contournent `ufw` : ne pas compter sur le pare-feu de l'hôte pour masquer le port 9001.
+- Pour un accès par Internet, placer Etherpad derrière un proxy inverse HTTPS (le script active déjà `TRUST_PROXY`).
+- Relu et mis à jour le 12/11/2026 (Etherpad 3.3).
 
 ## Sources
 

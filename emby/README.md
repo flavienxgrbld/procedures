@@ -24,23 +24,27 @@ cd procedures/emby
 sudo bash install_emby.sh
 ```
 
-Lire les points d'attention : le dépôt utilisé par le script ne répond pas.
+Le script récupère la dernière version stable publiée sur GitHub (ou `EMBY_VERSION`) pour l'architecture de la machine, installe le paquet et démarre le service `emby-server`. Avec `MEDIA_DIR`, il donne aussi à Emby le droit de lire le dossier de médias (étape 3) :
+
+```bash
+sudo MEDIA_DIR=/srv/medias bash install_emby.sh
+```
 
 ## Installation manuelle
 
 ### 1. Télécharger le paquet
 
-Récupérer le fichier `emby-server-deb_<version>_amd64.deb` sur la page des versions d'Emby (ici la 4.10.1.0) :
+Récupérer le fichier `emby-server-deb_<version>_amd64.deb` sur la page des versions d'Emby (prendre la dernière version **sans** la mention *Pre-release* ; `arm64` sur un Raspberry Pi 64 bits) :
 
 ```bash
 cd /tmp
-wget https://github.com/MediaBrowser/Emby.Releases/releases/download/4.10.1.0/emby-server-deb_4.10.1.0_amd64.deb
+wget https://github.com/MediaBrowser/Emby.Releases/releases/download/<version>/emby-server-deb_<version>_amd64.deb
 ```
 
 ### 2. Installer
 
 ```bash
-sudo apt install -y ./emby-server-deb_4.10.1.0_amd64.deb
+sudo apt install -y ./emby-server-deb_*_amd64.deb
 ```
 
 Le service `emby-server` est créé et démarré automatiquement.
@@ -50,7 +54,8 @@ Le service `emby-server` est créé et démarré automatiquement.
 Emby tourne sous l'utilisateur `emby`, qui doit pouvoir lire les dossiers de médias :
 
 ```bash
-sudo setfacl -R -m u:emby:rx /srv/medias
+sudo setfacl -R -m u:emby:rX /srv/medias
+sudo setfacl -R -d -m u:emby:rX /srv/medias   # aussi pour les futurs fichiers
 ```
 
 À défaut d'ACL, ajouter `emby` au groupe propriétaire des fichiers.
@@ -91,9 +96,9 @@ Télécharger le nouveau `.deb` et relancer `sudo apt install -y ./emby-server-d
 
 ## Points d'attention
 
-- Le script ajoute le dépôt `packages.emby.media`, qui ne répond pas (vérifié le 13/10/2026). Le paquet `emby-server` reste donc introuvable et le script s'arrête. L'éditeur distribue Emby sous forme de fichiers `.deb` sur GitHub (étape 1).
-- Le script utilise `apt-key`, retiré des versions récentes de Debian et Ubuntu.
-- Certaines fonctions (transcodage matériel, téléchargements hors ligne) nécessitent l'abonnement Emby Premiere.
+- Emby n'a plus de dépôt APT : les mises à jour se font en relançant le script (ou en installant le nouveau `.deb`).
+- Certaines fonctions (transcodage matériel, téléchargements hors ligne, applications TV) nécessitent l'abonnement Emby Premiere. Pour une solution entièrement libre, voir la procédure Jellyfin.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

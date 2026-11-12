@@ -9,7 +9,7 @@ FOG Project est une solution libre de clonage et de déploiement d'images de pos
 | **Systèmes** | Debian, Ubuntu, Rocky/AlmaLinux (voir la liste de l'installateur) |
 | **Méthode** | Installateur officiel `bin/installfog.sh` (dépôt GitHub) |
 | **Dossier** | `/opt/fogproject` |
-| **Ports** | 80/443 (interface), 69/udp (TFTP), 67/udp (DHCP si FOG le fournit), 21 (FTP) |
+| **Ports** | 80/443 (interface), 69/udp (TFTP), 21/tcp (FTP), 2049 et 111 (NFS), 67/udp (DHCP si FOG le fournit) |
 | **Script** | `install_fog_project.sh` |
 
 ## Prérequis
@@ -26,9 +26,7 @@ cd procedures/fog_project
 sudo bash install_fog_project.sh
 ```
 
-Le script installe les outils de base, clone le dépôt officiel dans `/opt/fogproject`, ouvre les ports, puis lance l'installateur officiel. Ce dernier pose les questions de l'étape 3.
-
-Variables disponibles : `FOG_REPO_URL`, `FOG_INSTALLER` et `FOG_BASE_DIR` (par défaut `/opt/fogproject`).
+Le script vérifie que l'adresse IP n'est pas obtenue par DHCP, récupère la branche stable (`master`) dans `/opt/fogproject`, ouvre les ports de FOG si un pare-feu est actif, puis lance l'installateur officiel, qui pose les questions de l'étape 3. Variables facultatives : `FOG_BRANCH` (une autre branche ou version), `FOG_BASE_DIR`.
 
 ## Installation manuelle
 
@@ -41,7 +39,7 @@ Configurer une IP statique (par exemple `192.168.10.5/24`) dans `/etc/network/in
 ```bash
 sudo apt update
 sudo apt install -y git
-sudo git clone https://github.com/FOGProject/fogproject.git /opt/fogproject
+sudo git clone --depth 1 --branch master https://github.com/FOGProject/fogproject.git /opt/fogproject
 cd /opt/fogproject/bin
 ```
 
@@ -98,8 +96,10 @@ Démarrer un poste en PXE sur le réseau : le menu FOG doit apparaître. Choisir
 
 ## Points d'attention
 
-- Si le gestionnaire de paquets n'est pas géré, ou si l'installateur est introuvable, le script appelle la fonction `fatal`, qui n'existe pas dans la bibliothèque commune : il s'arrête avec « command not found » au lieu d'un message clair.
-- Deux serveurs DHCP actifs sur le même réseau provoquent des conflits : choisir l'un ou l'autre à l'étape 3.
+- Deux serveurs DHCP actifs sur le même réseau provoquent des conflits : choisir l'un ou l'autre à l'étape 3, et n'ouvrir le port 67/udp que si FOG fournit le DHCP.
+- FOG s'installe de préférence sur une machine dédiée : l'installateur configure Apache, MariaDB, TFTP, NFS et FTP pour lui.
+- La branche `master` est la version stable (1.5.10 au 12/11/2026) ; `dev-branch` contient la future version, à éviter en production.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

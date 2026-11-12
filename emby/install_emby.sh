@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation d'Emby Server (dernier paquet .deb stable publié par l'éditeur sur GitHub).
+#
+# Variables modifiables :
+#   EMBY_VERSION  version à installer (défaut : dernière version stable)
+#   MEDIA_DIR     dossier de médias à rendre lisible par Emby (facultatif)
 
 set -euo pipefail
 
@@ -15,35 +20,42 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Emby Media Server - Serveur streaming vidéo"
+info "Emby Server - Serveur multimédia"
 
-echo "=== Installation d'Emby Media Server ==="
-case "$PKG_MANAGER" in
-    apt)
-        curl https://packages.emby.media/emby-key.gpg | apt-key add -
-        echo "deb https://packages.emby.media/emby/ all main" > /etc/apt/sources.list.d/emby.list
-        pkg_update
-        pkg_install emby-server
-        ;;
-    dnf|yum)
-        rpm --import https://packages.emby.media/emby-key.gpg >/dev/null 2>&1 || true
-        echo "[emby-release]
-name=Emby-release
-baseurl=https://packages.emby.media/emby/
-gpgkey=https://packages.emby.media/emby-key.gpg
-gpgcheck=1" > /etc/yum.repos.d/emby.repo
-        pkg_install emby-server
-        ;;
+case "$(dpkg --print-architecture)" in
+    amd64) ARCH="amd64" ;;
+    arm64) ARCH="arm64" ;;
+    armhf) ARCH="armhf" ;;
+    *) error_exit "Architecture non gérée : $(dpkg --print-architecture)" ;;
 esac
 
-systemctl enable emby-server
-systemctl start emby-server
+pkg_update
+pkg_install curl ca-certificates acl
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8096/tcp
+EMBY_VERSION="${EMBY_VERSION:-$(github_latest_tag MediaBrowser/Emby.Releases)}"
+[ -n "$EMBY_VERSION" ] || error_exit "Version introuvable : définir EMBY_VERSION (voir github.com/MediaBrowser/Emby.Releases/releases)"
+DEB="emby-server-deb_${EMBY_VERSION}_${ARCH}.deb"
+URL="https://github.com/MediaBrowser/Emby.Releases/releases/download/${EMBY_VERSION}/${DEB}"
+
+info "Téléchargement de ${DEB}"
+download_file "$URL" "/tmp/${DEB}"
+add_temp_file "/tmp/${DEB}"
+DEBIAN_FRONTEND=noninteractive apt-get install -y "/tmp/${DEB}"
+
+systemctl enable --now emby-server
+check_service_status emby-server
+
+if [ -n "${MEDIA_DIR:-}" ]; then
+    [ -d "$MEDIA_DIR" ] || error_exit "Dossier de médias introuvable : $MEDIA_DIR"
+    info "Droits de lecture pour l'utilisateur emby sur ${MEDIA_DIR}"
+    setfacl -R -m u:emby:rX "$MEDIA_DIR"
+    setfacl -R -d -m u:emby:rX "$MEDIA_DIR"
 fi
 
+open_ports 8096/tcp 8920/tcp
+
 echo
-echo "✅ Emby Media Server installé avec succès"
-echo "URL: http://votre-serveur:8096"
+echo "✅ Emby Server ${EMBY_VERSION} installé"
+echo "Assistant de configuration : http://$(hostname -I | awk '{print $1}'):8096"

@@ -24,7 +24,7 @@ cd procedures/hashicorp_consul
 sudo bash install_hashicorp_consul.sh
 ```
 
-Lire les points d'attention : la configuration écrite par le script empêche Consul de démarrer.
+Le script ajoute le dépôt HashiCorp, installe Consul, écrit la configuration de l'étape 2 (serveur unique, `bind_addr` = adresse principale de la machine, clé de chiffrement générée avec `consul keygen`), la valide puis démarre le service. Variables facultatives : `CONSUL_BIND_ADDR`, `CONSUL_DATACENTER`.
 
 ## Installation manuelle
 
@@ -34,7 +34,7 @@ Lire les points d'attention : la configuration écrite par le script empêche Co
 sudo apt update
 sudo apt install -y gpg wget
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
   | sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update
 sudo apt install -y consul
@@ -120,10 +120,10 @@ L'interface web est accessible sur `http://<adresse-du-serveur>:8500/ui`.
 
 ## Points d'attention
 
-- La configuration du script ne définit pas `data_dir`, obligatoire pour un serveur Consul : le service refuse de démarrer.
-- Elle indique `bootstrap_expect = 3` sur une seule machine : même avec `data_dir`, aucun leader n'est jamais élu et Consul reste inutilisable.
-- `bind_addr = "0.0.0.0"` échoue si la machine a plusieurs adresses privées : indiquer l'adresse précise.
-- Le script installe Consul 1.16.0 et a besoin de `unzip`, qu'il n'installe pas. Le dépôt HashiCorp (étape 1) fournit la version à jour.
+- Un serveur unique (`bootstrap_expect = 1`) convient à un labo. En production, prévoir 3 ou 5 serveurs pour garder un leader si l'un tombe.
+- L'API et l'interface (port 8500) n'ont pas de contrôle d'accès tant que les ACL ne sont pas activées : ne pas les exposer hors du réseau d'administration.
+- Pour joindre d'autres nœuds, reprendre la même valeur `encrypt` dans leur configuration.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation de Jenkins LTS (dépôt officiel) avec Java 21.
+#
+# Variables modifiables :
+#   JENKINS_PORT  port HTTP (défaut : 8080)
 
 set -euo pipefail
 
@@ -16,51 +20,50 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Jenkins - Automation serveur pour CI/CD"
+info "Jenkins LTS - Intégration et déploiement continus"
 
-JENKINS_HOME="/var/lib/jenkins"
-JENKINS_USER="jenkins"
+JENKINS_PORT="${JENKINS_PORT:-8080}"
 
-echo "=== Installation de Jenkins ==="
-pkg_install curl
+info "Java 21 (Jenkins LTS 2.555 et suivantes : Java 21 ou 25 obligatoire)"
+pkg_update
+install_java_min 21
+java -version 2>&1 | head -n1
 
-# Installation Java
+info "Dépôt Jenkins LTS"
 case "$PKG_MANAGER" in
     apt)
-        pkg_install default-jre default-jdk
-        ;;
-    dnf|yum)
-        pkg_install java-11-openjdk java-11-openjdk-devel
-        ;;
-esac
-
-# Dépôt Jenkins
-case "$PKG_MANAGER" in
-    apt)
-        wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | apt-key add -
-        sh -c 'echo deb https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+        install -m 0755 -d /etc/apt/keyrings
+        download_file https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key /etc/apt/keyrings/jenkins-keyring.asc
+        echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+            > /etc/apt/sources.list.d/jenkins.list
         pkg_update
         ;;
     dnf|yum)
-        wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
-        rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+        download_file https://pkg.jenkins.io/redhat-stable/jenkins.repo /etc/yum.repos.d/jenkins.repo
+        rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2026.key
         ;;
+    *) error_exit "Dépôt Jenkins disponible pour apt et dnf/yum seulement" ;;
 esac
-
 pkg_install jenkins
 
-systemctl daemon-reload
-systemctl enable jenkins
-systemctl start jenkins
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8080/tcp
+if [ "$JENKINS_PORT" != "8080" ]; then
+    mkdir -p /etc/systemd/system/jenkins.service.d
+    printf '[Service]\nEnvironment="JENKINS_PORT=%s"\n' "$JENKINS_PORT" > /etc/systemd/system/jenkins.service.d/port.conf
+    systemctl daemon-reload
 fi
+systemctl enable jenkins
+systemctl restart jenkins
 
-sleep 10
-JENKINS_PASS=$(cat $JENKINS_HOME/secrets/initialAdminPassword)
+info "Attente du mot de passe initial (premier démarrage : jusqu'à 2 minutes)"
+SECRET=/var/lib/jenkins/secrets/initialAdminPassword
+for _ in $(seq 1 60); do [ -s "$SECRET" ] && break; sleep 2; done
+check_service_status jenkins
+open_ports "${JENKINS_PORT}/tcp"
 
 echo
-echo "✅ Jenkins installé avec succès"
-echo "URL: http://votre-serveur:8080"
-echo "Mot de passe initial: $JENKINS_PASS"
+echo "✅ Jenkins installé : http://$(primary_ip):${JENKINS_PORT}"
+if [ -s "$SECRET" ]; then
+    echo "Mot de passe initial : $(cat "$SECRET")"
+else
+    echo "Mot de passe initial (fichier pas encore créé) : sudo cat ${SECRET}"
+fi

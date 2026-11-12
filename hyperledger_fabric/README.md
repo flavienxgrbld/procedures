@@ -20,13 +20,15 @@ Hyperledger Fabric est une plateforme de blockchain privée (permissionnée) pou
 
 ## Installation automatique
 
+Lancer le script avec `sudo` depuis le compte qui utilisera Fabric (pas root) :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/hyperledger_fabric
 sudo bash install_hyperledger_fabric.sh
 ```
 
-Le script installe Docker, Docker Compose, Git et curl, puis télécharge dans `/opt/fabric` les binaires, les images Docker et les exemples.
+Le script installe Git, curl, jq et Docker, ajoute l'utilisateur au groupe `docker`, puis lance le script officiel `install-fabric.sh` **sous cet utilisateur** dans `~/fabric` (binaires, images Docker et `fabric-samples`) et ajoute `fabric-samples/bin` au `PATH`. Se reconnecter ensuite pour que le groupe `docker` soit pris en compte, puis suivre l'étape 4. Variables facultatives : `FABRIC_USER`, `FABRIC_VERSION`.
 
 ## Installation manuelle
 
@@ -94,9 +96,10 @@ Les conteneurs `orderer.example.com`, `peer0.org1.example.com` et `peer0.org2.ex
 
 ## Points d'attention
 
-- Le script travaille dans `/opt/fabric` en root : les fichiers générés appartiennent à root et le réseau de test doit alors être lancé avec `sudo`. Installer plutôt dans le dossier personnel d'un utilisateur du groupe `docker`.
-- Le message final du script propose `./bin/fabric --version`. Ce binaire n'existe pas : les binaires sont `peer`, `orderer`, `configtxgen`…, dans `fabric-samples/bin`.
 - Le réseau de test sert uniquement à apprendre : il n'est pas conçu pour la production.
+- Appartenir au groupe `docker` revient à avoir les droits root sur la machine : utiliser une VM de TP.
+- Le déploiement de chaincode en Go ou en Java demande en plus Go ou un JDK sur la machine.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

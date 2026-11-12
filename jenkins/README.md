@@ -13,7 +13,7 @@ Jenkins est un serveur d'automatisation libre, très utilisé pour l'intégratio
 
 ## Prérequis
 
-- Java 17 ou 21 (OpenJDK).
+- Java 21 ou 25 (installé par le script ; voir l'étape 1).
 - 2 Go de RAM au minimum, 10 Go de disque.
 - Un accès root et une connexion Internet.
 
@@ -25,7 +25,7 @@ cd procedures/jenkins
 sudo bash install_jenkins.sh
 ```
 
-Lire les points d'attention : le script utilise une clé de dépôt obsolète.
+Le script installe Java 21 (OpenJDK de la distribution, ou Eclipse Temurin sur Debian 12 qui n'a que Java 17), ajoute le dépôt Jenkins LTS avec la clé 2026, installe et démarre Jenkins, puis attend la création du mot de passe initial et l'affiche. Variable facultative : `JENKINS_PORT`.
 
 ## Installation manuelle
 
@@ -33,11 +33,18 @@ Lire les points d'attention : le script utilise une clé de dépôt obsolète.
 
 ```bash
 sudo apt update
-sudo apt install -y fontconfig openjdk-17-jre
+sudo apt install -y fontconfig openjdk-21-jre-headless
 java -version
 ```
 
-Sur Debian 13 ou Ubuntu 24.04, `openjdk-21-jre` convient aussi.
+Jenkins LTS demande Java 21 ou 25 depuis la version 2.555.1 (avril 2026). Debian 13 et Ubuntu 22.04/24.04 fournissent `openjdk-21-jre-headless`. Sur **Debian 12**, qui n'a que Java 17, installer Eclipse Temurin 21 :
+
+```bash
+sudo apt install -y wget gpg
+wget -qO- https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
+echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+sudo apt update && sudo apt install -y temurin-21-jre fontconfig
+```
 
 ### 2. Ajouter le dépôt Jenkins
 
@@ -109,11 +116,13 @@ curl -I http://localhost:8080/login
 
 ## Points d'attention
 
-- Le script importe `jenkins.io.key`, l'ancienne clé du dépôt, avec `apt-key` (retiré des distributions récentes). Les paquets actuels sont signés avec la clé 2026 (`jenkins.io-2026.key`) ; la clé 2023 a elle aussi expiré en mars 2026 : `apt update` refuse le dépôt.
-- Le script installe `default-jre`, qui correspond à Java 11 sur Ubuntu 22.04 et Debian 11 : les versions actuelles de Jenkins demandent Java 17 et ne démarrent pas. Sur RHEL, il installe explicitement Java 11.
-- Le script lit le mot de passe initial 10 secondes après le démarrage, alors que Jenkins peut mettre plus longtemps à créer le fichier : il s'arrête alors en erreur. Le mot de passe se récupère ensuite avec la commande de l'étape 4.
+- Jenkins LTS 2.555.1 et suivantes exigent **Java 21 ou 25** : Java 17 n'est plus accepté. Sur Debian 12, OpenJDK 21 n'existe pas dans les dépôts : utiliser Eclipse Temurin (dépôt Adoptium), comme le script.
+- La clé de signature du dépôt change régulièrement (clés 2023 puis 2026) : si `apt update` signale une signature invalide, reprendre la clé indiquée sur la page d'installation officielle.
+- Les jobs s'exécutent sur le contrôleur avec l'utilisateur `jenkins` : pour des projets non maîtrisés, utiliser des agents séparés.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 
 - [Installer Jenkins sur Linux](https://www.jenkins.io/doc/book/installing/linux/)
 - [Prise en charge de Java](https://www.jenkins.io/doc/book/platform-information/support-policy-java/)
+- [Jenkins — politique de prise en charge de Java](https://www.jenkins.io/doc/book/platform-information/support-policy-java/)

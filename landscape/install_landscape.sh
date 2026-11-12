@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation de Landscape Server autonome (quickstart) sur Ubuntu Server 24.04.
+#
+# Variables :
+#   LANDSCAPE_FQDN  nom complet du serveur, ex. landscape.exemple.local (défaut : nom actuel s'il est complet)
 
 set -euo pipefail
 
@@ -16,29 +20,28 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Ubuntu Landscape - Gestion de machines Ubuntu"
+info "Landscape - Administration d'un parc Ubuntu"
 
-echo "=== Installation de Landscape ==="
-case "$PKG_MANAGER" in
-    apt)
-        pkg_install software-properties-common
-        add-apt-repository ppa:landscape/self-hosted-16.04
-        pkg_update
-        pkg_install landscape-server
-        ;;
-    *)
-        echo "❌ Landscape n'est disponible que pour Debian/Ubuntu"
-        exit 1
-        ;;
-esac
+[ "$OS_ID" = "ubuntu" ] && [ "$OS_VERSION_ID" = "24.04" ] || error_exit "Landscape Server autonome : Ubuntu Server 24.04 uniquement (détecté : ${OS_NAME} ${OS_VERSION_ID})"
 
-systemctl enable landscape-server
-systemctl start landscape-server
+LANDSCAPE_FQDN="${LANDSCAPE_FQDN:-$(hostname -f 2>/dev/null || hostname)}"
+[[ "$LANDSCAPE_FQDN" == *.* ]] || error_exit "Nom d'hôte complet requis (ex. landscape.exemple.local) : définir LANDSCAPE_FQDN"
+hostnamectl set-hostname "$LANDSCAPE_FQDN"
+grep -qE "[[:space:]]${LANDSCAPE_FQDN}([[:space:]]|\$)" /etc/hosts || echo "127.0.1.1 ${LANDSCAPE_FQDN} ${LANDSCAPE_FQDN%%.*}" >> /etc/hosts
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 443/tcp
-fi
+mem_mb=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
+[ "$mem_mb" -ge 3800 ] || warn "Mémoire : ${mem_mb} Mo (4 Go minimum conseillés)"
+
+pkg_update
+pkg_install software-properties-common
+add-apt-repository -y ppa:landscape/self-hosted-24.04
+pkg_update
+info "Installation de landscape-server-quickstart (PostgreSQL, RabbitMQ, Apache : plusieurs minutes)"
+pkg_install landscape-server-quickstart
+
+open_ports 80/tcp 443/tcp
+lsctl status || warn "Certains services Landscape ne sont pas encore démarrés : vérifier avec « sudo lsctl status »"
 
 echo
-echo "✅ Landscape en cours d'installation"
-echo "URL: https://votre-serveur"
+echo "✅ Landscape installé : https://${LANDSCAPE_FQDN} (certificat autosigné)"
+echo "Créer le compte administrateur dès maintenant."

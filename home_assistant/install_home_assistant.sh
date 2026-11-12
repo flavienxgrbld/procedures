@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation de Home Assistant (méthode « Container ») avec l'image officielle.
+#
+# Variables modifiables :
+#   HA_TZ  fuseau horaire (défaut : celui du système)
 
 set -euo pipefail
 
@@ -16,60 +20,35 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Home Assistant - Plateforme domotique"
+info "Home Assistant - Domotique locale"
 
-echo "=== Mise à jour du système ==="
-pkg_update
-pkg_upgrade
+APP_DIR="/opt/homeassistant"
+HA_TZ="${HA_TZ:-$(system_tz)}"
 
-# Installation dépendances
-echo "=== Installation des dépendances ==="
-case "$PKG_MANAGER" in
-    apt)
-        pkg_install python3 python3-dev python3-pip libffi-dev libssl-dev libjpeg-dev zlib1g-dev autoconf build-essential
-        ;;
-    dnf|yum)
-        pkg_install python3 python3-devel gcc libffi-devel openssl-devel
-        ;;
-esac
+ensure_docker
+mkdir -p "${APP_DIR}/config"
 
-# Installation Home Assistant
-echo "=== Installation de Home Assistant ==="
-pip3 install homeassistant
-
-# Création répertoire de configuration
-mkdir -p /opt/homeassistant
-chmod 755 /opt/homeassistant
-
-# Service systemd
-cat > /etc/systemd/system/homeassistant.service <<EOF
-[Unit]
-Description=Home Assistant
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/homeassistant
-ExecStart=/usr/local/bin/hass -c /opt/homeassistant
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
+cat > "${APP_DIR}/compose.yaml" <<EOF
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      TZ: ${HA_TZ}
+    volumes:
+      - ./config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
 EOF
 
-systemctl daemon-reload
-systemctl enable homeassistant
-systemctl start homeassistant
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8123/tcp
-fi
+compose_up "$APP_DIR"
+# Mode réseau host : le port 8123 est celui de l'hôte, ufw s'applique
+open_ports 8123/tcp
 
 echo
-echo "✅ Home Assistant en cours d'installation"
-echo "URL: http://votre-serveur:8123"
-echo "Configuration: /opt/homeassistant"
-echo "Première mise en marche à la première visite"
+echo "✅ Home Assistant démarré (premier lancement : 1 à 2 minutes)"
+echo "Assistant : http://$(primary_ip):8123  -> créer le compte propriétaire sans attendre"
+echo "Mise à jour : cd ${APP_DIR} && sudo docker compose pull && sudo docker compose up -d"

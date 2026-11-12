@@ -25,6 +25,8 @@ cd procedures/jellyfin
 sudo bash install_jellyfin.sh
 ```
 
+Le script télécharge le script officiel `install-debuntu.sh` dans un fichier temporaire, l'exécute (dépôt, clé et paquets Jellyfin), démarre le service et ouvre les ports. Options : `MEDIA_DIR=/srv/medias` (droit de lecture pour `jellyfin`, étape 3) et `JELLYFIN_VAAPI=oui` (groupe `render`, étape 6).
+
 ## Installation manuelle
 
 ### 1. Ajouter le dépôt et installer Jellyfin
@@ -49,7 +51,8 @@ systemctl status jellyfin
 Jellyfin tourne sous l'utilisateur `jellyfin`, qui doit pouvoir lire les dossiers de médias :
 
 ```bash
-sudo setfacl -R -m u:jellyfin:rx /srv/medias
+sudo setfacl -R -m u:jellyfin:rX /srv/medias
+sudo setfacl -R -d -m u:jellyfin:rX /srv/medias   # aussi pour les futurs fichiers
 ```
 
 ### 4. Ouvrir le pare-feu
@@ -100,8 +103,10 @@ Lire une vidéo depuis le navigateur. *Tableau de bord → Activité* montre si 
 
 ## Points d'attention
 
-- Sur RHEL/Fedora, le script installe `jellyfin-repo-10.8.3-1.noarch.rpm`, qui n'existe plus (erreur 404, vérifié le 13/10/2026). Sur Fedora, Jellyfin s'installe par les dépôts RPM Fusion.
-- Le script exécute directement le script distant avec `curl | bash` : le télécharger et le relire avant (étape 1) est plus prudent.
+- Le premier compte créé dans l'assistant devient administrateur : terminer l'assistant dès l'installation.
+- Sur Fedora, Jellyfin s'installe par les dépôts RPM Fusion ; sur Arch, avec le paquet `jellyfin-server` : le script ne gère que Debian et Ubuntu.
+- Pour un accès depuis Internet, passer par un proxy inverse HTTPS plutôt que d'exposer le port 8096.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

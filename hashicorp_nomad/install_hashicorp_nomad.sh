@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Nomad (dépôt officiel HashiCorp) en nœud unique serveur + client,
+# avec le pilote Docker.
+#
+# Variables modifiables :
+#   NOMAD_DOCKER  oui (défaut) pour installer Docker et utiliser le pilote docker
 
 set -euo pipefail
 
@@ -16,29 +21,27 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Hashicorp Nomad - Orchestrateur de conteneurs et de microservices"
+info "Nomad - Orchestrateur de charges de travail"
 
-NOMAD_VERSION="1.6.0"
+NOMAD_DOCKER="${NOMAD_DOCKER:-oui}"
 
-echo "=== Installation de Hashicorp Nomad ==="
+hashicorp_repo
+pkg_install nomad
+nomad version | head -n1
 
-# Création utilisateur
-if ! id nomad >/dev/null 2>&1; then
-    useradd -r -s /bin/bash nomad
-fi
+[ "$NOMAD_DOCKER" = "oui" ] && ensure_docker
 
-# Téléchargement
-cd /tmp
-wget "https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip"
-unzip "nomad_${NOMAD_VERSION}_linux_amd64.zip"
-mv nomad /usr/local/bin/
-rm "nomad_${NOMAD_VERSION}_linux_amd64.zip"
+mkdir -p /opt/nomad/data
+CONF=/etc/nomad.d/nomad.hcl
+backup_file "$CONF"
+cat > "$CONF" <<EOF
+# Généré par install_hashicorp_nomad.sh : nœud unique serveur + client
+datacenter = "dc1"
+data_dir   = "/opt/nomad/data"
+bind_addr  = "0.0.0.0"
 
-# Configuration
-mkdir -p /etc/nomad
-cat > /etc/nomad/nomad.hcl <<'EOF'
 server {
-  enabled = true
+  enabled          = true
   bootstrap_expect = 1
 }
 
@@ -49,34 +52,17 @@ client {
 ui {
   enabled = true
 }
-
-datacenter = "dc1"
 EOF
 
-# Service
-cat > /etc/systemd/system/nomad.service <<'EOF'
-[Unit]
-Description=Hashicorp Nomad
-After=network.target
-
-[Service]
-Type=simple
-User=nomad
-ExecStart=/usr/local/bin/nomad agent -config=/etc/nomad/nomad.hcl
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
+nomad config validate /etc/nomad.d/
 systemctl enable nomad
-systemctl start nomad
+systemctl restart nomad
+sleep 5
+check_service_status nomad
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 4646/tcp
-fi
+open_ports 4646:4648/tcp 4648/udp
 
 echo
-echo "✅ Hashicorp Nomad installé avec succès"
-echo "URL: http://votre-serveur:4646"
+echo "✅ Nomad installé (serveur + client)"
+echo "Interface : http://$(primary_ip):4646/ui"
+echo "Nœuds     : nomad node status"

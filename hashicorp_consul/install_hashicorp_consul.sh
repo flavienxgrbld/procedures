@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Consul (dépôt officiel HashiCorp) en serveur unique avec interface web.
+#
+# Variables modifiables :
+#   CONSUL_BIND_ADDR   adresse d'écoute du cluster (défaut : adresse principale de la machine)
+#   CONSUL_DATACENTER  nom du datacenter (défaut : dc1)
 
 set -euo pipefail
 
@@ -16,55 +21,50 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Hashicorp Consul - Service mesh et service discovery"
+info "Consul - Découverte de services et configuration distribuée"
 
-CONSUL_VERSION="1.16.0"
+CONSUL_BIND_ADDR="${CONSUL_BIND_ADDR:-$(primary_ip)}"
+CONSUL_DATACENTER="${CONSUL_DATACENTER:-dc1}"
+[ -n "$CONSUL_BIND_ADDR" ] || error_exit "Adresse introuvable : définir CONSUL_BIND_ADDR"
 
-echo "=== Installation de Hashicorp Consul ==="
+hashicorp_repo
+pkg_install consul
+consul version | head -n1
 
-# Création utilisateur
-if ! id consul >/dev/null 2>&1; then
-    useradd -r -s /bin/bash consul
+CONF=/etc/consul.d/consul.hcl
+backup_file "$CONF"
+if [ -f "$CONF" ] && grep -q '^encrypt' "$CONF"; then
+    ENCRYPT_KEY="$(sed -nE 's/^encrypt *= *"([^"]+)".*/\1/p' "$CONF")"
+else
+    ENCRYPT_KEY="$(consul keygen)"
 fi
+cat > "$CONF" <<EOF
+# Généré par install_hashicorp_consul.sh : serveur unique
+datacenter       = "${CONSUL_DATACENTER}"
+data_dir         = "/opt/consul"
+server           = true
+bootstrap_expect = 1
+bind_addr        = "${CONSUL_BIND_ADDR}"
+client_addr      = "0.0.0.0"
+encrypt          = "${ENCRYPT_KEY}"
 
-# Téléchargement
-cd /tmp
-wget "https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip"
-unzip "consul_${CONSUL_VERSION}_linux_amd64.zip"
-mv consul /usr/local/bin/
-rm "consul_${CONSUL_VERSION}_linux_amd64.zip"
-
-# Configuration
-mkdir -p /etc/consul.d
-cat > /etc/consul.d/consul.hcl <<'EOF'
-datacenter = "dc1"
-server = true
-bootstrap_expect = 3
-ui = true
-client_addr = "0.0.0.0"
-bind_addr = "0.0.0.0"
+ui_config {
+  enabled = true
+}
 EOF
+chown consul:consul "$CONF"
+chmod 640 "$CONF"
 
-# Service
-cat > /etc/systemd/system/consul.service <<'EOF'
-[Unit]
-Description=Hashicorp Consul
-After=network.target
-
-[Service]
-Type=simple
-User=consul
-ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
+consul validate /etc/consul.d/
 systemctl enable consul
-systemctl start consul
+systemctl restart consul
+sleep 3
+check_service_status consul
+
+open_ports 8500/tcp 8600/udp 8600/tcp 8300:8302/tcp 8301:8302/udp
 
 echo
-echo "✅ Hashicorp Consul installé avec succès"
-echo "URL: http://votre-serveur:8500"
+echo "✅ Consul installé (serveur unique, datacenter ${CONSUL_DATACENTER})"
+echo "Interface : http://${CONSUL_BIND_ADDR}:8500/ui"
+echo "Membres   : consul members"
+echo "Clé de chiffrement du cluster (à reprendre sur les autres nœuds) : dans ${CONF}"

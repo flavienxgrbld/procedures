@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation d'Invoice Ninja 5 (archive officielle de version) sur Apache, PHP 8.2+ et MariaDB.
+#
+# Variables modifiables :
+#   NINJA_DOMAIN   nom du site (défaut : nom de la machine)
+#   NINJA_DB_PASS  mot de passe de la base (défaut : généré)
 
 set -euo pipefail
 
@@ -15,70 +20,68 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Invoice Ninja - Plateforme de facturation"
+info "Invoice Ninja - Facturation"
 
-NINJA_DB_NAME="invoiceninja"
-NINJA_DB_USER="ninja"
-PHP_VERSION="8.1"
+APP_DIR="/var/www/invoiceninja"
+NINJA_DOMAIN="${NINJA_DOMAIN:-$(hostname -f 2>/dev/null || hostname)}"
+DB_NAME="invoiceninja"; DB_USER="ninja"
+NINJA_DB_PASS="${NINJA_DB_PASS:-$(random_password 24)}"
 
-echo "=== Mise à jour du système ==="
 pkg_update
-pkg_upgrade
+pkg_install apache2 mariadb-server curl
+service_enable mariadb
+service_restart mariadb
+install_php_min 8.2
+pkg_install "libapache2-mod-php${PHP_VERSION}" "php${PHP_VERSION}-gmp" "php${PHP_VERSION}-soap"
+for m in /etc/apache2/mods-enabled/php*.load; do
+    [ -e "$m" ] || continue
+    mod="$(basename "$m" .load)"; [ "$mod" = "php${PHP_VERSION}" ] || a2dismod -q "$mod"
+done
+a2enmod -q "php${PHP_VERSION}"
 
-# Installation PHP
-install_php "$PHP_VERSION"
+mysql_create_db "$DB_NAME" "$DB_USER" "$NINJA_DB_PASS"
 
-# Installation serveur web
-install_webserver "apache"
+if [ -f "${APP_DIR}/artisan" ]; then
+    warn "Invoice Ninja est déjà présent dans ${APP_DIR} : fichiers conservés (mise à jour depuis l'interface)"
+else
+    info "Téléchargement de la dernière version"
+    TGZ="$(mktemp --suffix=.tar.gz)"
+    add_temp_file "$TGZ"
+    download_file https://github.com/invoiceninja/invoiceninja/releases/latest/download/invoiceninja.tar.gz "$TGZ"
+    mkdir -p "$APP_DIR"
+    tar -xzf "$TGZ" -C "$APP_DIR"
+    cp "${APP_DIR}/.env.example" "${APP_DIR}/.env"
+fi
+chown -R www-data:www-data "$APP_DIR"
 
-# Installation base de données
-install_database
-
-# Configuration
-read -sp "Mot de passe DB Invoice Ninja: " NINJA_DB_PASS
-echo
-
-mysql -e "CREATE DATABASE $NINJA_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -e "CREATE USER '$NINJA_DB_USER'@'localhost' IDENTIFIED BY '$NINJA_DB_PASS';"
-mysql -e "GRANT ALL PRIVILEGES ON $NINJA_DB_NAME.* TO '$NINJA_DB_USER'@'localhost';"
-
-# Installation Invoice Ninja
-echo "=== Installation d'Invoice Ninja ==="
-cd /var/www
-wget https://download.invoiceninja.com/latest.zip
-unzip latest.zip
-rm latest.zip
-
-chown -R www-data:www-data invoiceninja
-
-cd invoiceninja
-cp .env.example .env
-
-sed -i "s/DB_DATABASE=ninja/DB_DATABASE=$NINJA_DB_NAME/" .env
-sed -i "s/DB_USERNAME=ninja/DB_USERNAME=$NINJA_DB_USER/" .env
-sed -i "s/DB_PASSWORD=ninja/DB_PASSWORD=$NINJA_DB_PASS/" .env
-
-php artisan migrate:fresh --seed
-
-# Configuration Apache
-cat > /etc/apache2/sites-available/invoiceninja.conf <<'EOF'
+cat > /etc/apache2/sites-available/invoiceninja.conf <<EOF
 <VirtualHost *:80>
-    ServerName localhost
-    DocumentRoot /var/www/invoiceninja/public
+    ServerName ${NINJA_DOMAIN}
+    DocumentRoot ${APP_DIR}/public
 
-    <Directory /var/www/invoiceninja>
-        Options Indexes FollowSymLinks
+    <Directory ${APP_DIR}/public>
         AllowOverride All
+        Require all granted
     </Directory>
+
+    ErrorLog \${APACHE_LOG_DIR}/invoiceninja_error.log
+    CustomLog \${APACHE_LOG_DIR}/invoiceninja_access.log combined
 </VirtualHost>
 EOF
+a2enmod -q rewrite
+a2ensite -q invoiceninja
+a2dissite -q 000-default || true
+apache2ctl configtest
+service_restart apache2
 
-a2ensite invoiceninja.conf
-a2enmod rewrite
+echo "* * * * * www-data /usr/bin/php ${APP_DIR}/artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/invoiceninja
+open_ports 80/tcp
 
-systemctl restart apache2
+save_credentials /root/invoiceninja_identifiants.txt \
+    "Base de données : ${DB_NAME} (hôte localhost)" "Utilisateur : ${DB_USER}" "Mot de passe : ${NINJA_DB_PASS}"
 
 echo
-echo "✅ Invoice Ninja en cours d'installation"
-echo "URL: http://votre-serveur"
+echo "✅ Invoice Ninja installé"
+echo "Assistant : http://$(primary_ip)/setup (base : /root/invoiceninja_identifiants.txt)"

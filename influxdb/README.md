@@ -24,7 +24,7 @@ cd procedures/influxdb
 sudo bash install_influxdb.sh
 ```
 
-Lire les points d'attention : l'ajout du dépôt par le script échoue sur Debian et Ubuntu.
+Le script ajoute le dépôt InfluxData (clé dans `/etc/apt/keyrings`), installe `influxdb2` et le client `influx`, démarre le service puis fait **immédiatement** la configuration initiale de l'étape 3 : compte `admin` avec un mot de passe aléatoire, organisation `labo`, bucket `metriques` conservé 30 jours. Les identifiants sont enregistrés dans `/root/influxdb_identifiants.txt`. Variables facultatives : `INFLUX_USER`, `INFLUX_PASS`, `INFLUX_ORG`, `INFLUX_BUCKET`, `INFLUX_RETENTION`.
 
 ## Installation manuelle
 
@@ -97,9 +97,10 @@ influx bucket list
 
 ## Points d'attention
 
-- Le script déclare le dépôt avec `signed-by=/usr/share/keyrings/influxdb-archive-keyring.gpg`, mais ne crée jamais ce fichier : il ajoute la clé avec `apt-key`. `apt update` refuse alors le dépôt, et le paquet `influxdb2` reste introuvable.
-- `apt-key` est retiré des versions récentes de Debian et Ubuntu.
-- Le script n'installe pas le client `influx` (`influxdb2-cli`), et ne fait pas la configuration initiale : n'importe qui ouvrant le port 8086 peut créer le premier compte administrateur. Faire l'étape 3 immédiatement.
+- Tant que la configuration initiale n'est pas faite, n'importe qui ouvrant le port 8086 peut créer le premier compte administrateur : le script la fait dès l'installation ; à la main, faire l'étape 3 tout de suite.
+- Le jeton d'administration donne tous les droits : créer un jeton limité par application (étape 4).
+- Cette procédure installe InfluxDB **2**, toujours distribué par le dépôt officiel. InfluxDB 3 (Core) est un produit différent, avec un autre modèle de données et le langage SQL.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

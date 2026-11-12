@@ -23,10 +23,9 @@ Keycloak est un serveur libre de gestion des identités et des accès : authenti
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/keycloak
 sudo bash install_keycloak.sh
-sudo systemctl start keycloak
 ```
 
-Lire les points d'attention : le service créé par le script ne démarre pas.
+Le script installe Docker s'il est absent et démarre Keycloak **en mode labo** (`start-dev`, HTTP sur le port 8080) avec une base PostgreSQL : contrairement à l'étape 1, les royaumes et utilisateurs sont conservés si le conteneur est recréé. Les mots de passe (compte `admin` temporaire, base) sont générés dans `/opt/keycloak/.env`. Variables facultatives : `KEYCLOAK_VERSION` (défaut 26.8.2), `KEYCLOAK_PORT`, `KEYCLOAK_ADMIN_PASS`. Pour la production, suivre la section « Mode production ».
 
 ## Installation manuelle
 
@@ -37,7 +36,7 @@ sudo docker run -d --name keycloak --restart unless-stopped \
   -p 8080:8080 \
   -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
   -e KC_BOOTSTRAP_ADMIN_PASSWORD=MotDePasseFort \
-  quay.io/keycloak/keycloak:26.8.1 start-dev
+  quay.io/keycloak/keycloak:26.8.2 start-dev
 sudo ufw allow 8080/tcp
 ```
 
@@ -74,7 +73,7 @@ services:
       - pg_data:/var/lib/postgresql/data
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.8.1
+    image: quay.io/keycloak/keycloak:26.8.2
     restart: unless-stopped
     command: start
     depends_on: [postgres]
@@ -111,9 +110,10 @@ curl -s http://localhost:8080/realms/master/.well-known/openid-configuration | h
 
 ## Points d'attention
 
-- Le service du script lance `kc.sh start` (mode production) sans certificat TLS ni option `--http-enabled=true` : Keycloak refuse de démarrer. Il fixe aussi `--hostname=localhost`, ce qui empêche l'accès depuis une autre machine.
-- Le script ne crée aucun compte administrateur et ne démarre pas le service (seulement `enable`).
-- Il installe Keycloak 23.0.1, qui ne reçoit plus de correctifs de sécurité. Keycloak 26.8 demande OpenJDK 25 pour une installation hors conteneur.
+- Le mode `start-dev` fonctionne en HTTP : il convient à un labo, pas à des comptes réels. En production, utiliser `start` avec HTTPS et un nom d'hôte fixe (section « Mode production »).
+- Le compte `admin` créé au démarrage est temporaire : créer un vrai compte administrateur dans le royaume `master`, puis le supprimer.
+- Keycloak 26.8 demande OpenJDK 25 pour une installation hors conteneur ; l'image Docker l'embarque déjà.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

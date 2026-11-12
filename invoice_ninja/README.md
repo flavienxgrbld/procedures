@@ -25,7 +25,7 @@ cd procedures/invoice_ninja
 sudo bash install_invoice_ninja.sh
 ```
 
-Le script demande le mot de passe de la base. Lire les points d'attention : il ne parvient plus à télécharger Invoice Ninja.
+Le script installe Apache, MariaDB et PHP 8.2 ou plus, crée la base `invoiceninja` avec un mot de passe aléatoire, télécharge la dernière archive de version, publie le dossier `public/` avec Apache et planifie les tâches de fond (étape 6). Il reste l'assistant `/setup` (étape 5), avec les informations de `/root/invoiceninja_identifiants.txt`. Variables facultatives : `NINJA_DOMAIN`, `NINJA_DB_PASS`.
 
 ## Installation manuelle
 
@@ -126,10 +126,10 @@ Se connecter avec le compte administrateur, puis créer un client et une facture
 
 ## Points d'attention
 
-- Le script télécharge `https://download.invoiceninja.com/latest.zip`, qui ne répond pas (vérifié le 13/10/2026) : il s'arrête au téléchargement. Il suppose aussi un dossier `invoiceninja` dans l'archive, alors que l'archive officielle s'extrait directement dans le dossier courant.
-- Il installe PHP 8.1, alors que les versions actuelles d'Invoice Ninja 5 demandent PHP 8.2.
-- Il lance `php artisan migrate:fresh --seed`, qui **efface entièrement** la base avant de la recréer : à ne jamais exécuter sur une installation contenant des données.
-- Il ne génère pas la clé d'application et ne planifie pas les tâches de fond. L'assistant `/setup` (étape 5) et la tâche cron (étape 6) s'en chargent.
+- Ne jamais lancer `php artisan migrate:fresh` sur une installation existante : cette commande efface toute la base.
+- Sans serveur SMTP configuré dans l'assistant, les factures ne peuvent pas être envoyées par e-mail.
+- Le script désactive le site Apache par défaut (`000-default`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

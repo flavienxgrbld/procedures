@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation d'Odoo 19 Community (dépôt officiel) avec PostgreSQL et wkhtmltopdf,
+# gestionnaire de bases protégé par un mot de passe maître.
+#
+# Variables modifiables :
+#   ODOO_VERSION      branche (défaut : 19.0)
+#   ODOO_MASTER_PASS  mot de passe maître (défaut : généré)
 
 set -euo pipefail
 
@@ -15,63 +21,43 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Odoo - ERP/CRM open source complet"
+info "Odoo Community - Suite de gestion d'entreprise"
 
-ODOO_VERSION="16.0"
-ODOO_USER="odoo"
-ODOO_HOME="/opt/odoo"
+ODOO_VERSION="${ODOO_VERSION:-19.0}"
+ODOO_MASTER_PASS="${ODOO_MASTER_PASS:-$(random_password 24)}"
 
-echo "=== Mise à jour du système ==="
 pkg_update
-pkg_upgrade
+pkg_install postgresql wget gpg ca-certificates
+systemctl enable --now postgresql
 
-# Installation dépendances
-echo "=== Installation des dépendances ==="
-pkg_install git python3 python3-dev python3-pip libxml2-dev libxslt1-dev libjpeg-dev zlib1g-dev
+install -m 0755 -d /etc/apt/keyrings
+wget -qO- https://nightly.odoo.com/odoo.key | gpg --dearmor --yes -o /etc/apt/keyrings/odoo-archive-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/odoo-archive-keyring.gpg] https://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/ ./" \
+    > /etc/apt/sources.list.d/odoo.list
+pkg_update
+pkg_install odoo
+pkg_install wkhtmltopdf || warn "wkhtmltopdf indisponible : l'impression des PDF ne fonctionnera pas (voir le README)"
 
-# Installation PostgreSQL
-install_database
-
-# Création utilisateur Odoo
-if ! id "$ODOO_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$ODOO_HOME" -c "Odoo Service" "$ODOO_USER"
+CONF=/etc/odoo/odoo.conf
+if grep -qE '^admin_passwd *= *(admin)?$' "$CONF" || ! grep -q '^admin_passwd' "$CONF"; then
+    backup_file "$CONF"
+    sed -i '/^admin_passwd/d' "$CONF"
+    sed -i "/^\[options\]/a admin_passwd = ${ODOO_MASTER_PASS}" "$CONF"
+    NEW_PASS=1
+else
+    NEW_PASS=0
 fi
+chown odoo:odoo "$CONF"
+chmod 640 "$CONF"
 
-# Installation Odoo
-echo "=== Installation d'Odoo ==="
-cd "$ODOO_HOME"
-sudo -u "$ODOO_USER" git clone --depth 1 --branch $ODOO_VERSION https://github.com/odoo/odoo.git .
-
-cd "$ODOO_HOME"
-sudo -u "$ODOO_USER" pip install -r requirements.txt
-
-# Service systemd
-cat > /etc/systemd/system/odoo.service <<EOF
-[Unit]
-Description=Odoo
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-User=$ODOO_USER
-ExecStart=/usr/bin/python3 $ODOO_HOME/odoo-bin -c $ODOO_HOME/odoo.conf
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
 systemctl enable odoo
-systemctl start odoo
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8069/tcp
-    ufw allow 8072/tcp
-fi
+systemctl restart odoo
+check_service_status odoo
+open_ports 8069/tcp
+[ "$NEW_PASS" = 1 ] && save_credentials /root/odoo_identifiants.txt "Mot de passe maître (gestion des bases) : ${ODOO_MASTER_PASS}"
 
 echo
-echo "✅ Odoo en cours d'installation"
-echo "URL: http://votre-serveur:8069"
-echo "Port XML-RPC: 8072"
+echo "✅ Odoo ${ODOO_VERSION} installé : http://$(primary_ip):8069"
+echo "Créer la base de l'entreprise avec le mot de passe maître (/root/odoo_identifiants.txt)."

@@ -25,7 +25,7 @@ cd procedures/plex
 sudo bash install_plex.sh
 ```
 
-Lire les points d'attention : le script utilise l'ancienne clé et l'ancien dépôt.
+Le script ajoute le dépôt officiel `repo.plex.tv` avec la clé `PlexSign.v2.key` (Debian/Ubuntu ou Fedora/RHEL), installe et démarre `plexmediaserver`. Avec `MEDIA_DIR=/srv/medias`, il donne aussi à l'utilisateur `plex` le droit de lire ce dossier (étape 3).
 
 ## Installation manuelle
 
@@ -53,7 +53,8 @@ sudo ufw allow 32400/tcp
 Plex tourne sous l'utilisateur `plex` :
 
 ```bash
-sudo setfacl -R -m u:plex:rx /srv/medias
+sudo setfacl -R -m u:plex:rX /srv/medias
+sudo setfacl -R -d -m u:plex:rX /srv/medias   # aussi pour les futurs fichiers
 ```
 
 ### 4. Configurer le serveur
@@ -84,9 +85,10 @@ curl -s http://localhost:32400/identity
 
 ## Points d'attention
 
-- Le script importe l'ancienne clé `PlexSign.key` avec `apt-key` (retiré des distributions récentes) et utilise l'ancien dépôt `downloads.plex.tv/repo/deb`. Le dépôt actuel `repo.plex.tv` est signé avec la clé `PlexSign.v2.key` (vérifié le 13/10/2026).
-- Sur RHEL, il passe la clé à `rpm -Uvh` au lieu de `rpm --import`, ce qui échoue (erreur ignorée).
+- La première configuration doit se faire depuis le réseau local (ou par tunnel SSH, étape 4) : Plex refuse sinon de revendiquer le serveur.
 - L'accès à distance depuis Internet demande de rediriger le port 32400 sur la box, ou l'option de relais de Plex.
+- Certaines fonctions (transcodage matériel, applications mobiles complètes) demandent l'abonnement Plex Pass.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

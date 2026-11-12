@@ -23,10 +23,11 @@ Outline est un wiki et une base de connaissances d'équipe, rapide et collaborat
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/outline
-sudo bash install_outline.sh
+sudo OUTLINE_URL=https://wiki.exemple.fr SMTP_HOST=smtp.exemple.fr SMTP_USERNAME=wiki@exemple.fr \
+     SMTP_PASSWORD=MotDePasseSmtp SMTP_FROM_EMAIL=wiki@exemple.fr bash install_outline.sh
 ```
 
-Lire les points d'attention : sans méthode de connexion ni secrets valides, personne ne peut se connecter.
+Le script installe Docker s'il est absent, écrit le `.env` de l'étape 2 avec des secrets et un mot de passe de base générés, le `compose.yaml` de l'étape 3 (Outline publié sur `127.0.0.1:3000` seulement) et démarre les conteneurs. Il reste à publier le site derrière Nginx en HTTPS (étape 4).
 
 ## Installation manuelle
 
@@ -121,9 +122,10 @@ sudo docker compose logs -f outline
 
 ## Points d'attention
 
-- Le Compose du script garde les secrets d'exemple (`your-secret-key`) et ne configure aucune méthode de connexion : la page d'accueil n'offre aucun moyen de se connecter.
-- Il ne définit ni stockage des fichiers ni `PGSSLMODE=disable` : avec PostgreSQL local sans SSL, Outline refuse la connexion à la base.
-- Il utilise `URL: http://localhost:3000` : les liens et la connexion ne fonctionnent pas depuis un autre poste.
+- Outline n'a pas de compte local avec mot de passe : sans SMTP (lien magique) ni fournisseur d'identité (Google, Microsoft, OIDC comme Keycloak), personne ne peut se connecter.
+- `URL` doit être l'adresse publique exacte en HTTPS : avec `localhost`, les liens et la connexion ne fonctionnent pas depuis un autre poste.
+- Le premier compte connecté devient administrateur de l'espace de travail.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

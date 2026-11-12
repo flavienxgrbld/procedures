@@ -23,7 +23,7 @@ cd procedures/prometheus
 sudo bash install_prometheus.sh
 ```
 
-Le script télécharge la dernière version de Prometheus, crée l'utilisateur, la configuration et le service. Ajouter ensuite les cibles à superviser (étape 5).
+Le script télécharge les dernières versions de Prometheus et de node_exporter (sommes SHA-256 vérifiées, multi-architecture), crée leurs utilisateurs, la configuration `/etc/prometheus/prometheus.yml` de l'étape 3 (Prometheus + le serveur lui-même, et les machines de `PROM_TARGETS`), la vérifie avec `promtool`, crée les deux services et n'ouvre les ports 9090 et 9100 qu'au réseau local si `ufw` est actif.
 
 ## Installation manuelle
 
@@ -36,11 +36,11 @@ sudo mkdir -p /etc/prometheus /var/lib/prometheus
 
 ### 2. Installer Prometheus
 
-Prendre la dernière version sur la page des versions (ici la 3.15.0) :
+Prendre la dernière version sur la page des versions (3.16.0 au 12/11/2026) :
 
 ```bash
 cd /tmp
-VER=3.15.0
+VER=3.16.0
 wget https://github.com/prometheus/prometheus/releases/download/v${VER}/prometheus-${VER}.linux-amd64.tar.gz
 tar -xzf prometheus-${VER}.linux-amd64.tar.gz
 sudo cp prometheus-${VER}.linux-amd64/{prometheus,promtool} /usr/local/bin/
@@ -131,9 +131,10 @@ Dans l'interface `http://<adresse-du-serveur>:9090`, *Status → Targets* doit a
 
 ## Points d'attention
 
-- Le script place la configuration dans `/opt/prometheus` au lieu de l'emplacement habituel `/etc/prometheus`, et ne supervise que Prometheus lui-même : aucun exporteur n'est installé.
-- Il ouvre le port 9090 à tout le réseau, alors que l'interface de Prometheus n'a pas d'authentification.
+- L'interface de Prometheus (9090) et les métriques de node_exporter (9100) n'ont pas d'authentification : ne pas les exposer hors du réseau d'administration.
+- Les données sont conservées 30 jours (`--storage.tsdb.retention.time`) : ajuster selon l'espace disque.
 - Pour les alertes, voir la procédure `alertmanager` ; pour les tableaux de bord, la procédure `tig_stack` (Grafana).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

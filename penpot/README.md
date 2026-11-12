@@ -25,7 +25,7 @@ cd procedures/penpot
 sudo bash install_penpot.sh
 ```
 
-Lire les points d'attention : l'image utilisée par le script n'existe pas.
+Le script installe Docker s'il est absent, télécharge le `docker-compose.yaml` officiel dans `/opt/penpot`, y règle `PENPOT_PUBLIC_URI` (adresse du serveur, ou `PENPOT_URL`) et démarre les services (frontend, backend, exporter, PostgreSQL, Valkey) sur le port 9001.
 
 ## Installation manuelle
 
@@ -77,9 +77,9 @@ sudo docker compose -p penpot up -d
 
 ## Points d'attention
 
-- Le script lance l'image `penpotapp/penpot`, qui n'existe pas sur Docker Hub (vérifié le 13/10/2026) : le téléchargement échoue. Penpot se compose de plusieurs services (frontend, backend, exporter) avec PostgreSQL et Valkey, décrits dans le Compose officiel.
-- Il publie Penpot sur le port 80 de l'hôte, en conflit avec un éventuel serveur web.
-- En production, placer Penpot derrière un proxy HTTPS (procédures `nginx` et `certbot`), avec la prise en charge des WebSockets.
+- Une fois les comptes de l'équipe créés, interdire les nouvelles inscriptions (`disable-registration`, étape 4).
+- En production, placer Penpot derrière un proxy HTTPS (procédures `nginx` et `certbot`), avec la prise en charge des WebSockets, puis retirer `disable-secure-session-cookies`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

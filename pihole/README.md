@@ -25,7 +25,7 @@ cd procedures/pihole
 sudo bash install_pihole.sh
 ```
 
-Le script lance l'installateur officiel, qui pose ses questions à l'écran (étape 2).
+Le script libère le port 53 sur Ubuntu en gardant une résolution de noms fonctionnelle (`/etc/resolv.conf` relié au résolveur de systemd), télécharge l'installateur officiel dans `/root/install-pihole.sh` (relisible) et le lance : ses questions sont celles de l'étape 2. Il ouvre ensuite les ports DNS et web si un pare-feu est actif.
 
 ## Installation manuelle
 
@@ -34,7 +34,10 @@ Le script lance l'installateur officiel, qui pose ses questions à l'écran (ét
 ```bash
 sudo sed -i 's/^#\?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
 sudo systemctl restart systemd-resolved
+sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 ```
+
+La dernière commande évite que la machine perde toute résolution de noms (`/etc/resolv.conf` pointait vers `127.0.0.53`, qui ne répond plus).
 
 ### 2. Lancer l'installateur
 
@@ -91,9 +94,10 @@ L'interface `http://192.168.1.10/admin` affiche le nombre de requêtes et le pou
 
 ## Points d'attention
 
-- Le script exécute directement l'installateur distant avec `curl | bash` : le télécharger et le relire d'abord (étape 2) est plus prudent. Il ne libère pas non plus le port 53 sur Ubuntu.
-- Si un poste garde un second DNS (celui de la box par exemple), il le contourne en partie : Pi-hole doit être le seul DNS distribué.
+- Pi-hole doit être le **seul** DNS distribué aux postes : un second DNS (celui de la box par exemple) contourne en partie le filtrage.
 - Ne pas exposer le port 53 sur Internet : un résolveur DNS ouvert peut servir à des attaques par amplification.
+- Le serveur Pi-hole doit avoir une adresse IP fixe.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

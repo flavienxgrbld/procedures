@@ -25,7 +25,7 @@ cd procedures/openhab
 sudo bash install_openhab.sh
 ```
 
-Lire les points d'attention : les fichiers d'openHAB n'arrivent pas dans le dossier attendu et le service ne démarre pas.
+Le script installe Java 21 (OpenJDK de la distribution, ou Eclipse Temurin 21 si elle ne le fournit pas), ajoute le dépôt openHAB (branche stable), installe `openhab` et `openhab-addons` puis démarre le service. Il reste l'assistant de l'étape 4.
 
 ## Installation manuelle
 
@@ -88,8 +88,10 @@ sudo openhab-cli info
 
 ## Points d'attention
 
-- L'archive d'openHAB contient ses fichiers sans dossier racine : le script l'extrait depuis `/opt`, ce qui disperse `start.sh`, `conf/` et `userdata/` directement dans `/opt`, et non dans `/opt/openhab`. Le service, qui lance `/opt/openhab/start.sh`, ne démarre pas. Le script n'installe pas non plus `unzip`.
-- Il installe `default-jre` (Java 17 sur Debian 12) et openHAB 4.0.2. openHAB 5 demande Java 21.
+- openHAB 5 demande **Java 21** ; avec Java 17, il ne démarre pas.
+- Le premier démarrage prend plusieurs minutes (chargement des extensions) : attendre avant de conclure à une panne.
+- Créer le compte administrateur dès l'ouverture de la page : le premier compte créé administre tout.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -24,6 +24,8 @@ cd procedures/portainer
 sudo bash install_portainer.sh
 ```
 
+Le script installe Docker s'il est absent, crée le volume `portainer_data` et démarre Portainer CE (image `lts`) sur le port 9443 seulement. Relancé, il met le conteneur à jour en gardant les données. Avec `PORTAINER_EDGE=oui`, il publie aussi le port 8000 pour les agents Edge.
+
 ## Installation manuelle
 
 ### 1. Créer le volume de données
@@ -78,9 +80,9 @@ Puis relancer la commande de l'étape 2 : les données sont conservées dans le 
 
 ## Points d'attention
 
-- Le script suppose que Docker est déjà installé : sinon, il s'arrête dès la première commande `docker`.
-- Il n'ouvre aucun port dans le pare-feu et publie le port 8000, inutile sans agents Edge.
 - Portainer a accès au socket Docker, c'est-à-dire des droits root sur l'hôte : protéger son compte administrateur et ne pas l'exposer sur Internet.
+- Le compte administrateur doit être créé dans les 5 minutes suivant le démarrage : sinon, `sudo docker restart portainer`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

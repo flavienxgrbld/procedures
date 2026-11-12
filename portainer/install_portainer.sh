@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation de Portainer Community Edition (version LTS) dans un conteneur.
+#
+# Variables modifiables :
+#   PORTAINER_EDGE  oui pour publier aussi le port 8000 (agents Edge) (défaut : non)
 
 set -euo pipefail
 
@@ -16,20 +20,23 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Portainer - Interface de gestion Docker"
+info "Portainer CE - Administration de Docker"
 
-echo "=== Installation de Portainer ==="
-docker volume create portainer_data
-
-docker run -d \
-  -p 8000:8000 \
-  -p 9443:9443 \
-  --name portainer \
-  --restart=always \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v portainer_data:/data \
-  portainer/portainer-ce:latest
+ensure_docker
+docker volume create portainer_data >/dev/null
+if docker ps -a --format '{{.Names}}' | grep -qx portainer; then
+    info "Mise à jour du conteneur existant"
+    docker pull portainer/portainer-ce:lts >/dev/null
+    docker rm -f portainer >/dev/null
+fi
+ports=(-p 9443:9443)
+[ "${PORTAINER_EDGE:-non}" = "oui" ] && ports+=(-p 8000:8000)
+docker run -d "${ports[@]}" --name portainer --restart=always \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v portainer_data:/data \
+    portainer/portainer-ce:lts >/dev/null
+open_ports 9443/tcp
 
 echo
-echo "✅ Portainer installé avec succès"
-echo "URL: https://votre-serveur:9443"
+echo "✅ Portainer démarré : https://$(primary_ip):9443"
+echo "Créer le compte administrateur DANS LES 5 MINUTES (sinon : sudo docker restart portainer)."

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation de Penpot avec le fichier Docker Compose officiel.
+#
+# Variables modifiables :
+#   PENPOT_URL  adresse utilisée dans le navigateur (défaut : http://<ip>:9001)
 
 set -euo pipefail
 
@@ -16,40 +20,19 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Penpot - Plateforme de design collaborative"
+info "Penpot - Design d'interfaces et prototypage"
 
-echo "=== Installation de Penpot ==="
-pkg_install docker.io docker-compose
+APP_DIR="/opt/penpot"
+PENPOT_URL="${PENPOT_URL:-http://$(primary_ip):9001}"
+ensure_docker
+mkdir -p "$APP_DIR"
+download_file https://raw.githubusercontent.com/penpot/penpot/main/docker/images/docker-compose.yaml "${APP_DIR}/docker-compose.yaml"
+sed -i -E "s|^(\s*PENPOT_PUBLIC_URI:).*|\1 ${PENPOT_URL}|" "${APP_DIR}/docker-compose.yaml"
+grep -q "PENPOT_PUBLIC_URI: ${PENPOT_URL}" "${APP_DIR}/docker-compose.yaml" || warn "PENPOT_PUBLIC_URI introuvable dans le fichier officiel : le régler à la main"
 
-docker pull penpotapp/penpot:latest
-
-mkdir -p /opt/penpot
-cd /opt/penpot
-
-cat > docker-compose.yml <<'EOF'
-version: '3'
-
-services:
-  penpot:
-    image: penpotapp/penpot:latest
-    ports:
-      - "80:80"
-    environment:
-      - PENPOT_FLAG_REGISTRATION_DISABLED=false
-      - PENPOT_FLAG_DEMO_USERS=false
-    volumes:
-      - penpot_data:/data
-
-volumes:
-  penpot_data:
-EOF
-
-docker-compose up -d
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 80/tcp
-fi
+(cd "$APP_DIR" && docker compose -p penpot -f docker-compose.yaml pull && docker compose -p penpot -f docker-compose.yaml up -d)
+open_ports 9001/tcp
 
 echo
-echo "✅ Penpot en cours d'installation"
-echo "URL: http://votre-serveur"
+echo "✅ Penpot démarré : ${PENPOT_URL}"
+echo "Créer les comptes de l'équipe, puis ajouter disable-registration à PENPOT_FLAGS (voir le README)."

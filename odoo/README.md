@@ -26,7 +26,7 @@ cd procedures/odoo
 sudo bash install_odoo.sh
 ```
 
-Lire les points d'attention : le script installe MariaDB au lieu de PostgreSQL et ne crée pas de configuration.
+Le script installe PostgreSQL, ajoute le dépôt officiel Odoo 19, installe le paquet `odoo` et `wkhtmltopdf`, puis remplace le mot de passe maître par défaut par un mot de passe aléatoire (étape 4, enregistré dans `/root/odoo_identifiants.txt`). Il reste à créer la base de l'entreprise dans le navigateur (étape 5). Variables facultatives : `ODOO_VERSION`, `ODOO_MASTER_PASS`.
 
 ## Installation manuelle
 
@@ -102,10 +102,10 @@ curl -I http://localhost:8069/web/login
 
 ## Points d'attention
 
-- Le script appelle `install_database`, qui installe **MariaDB**, alors qu'Odoo ne fonctionne qu'avec **PostgreSQL** : Odoo ne peut pas créer de base.
-- Son service lance `odoo-bin -c /opt/odoo/odoo.conf`, mais ce fichier n'est jamais créé.
-- Il installe les dépendances Python avec `pip install` dans le Python du système : refusé sur Debian 12 et Ubuntu 23.04 et plus récents (« externally-managed-environment »).
-- Il clone la version 16.0, dont la maintenance se termine. La version actuelle est la 19.0.
+- Odoo ne fonctionne qu'avec **PostgreSQL** (pas MariaDB/MySQL).
+- Le gestionnaire de bases (`/web/database/manager`) permet de créer, sauvegarder et **supprimer** des bases : le mot de passe maître doit rester secret ; en production, ajouter `list_db = False` dans `odoo.conf`.
+- Pour un accès depuis Internet, publier Odoo derrière Nginx en HTTPS (avec `proxy_mode = True`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -24,7 +24,7 @@ cd procedures/ntopng
 sudo bash install_ntopng.sh
 ```
 
-Lire les points d'attention : le script demande un paquet qui n'existe pas.
+Le script installe le paquet `apt-ntop-stable.deb` correspondant au système (Debian 12/13, Ubuntu 22.04/24.04), puis `ntopng`, règle l'interface analysée (celle de la route par défaut, ou `NTOP_IFACE`) et le port 3000, et n'ouvre ce port qu'au réseau local si `ufw` est actif.
 
 ## Installation manuelle
 
@@ -90,9 +90,10 @@ Dans l'interface, *Tableau de bord* et *Hôtes* doivent afficher du trafic quelq
 
 ## Points d'attention
 
-- Le script installe `ntopng` et `ntopngd` : ce second paquet n'existe pas, donc l'installation échoue.
-- Sans dépôt ntop, il ne pourrait installer que la version fournie par la distribution, souvent ancienne.
+- Pour voir le trafic de tout le réseau, et pas seulement celui du serveur, brancher l'interface analysée sur un port miroir (*port mirroring*) du commutateur.
+- Changer le mot de passe `admin` dès la première connexion (ntopng l'impose).
 - L'édition Community est gratuite ; certaines fonctions (rapports, intégrations avancées) demandent une licence Pro ou Enterprise.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

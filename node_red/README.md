@@ -24,7 +24,7 @@ cd procedures/node_red
 sudo bash install_node_red.sh
 ```
 
-Lire les points d'attention : le script fait tourner Node-RED en root, avec une version de Node.js en fin de vie.
+Lancer le script avec `sudo` depuis le compte qui fera tourner Node-RED (pas root). Le script télécharge le script officiel `install-update-nodered-deb` et l'exécute sans question (Node.js LTS, Node-RED, service `nodered` sous ce compte), puis **active l'authentification de l'éditeur** (étape 3) avec un compte `admin` dont le mot de passe est enregistré dans `/root/nodered_identifiants.txt`. Variables facultatives : `NODERED_USER`, `NODERED_ADMIN_PASS`.
 
 ## Installation manuelle
 
@@ -97,9 +97,10 @@ node-red --version
 
 ## Points d'attention
 
-- Le script installe Node.js 18, qui n'est plus maintenu.
-- Son service ne précise pas d'utilisateur : Node-RED tourne en `root`, donc tout flux (nœud `exec` par exemple) peut agir sur tout le système. Il n'active pas non plus l'authentification de l'éditeur alors que le port 1880 est ouvert.
-- Le cas `all)` du script ne correspond à aucun gestionnaire de paquets : sur RHEL/Fedora, Node.js n'est pas installé.
+- Le nœud `exec` (et les nœuds de fichiers) agit avec les droits du compte du service : ne pas faire tourner Node-RED en root.
+- Sans `adminAuth`, n'importe qui accédant au port 1880 peut modifier et déployer des flux : le script l'active.
+- Pour un accès depuis Internet, passer par un proxy inverse HTTPS.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

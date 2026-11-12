@@ -25,7 +25,11 @@ cd procedures/landscape
 sudo bash install_landscape.sh
 ```
 
-Lire les points d'attention : le dépôt utilisé par le script n'existe plus.
+Le script vérifie qu'il s'agit d'Ubuntu 24.04, règle le nom d'hôte complet (`LANDSCAPE_FQDN`, étape 1), ajoute le PPA `landscape/self-hosted-24.04`, installe `landscape-server-quickstart` et ouvre les ports 80 et 443. Il reste à créer le compte administrateur (étape 4).
+
+```bash
+sudo LANDSCAPE_FQDN=landscape.exemple.local bash install_landscape.sh
+```
 
 ## Installation manuelle
 
@@ -87,9 +91,10 @@ La console affiche les machines inscrites et leurs mises à jour en attente.
 
 ## Points d'attention
 
-- Le script ajoute le PPA `landscape/self-hosted-16.04`, qui n'existe plus (vérifié le 13/10/2026) : le paquet `landscape-server` est introuvable.
-- Le script accepte toute distribution utilisant apt, y compris Debian, alors que Landscape Server ne fonctionne que sur Ubuntu.
-- Il démarre un service `landscape-server`, alors que l'installation *quickstart* gère plusieurs services, pilotés avec `lsctl`.
+- Landscape Server autonome ne fonctionne que sur Ubuntu Server 24.04 ; il s'installe de préférence sur une machine dédiée (4 Go de RAM au minimum).
+- Créer le compte administrateur dès l'installation : le premier compte créé administre tout le parc.
+- Les services se pilotent avec `lsctl` (`sudo lsctl status`, `sudo lsctl restart`), et non avec un service `landscape-server` unique.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

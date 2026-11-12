@@ -24,7 +24,7 @@ cd procedures/hashicorp_nomad
 sudo bash install_hashicorp_nomad.sh
 ```
 
-Lire les points d'attention : la configuration écrite par le script empêche Nomad de démarrer.
+Le script ajoute le dépôt HashiCorp, installe Nomad et Docker (pilote `docker`), écrit la configuration de l'étape 2 (nœud unique serveur + client), la valide avec `nomad config validate` puis démarre le service, qui tourne en root comme l'exige la partie client. Sans Docker : `sudo NOMAD_DOCKER=non bash install_hashicorp_nomad.sh`.
 
 ## Installation manuelle
 
@@ -34,7 +34,7 @@ Lire les points d'attention : la configuration écrite par le script empêche No
 sudo apt update
 sudo apt install -y gpg wget
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
   | sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update
 sudo apt install -y nomad
@@ -130,10 +130,10 @@ L'interface web est accessible sur `http://<adresse-du-serveur>:4646`.
 
 ## Points d'attention
 
-- La configuration du script ne définit pas `data_dir`, obligatoire : Nomad refuse de démarrer.
-- Le service du script tourne sous un utilisateur `nomad` sans privilèges, alors que la partie client a besoin des droits root pour lancer des conteneurs.
-- Le script installe Nomad 1.6.0 et a besoin de `unzip`, qu'il n'installe pas. Il n'ouvre que le port 4646.
+- L'API et l'interface (port 4646) n'ont pas de contrôle d'accès tant que les ACL ne sont pas activées (`nomad acl bootstrap`) : ne pas les exposer hors du réseau d'administration.
 - Pour un cluster réel : 3 serveurs, des clients séparés, et Consul pour la découverte de services (voir `hashicorp_consul`).
+- Nomad est passé en version 2.x (2.1 au 12/11/2026) : la configuration de cette procédure est valable pour les deux branches.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

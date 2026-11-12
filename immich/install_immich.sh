@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation d'Immich avec les fichiers Docker Compose officiels de la dernière version.
+#
+# Variables modifiables :
+#   IMMICH_UPLOAD  dossier des photos et vidéos (défaut : /srv/immich/library)
+#   IMMICH_DB      dossier de la base, sur un disque local (défaut : /opt/immich/postgres)
+#   IMMICH_TZ      fuseau horaire (défaut : celui du système)
 
 set -euo pipefail
 
@@ -16,50 +22,46 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Immich - Gallerie photos et vidéos"
+info "Immich - Photos et vidéos auto-hébergées"
 
-echo "=== Installation d'Immich ==="
-pkg_install docker.io docker-compose
+APP_DIR="/opt/immich"
+IMMICH_UPLOAD="${IMMICH_UPLOAD:-/srv/immich/library}"
+IMMICH_DB="${IMMICH_DB:-/opt/immich/postgres}"
+IMMICH_TZ="${IMMICH_TZ:-$(system_tz)}"
 
-docker pull ghcr.io/immich-app/immich-server:latest
+mem_mb=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
+[ "$mem_mb" -ge 3800 ] || warn "Mémoire : ${mem_mb} Mo (Immich demande 4 Go minimum, 6 Go conseillés)"
 
-mkdir -p /opt/immich/data
+ensure_docker
+mkdir -p "$APP_DIR" "$IMMICH_UPLOAD" "$IMMICH_DB"
 
-cat > /opt/immich/docker-compose.yml <<'EOF'
-version: '3.8'
+info "Fichiers officiels de la dernière version"
+download_file https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml "${APP_DIR}/docker-compose.yml"
 
-services:
-  immich-server:
-    image: ghcr.io/immich-app/immich-server:latest
-    ports:
-      - "3001:3001"
-    environment:
-      - DB_HOSTNAME=db
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=immich
-    volumes:
-      - ./data:/usr/src/app/upload
-    depends_on:
-      - db
+set_env() {  # set_env CLÉ VALEUR : remplace ou ajoute la ligne dans .env
+    if grep -qE "^#? *$1=" "${APP_DIR}/.env"; then
+        sed -i -E "s|^#? *$1=.*|$1=$2|" "${APP_DIR}/.env"
+    else
+        echo "$1=$2" >> "${APP_DIR}/.env"
+    fi
+}
 
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=immich
-    volumes:
-      - ./db:/var/lib/postgresql/data
-EOF
-
-cd /opt/immich
-docker-compose up -d
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 3001/tcp
+if [ ! -f "${APP_DIR}/.env" ]; then
+    download_file https://github.com/immich-app/immich/releases/latest/download/example.env "${APP_DIR}/.env"
+    set_env DB_PASSWORD "$(random_password 24)"
+else
+    info "Fichier .env existant conservé (mot de passe de la base inchangé)"
 fi
+set_env UPLOAD_LOCATION "$IMMICH_UPLOAD"
+set_env DB_DATA_LOCATION "$IMMICH_DB"
+set_env TZ "$IMMICH_TZ"
+chmod 600 "${APP_DIR}/.env"
+
+info "Démarrage (le premier téléchargement d'images fait plusieurs Go)"
+(cd "$APP_DIR" && docker compose pull && docker compose up -d)
+open_ports 2283/tcp
 
 echo
-echo "✅ Immich en cours d'installation"
-echo "URL: http://votre-serveur:3001"
+echo "✅ Immich démarré"
+echo "Créer le compte administrateur sans attendre : http://$(primary_ip):2283"
+echo "Photos : ${IMMICH_UPLOAD} — Base : ${IMMICH_DB}"

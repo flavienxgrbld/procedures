@@ -24,7 +24,7 @@ is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
 info "Cacti - Supervision SNMP et graphiques"
 
-CACTI_TIMEZONE="${CACTI_TIMEZONE:-$(timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || echo UTC)}"
+CACTI_TIMEZONE="${CACTI_TIMEZONE:-$(system_tz)}"
 
 info "Installation de MariaDB"
 pkg_update

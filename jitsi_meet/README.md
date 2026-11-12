@@ -25,7 +25,13 @@ cd procedures/jitsi_meet
 sudo bash install_jitsi_meet.sh
 ```
 
-L'installation du paquet `jitsi-meet` pose les questions décrites à l'étape 4.
+Le nom de domaine doit pointer vers le serveur et les ports 80, 443 et 10000/udp être joignables :
+
+```bash
+sudo JITSI_HOST=visio.exemple.fr JITSI_EMAIL=admin@exemple.fr bash install_jitsi_meet.sh
+```
+
+Le script règle le nom d'hôte (étape 1), ouvre les ports si un pare-feu est actif, ajoute le dépôt Jitsi (et Prosody sur Ubuntu) avec des clés dans `/etc/apt/keyrings`, préconfigure les réponses de l'installation (nom d'hôte, certificat Let's Encrypt, ou autosigné sans `JITSI_EMAIL`) puis installe `jitsi-meet`.
 
 ## Installation manuelle
 
@@ -113,9 +119,11 @@ Ouvrir `https://visio.exemple.fr`, créer une salle et la rejoindre depuis deux 
 
 ## Points d'attention
 
-- Le script ajoute la clé du dépôt avec `apt-key`, retiré des versions récentes de Debian et Ubuntu, et ne règle ni le nom d'hôte ni le dépôt Prosody nécessaire sur Ubuntu.
-- Il ouvre toute la plage 10000-20000/udp, alors que Jitsi Videobridge n'utilise que le port 10000/udp.
-- Sur RHEL/Fedora, il tente d'installer `jitsi-meet` sans ajouter de dépôt : ce paquet n'existe pas pour ces distributions.
+- Par défaut, n'importe qui peut créer une réunion : sur un serveur public, réserver la création de salles (étape 5).
+- Seul le port **10000/udp** sert aux flux audio/vidéo : inutile d'ouvrir toute la plage 10000-20000.
+- Derrière une box ou un NAT, Jitsi Videobridge doit connaître l'adresse publique : voir la section NAT de la documentation (`jvb.conf`).
+- Jitsi Meet n'existe qu'en paquets Debian/Ubuntu (ou en conteneurs `docker-jitsi-meet`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

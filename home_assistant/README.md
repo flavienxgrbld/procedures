@@ -26,7 +26,7 @@ cd procedures/home_assistant
 sudo bash install_home_assistant.sh
 ```
 
-Lire les points d'attention : la méthode du script ne fonctionne plus sur les distributions récentes.
+Le script installe Docker s'il est absent, écrit le `compose.yaml` de l'étape 2 (image `stable`, réseau `host`, fuseau horaire du système ou `HA_TZ`) et démarre le conteneur. Relancé, il met l'image à jour.
 
 ## Installation manuelle (conteneur)
 
@@ -99,9 +99,10 @@ sudo docker compose up -d
 
 ## Points d'attention
 
-- Le script installe Home Assistant avec `pip3 install homeassistant` dans le Python du système. Sur Debian 12 et Ubuntu 23.04 et plus récents, cette commande est refusée (« externally-managed-environment »). De plus, Home Assistant exige une version très récente de Python, rarement celle de la distribution.
-- Le service du script tourne en `root`, ce que la documentation déconseille.
-- La méthode *Core* (installation Python manuelle) n'est plus prise en charge par le projet : les méthodes conseillées sont Home Assistant OS et le conteneur.
+- Créer le compte propriétaire dès le premier démarrage : tant que l'assistant n'est pas terminé, n'importe qui sur le réseau peut le faire.
+- `privileged: true` donne au conteneur l'accès au matériel (clés Zigbee/Z-Wave USB) : c'est la configuration de la documentation, mais elle réduit l'isolation.
+- La méthode *Container* n'inclut pas les modules complémentaires (add-ons) : ils demandent Home Assistant OS.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

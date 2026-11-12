@@ -24,6 +24,8 @@ cd procedures/kodi
 sudo bash install_kodi.sh
 ```
 
+Le script choisit la méthode selon le système : PPA officiel `team-xbmc` sur Ubuntu, dépôts officiels sur Debian et Arch, RPM Fusion sur Fedora (et RHEL avec EPEL). Il prévient si la machine n'a pas d'interface graphique.
+
 ## Installation manuelle
 
 ### Ubuntu (dernière version via le PPA officiel)
@@ -84,9 +86,10 @@ kodi --version
 
 ## Points d'attention
 
-- Le PPA `team-xbmc` utilisé par le script n'existe que pour Ubuntu : sur Debian, `add-apt-repository` échoue. Installer alors le paquet des dépôts Debian.
-- Sur Fedora, le paquet `kodi` n'est pas dans les dépôts de base : il faut activer RPM Fusion avant.
-- Pour un serveur multimédia sans écran, qui diffuse vers plusieurs appareils, voir plutôt les procédures `jellyfin`, `emby` ou `plex`.
+- Kodi est une application graphique : il s'installe sur le poste relié à la télévision, pas sur un serveur sans écran. Pour un serveur multimédia, voir `jellyfin`, `emby` ou `plex`.
+- Activer la télécommande HTTP seulement avec un identifiant et un mot de passe : sinon, toute machine du réseau peut piloter Kodi.
+- Sur openSUSE, Kodi vient du dépôt Packman (non géré par le script).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

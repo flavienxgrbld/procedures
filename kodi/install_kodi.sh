@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Installation de Kodi (centre multimédia, application graphique) :
+# PPA officiel sur Ubuntu, dépôts Debian, RPM Fusion sur Fedora, dépôts Arch.
 
 set -euo pipefail
 
@@ -16,25 +18,37 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Kodi - Centre multimédia personnel"
+info "Kodi - Centre multimédia"
 
-echo "=== Installation de Kodi ==="
+if ! systemctl get-default 2>/dev/null | grep -q graphical; then
+    warn "Aucune interface graphique détectée : Kodi est une application de bureau (voir Jellyfin/Emby/Plex pour un serveur)"
+fi
+
 case "$PKG_MANAGER" in
     apt)
-        pkg_install software-properties-common
-        add-apt-repository ppa:team-xbmc/ppa
         pkg_update
+        if is_ubuntu; then
+            info "Ubuntu : PPA officiel team-xbmc (dernière version)"
+            pkg_install software-properties-common
+            add-apt-repository -y ppa:team-xbmc/ppa
+            pkg_update
+        else
+            info "Debian : paquet des dépôts officiels"
+        fi
         pkg_install kodi
         ;;
-    dnf|yum)
+    dnf)
+        if [ "$OS_ID" = "fedora" ]; then
+            pkg_install "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm"
+        else
+            pkg_install epel-release || true
+            pkg_install "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm"
+        fi
         pkg_install kodi
         ;;
-    pacman)
-        pkg_install kodi
-        ;;
+    pacman) pkg_install kodi ;;
+    zypper) error_exit "openSUSE : activer le dépôt Packman, puis « zypper install kodi »" ;;
 esac
 
 echo
-echo "✅ Kodi installé avec succès"
-echo "Lancez avec: kodi"
-echo "* Cette installation est plus adaptée pour les clients qu'aux serveurs"
+echo "✅ Kodi installé : le lancer depuis le menu des applications, ou avec la commande « kodi »"

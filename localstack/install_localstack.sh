@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de LocalStack (émulateur AWS) avec l'image Docker officielle,
+# accessible uniquement depuis la machine (127.0.0.1:4566).
+#
+# Variables :
+#   LOCALSTACK_AUTH_TOKEN  jeton du compte LocalStack, ls-... (obligatoire pour l'image actuelle)
 
 set -euo pipefail
 
@@ -16,32 +21,44 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "LocalStack - AWS emulator local"
+info "LocalStack - Émulation des services AWS en local"
 
-echo "=== Installation de LocalStack ==="
-pkg_install python3 python3-pip docker.io
+APP_DIR="/opt/localstack"
+[ -n "${LOCALSTACK_AUTH_TOKEN:-}" ] || [ -f "${APP_DIR}/.env" ] \
+    || error_exit "Définir LOCALSTACK_AUTH_TOKEN (Workspace > Auth Token sur app.localstack.cloud)"
 
-pip3 install localstack
-
-# Service Docker
-systemctl enable docker
-systemctl start docker
-
-# Démarrage
-docker run -d \
-  -p 4566:4566 \
-  -p 4571:4571 \
-  -e DEBUG=1 \
-  --name localstack \
-  --restart=always \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  localstack/localstack:latest
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 4566/tcp
+ensure_docker
+mkdir -p "$APP_DIR"
+chmod 700 "$APP_DIR"
+if [ -n "${LOCALSTACK_AUTH_TOKEN:-}" ]; then
+    (umask 077; printf 'LOCALSTACK_AUTH_TOKEN=%s\n' "$LOCALSTACK_AUTH_TOKEN" > "${APP_DIR}/.env")
 fi
 
+cat > "${APP_DIR}/compose.yaml" <<'EOF'
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    restart: unless-stopped
+    ports:
+      # LocalStack n'authentifie pas les requêtes : publication locale uniquement
+      - "127.0.0.1:4566:4566"
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  localstack_data:
+EOF
+
+compose_up "$APP_DIR"
+
+info "Client AWS"
+pkg_install awscli || warn "awscli indisponible dans les dépôts : installer AWS CLI v2 (voir le README)"
+
 echo
-echo "✅ LocalStack en cours d'installation"
-echo "Accès AWS: http://votre-serveur:4566"
-echo "Configuration: awslocal"
+echo "✅ LocalStack démarré sur http://127.0.0.1:4566"
+echo "Configurer le client (sans sudo) : aws configure set aws_access_key_id test && aws configure set aws_secret_access_key test && aws configure set region eu-west-3"
+echo "Test : aws --endpoint-url=http://localhost:4566 s3 ls"

@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# Installation de Keycloak (image officielle) avec Docker Compose et une base PostgreSQL.
+# Mode labo : start-dev, HTTP sur le port 8080. Pour la production, voir « Mode production » du README.
+#
+# Variables modifiables :
+#   KEYCLOAK_VERSION     version de l'image (défaut : 26.8.2)
+#   KEYCLOAK_PORT        port publié (défaut : 8080)
+#   KEYCLOAK_ADMIN_PASS  mot de passe du compte admin temporaire (défaut : généré)
 
 set -euo pipefail
 
@@ -16,62 +23,59 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Keycloak - Gestion d'authentification et d'identité"
+info "Keycloak - Gestion des identités et des accès (SSO)"
 
-KEYCLOAK_VERSION="23.0.1"
-KEYCLOAK_HOME="/opt/keycloak"
-KEYCLOAK_USER="keycloak"
+APP_DIR="/opt/keycloak"
+ensure_docker
+mkdir -p "$APP_DIR"
+chmod 700 "$APP_DIR"
 
-echo "=== Installation de Keycloak ==="
-
-# Installation Java
-case "$PKG_MANAGER" in
-    apt)
-        pkg_install openjdk-17-jre-headless
-        ;;
-    dnf|yum)
-        pkg_install java-17-openjdk-headless
-        ;;
-esac
-
-# Création utilisateur
-if ! id "$KEYCLOAK_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$KEYCLOAK_HOME" -c "Keycloak Service" "$KEYCLOAK_USER"
+if [ ! -f "${APP_DIR}/.env" ]; then
+    (umask 077; cat > "${APP_DIR}/.env") <<EOF
+KEYCLOAK_VERSION=${KEYCLOAK_VERSION:-26.8.2}
+KEYCLOAK_PORT=${KEYCLOAK_PORT:-8080}
+KC_BOOTSTRAP_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASS:-$(random_password 20)}
+DB_PASSWORD=$(random_password 24)
+EOF
 fi
 
-# Installation Keycloak
-cd /opt
-wget "https://github.com/keycloak/keycloak/releases/download/${KEYCLOAK_VERSION}/keycloak-${KEYCLOAK_VERSION}.tar.gz"
-tar -xzf "keycloak-${KEYCLOAK_VERSION}.tar.gz"
-rm "keycloak-${KEYCLOAK_VERSION}.tar.gz"
-mv "keycloak-${KEYCLOAK_VERSION}" keycloak
-chown -R "$KEYCLOAK_USER:$KEYCLOAK_USER" "$KEYCLOAK_HOME"
+cat > "${APP_DIR}/compose.yaml" <<'EOF'
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
 
-# Service systemd
-cat > /etc/systemd/system/keycloak.service <<'EOF'
-[Unit]
-Description=Keycloak
-After=network.target
+  keycloak:
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+    restart: unless-stopped
+    command: start-dev
+    depends_on: [postgres]
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
 
-[Service]
-Type=simple
-User=keycloak
-WorkingDirectory=/opt/keycloak
-ExecStart=/opt/keycloak/bin/kc.sh start --hostname-url=http://localhost:8080 --hostname=localhost
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
+volumes:
+  pg_data:
 EOF
 
-systemctl daemon-reload
-systemctl enable keycloak
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8080/tcp
-fi
+compose_up "$APP_DIR"
+# shellcheck disable=SC1091
+. "${APP_DIR}/.env"
+open_ports "${KEYCLOAK_PORT}/tcp"
 
 echo
-echo "✅ Keycloak en cours d'installation"
-echo "Démarrage du service: systemctl start keycloak"
-echo "URL: http://votre-serveur:8080"
+echo "✅ Keycloak ${KEYCLOAK_VERSION} démarré (mode labo, démarrage : environ 1 minute)"
+echo "Console : http://$(primary_ip):${KEYCLOAK_PORT}/admin"
+echo "Compte temporaire : admin (mot de passe dans ${APP_DIR}/.env) -> créer un vrai administrateur puis le supprimer"

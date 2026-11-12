@@ -22,10 +22,10 @@ LocalStack émule les services d'Amazon Web Services (S3, Lambda, DynamoDB, SQS�
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/localstack
-sudo bash install_localstack.sh
+sudo LOCALSTACK_AUTH_TOKEN=ls-XXXXXXXXXXXX bash install_localstack.sh
 ```
 
-Lire les points d'attention : sur les distributions récentes, le script s'arrête avant de lancer le conteneur.
+Le script installe Docker s'il est absent, enregistre le jeton dans `/opt/localstack/.env` (lisible par root seul), écrit le `compose.yaml` de l'étape 2 (port publié sur `127.0.0.1` seulement) et démarre le conteneur, puis installe le client AWS. La configuration du client (étape 3) se fait ensuite sans `sudo`, avec son propre compte.
 
 ## Installation manuelle
 
@@ -94,9 +94,11 @@ La réponse liste les services disponibles et leur état.
 
 ## Points d'attention
 
-- Le script installe la CLI LocalStack avec `pip3 install localstack` dans le Python du système. Sur Debian 12 et Ubuntu 23.04 et plus récents, cette commande est refusée (« externally-managed-environment ») : le script s'arrête avant de démarrer le conteneur. La documentation demande aussi de ne jamais l'installer en root.
-- Le script lance le conteneur sans jeton d'authentification. Le dépôt open source de LocalStack est archivé : l'image actuelle demande un compte, même gratuit.
-- Il publie le port 4566 sur toutes les interfaces et l'ouvre dans le pare-feu : n'importe quelle machine du réseau peut alors utiliser l'émulateur. Le port 4571 qu'il publie appartient à d'anciennes versions.
+- Le dépôt open source de LocalStack est archivé : l'image actuelle demande un compte (gratuit pour un usage personnel) et son jeton.
+- LocalStack n'authentifie pas les requêtes : garder la publication sur `127.0.0.1`. Pour l'utiliser depuis un autre poste, passer par un tunnel SSH (`ssh -L 4566:127.0.0.1:4566 serveur`).
+- Le montage de `/var/run/docker.sock` donne au conteneur le contrôle de Docker sur l'hôte : réservé à une machine de développement.
+- Sur Debian 13 et Ubuntu 24.04, le paquet `awscli` peut manquer : installer AWS CLI v2 avec l'installateur officiel d'Amazon.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

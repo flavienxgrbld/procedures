@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Jellyfin avec le dépôt officiel (script install-debuntu.sh de l'éditeur).
+#
+# Variables facultatives :
+#   MEDIA_DIR  dossier de médias à rendre lisible par Jellyfin
+#   JELLYFIN_VAAPI=oui  ajoute jellyfin au groupe render (transcodage matériel Intel/AMD)
 
 set -euo pipefail
 
@@ -16,40 +21,38 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Jellyfin - Serveur multimédia open source"
+info "Jellyfin - Serveur multimédia libre"
 
-echo "=== Mise à jour du système ==="
-pkg_update
-pkg_upgrade
-
-echo "=== Installation de Jellyfin ==="
 case "$PKG_MANAGER" in
-    apt)
-        curl -s https://repo.jellyfin.org/install-debuntu.sh | bash
-        pkg_install jellyfin
-        ;;
-    dnf|yum)
-        rpm -Uvh https://repo.jellyfin.org/jellyfin-repo-10.8.3-1.noarch.rpm
-        pkg_install jellyfin
-        ;;
-    zypper)
-        pkg_install jellyfin
-        ;;
-    pacman)
-        pkg_install jellyfin
-        ;;
+    apt) ;;
+    *) error_exit "Dépôt officiel pour Debian et Ubuntu uniquement (Fedora : RPM Fusion ; Arch : paquet jellyfin-server)" ;;
 esac
 
-systemctl enable jellyfin
-systemctl start jellyfin
+pkg_update
+pkg_install curl ca-certificates acl
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8096/tcp
-    ufw allow 8920/tcp
+INSTALLER="$(mktemp)"
+add_temp_file "$INSTALLER"
+download_file https://repo.jellyfin.org/install-debuntu.sh "$INSTALLER"
+info "Exécution du script officiel de l'éditeur (dépôt + paquets)"
+# Le script officiel demande une confirmation : on la lui fournit
+bash "$INSTALLER" < <(yes)
+
+systemctl enable --now jellyfin
+check_service_status jellyfin
+
+if [ -n "${MEDIA_DIR:-}" ]; then
+    [ -d "$MEDIA_DIR" ] || error_exit "Dossier de médias introuvable : $MEDIA_DIR"
+    setfacl -R -m u:jellyfin:rX "$MEDIA_DIR"
+    setfacl -R -d -m u:jellyfin:rX "$MEDIA_DIR"
+    info "Lecture autorisée pour jellyfin sur ${MEDIA_DIR}"
+fi
+if [ "${JELLYFIN_VAAPI:-non}" = "oui" ] && getent group render >/dev/null; then
+    usermod -aG render jellyfin
+    systemctl restart jellyfin
 fi
 
+open_ports 8096/tcp 7359/udp
+
 echo
-echo "✅ Jellyfin installé avec succès"
-echo "URL: http://votre-serveur:8096"
-echo "Configuration: /etc/jellyfin"
-echo "Bien configurer les chemins d'accès aux médias"
+echo "✅ Jellyfin installé : http://$(primary_ip):8096 (créer le compte administrateur sans attendre)"

@@ -927,3 +927,69 @@ compose_up() {
     local dir="$1"
     (cd "$dir" && docker compose pull && docker compose up -d)
 }
+
+# hashicorp_repo : ajoute le dépôt officiel HashiCorp (apt ou dnf)
+hashicorp_repo() {
+    case "$PKG_MANAGER" in
+        apt)
+            pkg_install gpg curl lsb-release ca-certificates
+            install -m 0755 -d /etc/apt/keyrings
+            curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/hashicorp.gpg
+            # shellcheck disable=SC1091
+            local codename; codename="$(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")"
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com ${codename} main" \
+                > /etc/apt/sources.list.d/hashicorp.list
+            pkg_update
+            ;;
+        dnf|yum)
+            pkg_install dnf-plugins-core || pkg_install yum-utils
+            local d="RHEL"; [ "$OS_ID" = "fedora" ] && d="fedora"
+            dnf config-manager --add-repo "https://rpm.releases.hashicorp.com/${d}/hashicorp.repo" \
+                || dnf config-manager addrepo --from-repofile="https://rpm.releases.hashicorp.com/${d}/hashicorp.repo" \
+                || yum-config-manager --add-repo "https://rpm.releases.hashicorp.com/${d}/hashicorp.repo"
+            ;;
+        *) error_exit "Dépôt HashiCorp disponible pour apt et dnf/yum seulement" ;;
+    esac
+}
+
+# primary_ip : adresse IPv4 de l'interface de la route par défaut
+primary_ip() {
+    local ifc
+    ifc="$(ip -4 route show default | awk '{print $5; exit}')"
+    ip -4 -o addr show dev "$ifc" | awk '{split($4,a,"/"); print a[1]; exit}'
+}
+
+# install_java_min VERSION : installe un JRE (headless) de version >= VERSION.
+# Paquet OpenJDK de la distribution si disponible, sinon Eclipse Temurin (dépôt Adoptium).
+install_java_min() {
+    local min="$1" v
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        for v in 25 21; do
+            [ "$v" -ge "$min" ] || continue
+            if apt-cache show "openjdk-${v}-jre-headless" >/dev/null 2>&1; then
+                pkg_install "openjdk-${v}-jre-headless" fontconfig
+                return 0
+            fi
+        done
+        info "OpenJDK ${min} absent des dépôts : ajout du dépôt Eclipse Temurin (Adoptium)"
+        pkg_install wget gpg ca-certificates
+        install -m 0755 -d /etc/apt/keyrings
+        wget -qO- https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor --yes -o /etc/apt/keyrings/adoptium.gpg
+        # shellcheck disable=SC1091
+        echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") main" \
+            > /etc/apt/sources.list.d/adoptium.list
+        pkg_update
+        pkg_install "temurin-${min}-jre" fontconfig
+    else
+        pkg_install "java-${min}-openjdk-headless" fontconfig || pkg_install "java-${min}-openjdk" fontconfig
+    fi
+}
+
+# system_tz : fuseau horaire du système (Europe/Paris à défaut)
+system_tz() {
+    local tz=""
+    tz="$(timedatectl show -p Timezone --value 2>/dev/null)" || true
+    [ -n "$tz" ] || tz="$(cat /etc/timezone 2>/dev/null)" || true
+    [ -n "$tz" ] || tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')" || true
+    printf '%s' "${tz:-Europe/Paris}"
+}

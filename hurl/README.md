@@ -23,18 +23,18 @@ cd procedures/hurl
 sudo bash install_hurl.sh
 ```
 
-Lire les points d'attention : le script ne parvient plus à télécharger Hurl.
+Le script télécharge le dernier paquet `.deb` publié sur GitHub (ou `HURL_VERSION`) pour l'architecture de la machine (amd64 ou arm64) et l'installe.
 
 ## Installation manuelle
 
 ### 1. Télécharger et installer le paquet
 
-Prendre la dernière version sur la page des versions (ici la 8.0.1) :
+Prendre la dernière version sur la page des versions (8.1.0 au 12/11/2026) :
 
 ```bash
 cd /tmp
-wget https://github.com/Orange-OpenSource/hurl/releases/download/8.0.1/hurl_8.0.1_amd64.deb
-sudo apt install -y ./hurl_8.0.1_amd64.deb
+wget https://github.com/Orange-OpenSource/hurl/releases/download/8.1.0/hurl_8.1.0_amd64.deb
+sudo apt install -y ./hurl_8.1.0_amd64.deb
 hurl --version
 ```
 
@@ -83,8 +83,9 @@ hurl --test test.hurl
 
 ## Points d'attention
 
-- Le script télécharge `https://raw.githubusercontent.com/Orange-OpenSource/hurl/master/install.sh`, qui n'existe pas (erreur 404, vérifié le 13/10/2026) : l'installation échoue. La variable `HURL_VERSION="4.1.0"` du script n'est pas utilisée.
 - Hurl n'a besoin d'aucun droit root pour s'exécuter : seule l'installation du paquet en demande.
+- Sur un poste sans apt, utiliser l'archive `tar.gz` de la page des versions ou `cargo install hurl`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

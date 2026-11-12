@@ -26,7 +26,7 @@ cd procedures/immich
 sudo bash install_immich.sh
 ```
 
-Lire les points d'attention : le fichier Compose du script est incomplet et Immich ne démarre pas.
+Le script installe Docker s'il est absent, télécharge le `docker-compose.yml` et l'`example.env` officiels de la dernière version dans `/opt/immich`, règle le `.env` comme à l'étape 2 (dossiers, fuseau horaire, mot de passe de la base aléatoire) puis démarre Immich. Relancé, il met Immich à jour en gardant le mot de passe. Variables facultatives : `IMMICH_UPLOAD`, `IMMICH_DB`, `IMMICH_TZ`.
 
 ## Installation manuelle
 
@@ -99,9 +99,11 @@ Lire les notes de version avant chaque mise à jour : certaines demandent une mo
 
 ## Points d'attention
 
-- Le fichier Compose du script ne contient que le serveur et PostgreSQL 15. Il manque Redis/Valkey et le service d'apprentissage automatique, et la base doit utiliser l'image PostgreSQL d'Immich, avec ses extensions de recherche vectorielle : Immich ne démarre pas.
-- Le script publie le port 3001 et monte `/usr/src/app/upload`, utilisés par les anciennes versions. Les versions actuelles écoutent sur 2283 et stockent dans `/data`.
+- Créer le compte administrateur dès le premier démarrage : le premier inscrit devient administrateur.
 - Ne pas placer la base de données (`DB_DATA_LOCATION`) sur un partage réseau (NFS, SMB) : elle risque d'être corrompue.
+- Immich évolue vite : lire les notes de version avant une mise à jour, certaines demandent une action manuelle.
+- Immich n'est pas une sauvegarde : sauvegarder aussi le dossier des photos et la base (`docker compose exec database pg_dumpall`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

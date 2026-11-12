@@ -64,6 +64,7 @@ fi
 if [ "${PG_NETWORK:-non}" = "oui" ]; then
     CONF="$(sudo -u postgres psql -tAc 'SHOW config_file')"
     HBA="$(sudo -u postgres psql -tAc 'SHOW hba_file')"
+    [ -f "$CONF" ] && [ -f "$HBA" ] || error_exit "Fichiers de configuration PostgreSQL introuvables"
     IP="$(primary_ip)"
     LAN="$(ip -4 route show scope link 2>/dev/null | awk '!/docker|br-|veth/ {print $1; exit}')" || true
     [ -n "$LAN" ] || error_exit "Réseau local introuvable"

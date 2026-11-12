@@ -47,7 +47,9 @@ download_file https://download.zulip.com/server/zulip-server-latest.tar.gz "${WO
 tar -xf "${WORK}/zulip.tar.gz" -C "$WORK"
 open_ports 80/tcp 443/tcp
 info "Installateur officiel (10 à 20 minutes)"
-"$WORK"/zulip-server-*/scripts/setup/install "$CERT_OPT" --email="$ZULIP_EMAIL" --hostname="$ZULIP_HOSTNAME"
+INSTALLER="$(find "$WORK" -maxdepth 4 -path '*/scripts/setup/install' -type f | head -n1)"
+[ -n "$INSTALLER" ] || error_exit "Installateur introuvable dans l'archive Zulip"
+"$INSTALLER" "$CERT_OPT" --email="$ZULIP_EMAIL" --hostname="$ZULIP_HOSTNAME"
 
 echo
 echo "✅ Zulip installé pour ${ZULIP_HOSTNAME}"

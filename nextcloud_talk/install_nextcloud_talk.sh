@@ -42,7 +42,7 @@ fi
 info "Serveur TURN coturn"
 pkg_update
 pkg_install coturn
-TURN_SECRET="$(sed -nE 's/^static-auth-secret=(.+)/\1/p' /etc/turnserver.conf 2>/dev/null | head -n1)"
+TURN_SECRET="$(sed -nE 's/^static-auth-secret=(.+)/\1/p' /etc/turnserver.conf 2>/dev/null | head -n1)" || true
 if [ -z "$TURN_SECRET" ]; then
     TURN_SECRET="$(openssl rand -hex 32)"
     backup_file /etc/turnserver.conf

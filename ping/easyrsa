@@ -1,0 +1,8 @@
+#!/bin/bash
+mkdir -p pki/issued pki/private
+case "$1" in
+  build-ca) echo CA > pki/ca.crt ;;
+  build-server-full) echo -e "-----BEGIN CERTIFICATE-----\nX\n-----END CERTIFICATE-----" > pki/issued/$2.crt; echo K > pki/private/$2.key ;;
+  build-client-full) echo -e "junk\n-----BEGIN CERTIFICATE-----\nX\n-----END CERTIFICATE-----" > pki/issued/$2.crt; echo K > pki/private/$2.key ;;
+  gen-crl) echo CRL > pki/crl.pem ;;
+esac

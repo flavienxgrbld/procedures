@@ -25,7 +25,7 @@ cd procedures/dolibarr
 sudo bash install_dolibarr.sh
 ```
 
-Lire les points d'attention : le script ne parvient plus à télécharger Dolibarr.
+Le script installe Apache, MariaDB et PHP, crée la base `dolibarr` avec un mot de passe aléatoire, télécharge la dernière version publiée sur GitHub (ou `DOLIBARR_VERSION`), prépare `/var/lib/dolibarr/documents` et publie le dossier `htdocs/` avec Apache. Il reste à suivre l'assistant (étape 5) avec les informations de `/root/dolibarr_identifiants.txt`, puis à verrouiller l'installation (étape 6). Variables facultatives : `DOLIBARR_DOMAIN`, `DOLIBARR_DB_PASS`.
 
 ## Installation manuelle
 
@@ -54,11 +54,11 @@ EXIT;
 
 ### 3. Télécharger Dolibarr
 
-Récupérer la dernière version sur la page des versions (ici 24.0.1) :
+Récupérer la dernière version sur la page des versions (24.0.3 au 12/11/2026) :
 
 ```bash
 cd /tmp
-wget https://github.com/Dolibarr/dolibarr/archive/refs/tags/24.0.1.tar.gz -O dolibarr.tar.gz
+wget https://github.com/Dolibarr/dolibarr/archive/refs/tags/24.0.3.tar.gz -O dolibarr.tar.gz
 sudo mkdir -p /var/www/dolibarr
 sudo tar -xzf dolibarr.tar.gz -C /var/www/dolibarr --strip-components=1
 sudo mkdir -p /var/lib/dolibarr/documents
@@ -125,9 +125,10 @@ Se connecter sur `http://<adresse-du-serveur>/` avec le compte administrateur, p
 
 ## Points d'attention
 
-- Le script télécharge `github.com/Dolibarr/dolibarr/releases/download/16.0.0/dolibarr-16.0.0.zip`, qui n'existe pas (erreur 404, vérifié le 13/10/2026). Le `rm dolibarr-*.zip` qui suit échoue et arrête le script.
-- Le script installe les modules PHP sous les noms `php81-gd`, `php81-xml` et `php81-zip`. Sur Debian et Ubuntu, ce sont `php8.1-gd`, `php8.1-xml` et `php8.1-zip`.
-- Même téléchargé, Dolibarr doit être publié depuis le dossier `htdocs/` : l'URL `http://votre-serveur/dolibarr` affichée par le script ne donne pas accès à l'application.
+- Sans le verrouillage de l'étape 6 (`install.lock`), l'assistant d'installation reste accessible.
+- Sur Debian 13 (PHP 8.4), le module `php-imap` n'existe plus : Dolibarr fonctionne, seule la collecte automatique d'e-mails IMAP est indisponible.
+- Le script désactive le site Apache par défaut (`000-default`) : Dolibarr répond sur l'adresse IP du serveur.
+- Relu et mis à jour le 12/11/2026 (Dolibarr 24.0.3).
 
 ## Sources
 

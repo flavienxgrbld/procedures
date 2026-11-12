@@ -24,7 +24,7 @@ cd procedures/cacti
 sudo bash install_cacti.sh
 ```
 
-Lire les points d'attention : sur Debian et Ubuntu, le script échoue à l'installation des modules PHP.
+Le script installe MariaDB, préconfigure le paquet Debian `cacti` (serveur web Apache, base créée par **dbconfig-common**), installe Cacti, SNMP et RRDtool, puis applique les réglages de l'étape 2 : fuseau horaire identique pour PHP et MariaDB (celui du système, ou `CACTI_TIMEZONE`), `memory_limit`, `max_execution_time` et jeu de caractères `utf8mb4`. Il reste à terminer l'assistant web (étape 3).
 
 ## Installation manuelle (paquet Debian, recommandée)
 
@@ -92,9 +92,10 @@ Les premiers graphiques apparaissent après quelques cycles de collecte (5 minut
 
 ## Points d'attention
 
-- Le script installe les modules PHP sous les noms `php81-snmp`, `php81-gd` et `php81-ldap`. Sur Debian et Ubuntu, ce sont `php8.1-snmp`, `php8.1-gd`, `php8.1-ldap` : l'installation s'arrête en erreur.
-- Même après correction, l'installation par archive du script reste incomplète. Elle ne crée pas la base, n'importe pas `cacti.sql`, ne configure pas `include/config.php` et ne planifie pas le poller.
-- Son site Apache publie Cacti à la racine (`http://serveur/`), alors que le message de fin indique `http://serveur/cacti`.
+- La version de Cacti est celle de la distribution, souvent en retard de quelques versions (vérifier avec `apt policy cacti`). Pour la toute dernière version (1.2.31 au 12/11/2026), il faut l'archive de cacti.net et une configuration entièrement manuelle (base, `include/config.php`, poller) : la méthode par paquet reste plus simple à maintenir.
+- Le compte `admin` / `admin` est actif tant que l'assistant n'a pas été terminé : le faire dès la fin de l'installation.
+- `snmpd` écoute par défaut sur `127.0.0.1` seulement ; c'est suffisant pour superviser le serveur lui-même.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -24,24 +24,39 @@ cd procedures/dnsmasq
 sudo bash install_dnsmasq.sh
 ```
 
-Lire les points d'attention : la configuration écrite par le script doit être corrigée.
+Le script détecte l'interface et l'adresse IP du serveur, libère le port 53 sur Ubuntu (étape 1), installe dnsmasq et écrit `/etc/dnsmasq.d/lan.conf` sur le modèle de l'étape 3 : écoute sur `127.0.0.1` et l'adresse du serveur, DNS en amont explicites, domaine local. Le DHCP n'est activé que si `DHCP_RANGE` est fourni :
+
+```bash
+sudo DNS_DOMAIN=lab.local DHCP_RANGE=192.168.1.100,192.168.1.200,12h bash install_dnsmasq.sh
+```
+
+| Variable | Défaut |
+|---|---|
+| `DNS_INTERFACE` / `DNS_IP` | interface de la route par défaut et son adresse |
+| `DNS_DOMAIN` | `lab.local` |
+| `DNS_UPSTREAM` | `1.1.1.1 9.9.9.9` |
+| `DHCP_RANGE` | vide (pas de DHCP) |
+| `DHCP_ROUTER` | passerelle actuelle du serveur |
 
 ## Installation manuelle
 
-### 1. Installer le paquet
-
-```bash
-sudo apt update
-sudo apt install -y dnsmasq
-```
-
-### 2. Libérer le port 53 (Ubuntu)
+### 1. Libérer le port 53 (Ubuntu)
 
 Sur Ubuntu, `systemd-resolved` occupe déjà le port 53 :
 
 ```bash
 sudo sed -i 's/^#\?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
 sudo systemctl restart systemd-resolved
+sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+```
+
+La dernière commande est indispensable : `/etc/resolv.conf` pointait vers `127.0.0.53`, qui ne répond plus, et la machine ne résoudrait plus aucun nom (ni `apt`). Faire cette étape **avant** d'installer le paquet, sinon son service ne démarre pas.
+
+### 2. Installer le paquet
+
+```bash
+sudo apt update
+sudo apt install -y dnsmasq
 ```
 
 ### 3. Écrire la configuration
@@ -120,9 +135,10 @@ cat /var/lib/misc/dnsmasq.leases
 
 ## Points d'attention
 
-- Le script écrase `/etc/dnsmasq.conf` avec `resolv-file=/etc/resolv.conf.d/resolv.conf.dnsmasq`. Ce fichier n'existe pas, donc dnsmasq n'a aucun serveur DNS en amont et ne résout pas les noms Internet. La configuration ci-dessus utilise `no-resolv` et des `server=` explicites.
-- Le script fait écouter dnsmasq uniquement sur `127.0.0.1` : les autres machines du réseau ne peuvent pas l'interroger, même avec les ports ouverts.
-- Sur Ubuntu, le script ne désactive pas l'écoute DNS de `systemd-resolved` : dnsmasq peut refuser de démarrer.
+- Ne jamais activer le DHCP de dnsmasq sur un réseau qui a déjà un serveur DHCP (box, routeur, Windows Server) : deux serveurs DHCP distribuent des adresses contradictoires.
+- Le serveur dnsmasq doit avoir une adresse IP **fixe** : c'est elle que les postes utilisent comme DNS.
+- `.local` est aussi utilisé par mDNS (Avahi, Bonjour) : sur un réseau avec des Mac ou des imprimantes, préférer un domaine comme `lab.lan` ou `home.arpa`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

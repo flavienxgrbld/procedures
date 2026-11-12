@@ -24,7 +24,7 @@ cd procedures/bacula
 sudo bash install_bacula.sh
 ```
 
-Lire les points d'attention : le script ne démarre pas les bons services.
+Le script installe MariaDB puis Bacula en préconfigurant **dbconfig-common** (la base du catalogue est créée sans question), crée `/bacula/backup` (ou `BACULA_STORAGE_DIR`), y fait pointer le Storage Daemon, vérifie la syntaxe des trois fichiers de configuration et démarre les services `bacula-director`, `bacula-sd` et `bacula-fd`. Il reste à adapter le `FileSet` et le `Job` (étape 4) puis à lancer une sauvegarde de test (étape 6).
 
 ## Installation manuelle
 
@@ -115,9 +115,10 @@ ls -lh /bacula/backup
 
 ## Points d'attention
 
-- Le script installe les paquets **Bacula**, mais active les services `bareos-dir` et `bareos-sd`, qui appartiennent à **Bareos** (un autre logiciel, dérivé de Bacula). Ces services n'existent pas : le script s'arrête en erreur. Les bons noms sont `bacula-director` et `bacula-sd`.
-- Le paquet `bacula-storage` installé par le script n'existe pas sous ce nom sur Debian : c'est `bacula-sd`.
-- Pour sauvegarder d'autres machines, installer seulement `bacula-fd` sur chacune et la déclarer comme `Client` dans `bacula-dir.conf`.
+- La configuration Debian par défaut sauvegarde un `FileSet` d'exemple : l'adapter (dossiers à inclure ou exclure) avant de compter sur les sauvegardes, puis `sudo systemctl reload bacula-director`.
+- Les mots de passe entre Director, Storage Daemon, File Daemon et console sont générés par les paquets Debian et doivent rester identiques de part et d'autre : ne pas les modifier dans un seul fichier.
+- Pour sauvegarder d'autres machines, installer seulement `bacula-fd` sur chacune, la déclarer comme `Client` dans `bacula-dir.conf` et ouvrir le port 9102 depuis le serveur.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

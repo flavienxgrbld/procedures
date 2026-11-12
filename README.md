@@ -22,7 +22,7 @@ wallabag/
 
 ## Philosophie
 
-- **Bibliothèque commune** : la plupart des scripts téléchargent au démarrage `install_common.sh` (détection de l'OS, gestionnaire de paquets, journalisation dans `/var/log/install_script.log`) depuis le dépôt [`install-scripts`](https://github.com/flavienxgrbld/install-scripts). Une connexion Internet est donc nécessaire. Seuls les scripts `GLPI` et `ZABBIX` sont entièrement autonomes.
+- **Bibliothèque commune** : les scripts chargent `install_common.sh`, à la racine de ce dépôt (détection de l'OS, gestionnaire de paquets, création de base MariaDB, ouverture des ports, journalisation dans `/var/log/install_script.log`). Lancés depuis un clone du dépôt, ils l'utilisent directement ; copiés seuls sur une machine, ils le téléchargent depuis ce même dépôt. Seuls les scripts `GLPI` et `ZABBIX` sont entièrement autonomes.
 - **Un service = un dossier** : pas de procédure partagée entre plusieurs services, pas de fichier de variables commun.
 - **Environnement variable** : l'OS et les prérequis (Linux Debian/Ubuntu, Docker, etc.) dépendent de chaque service — se référer au README de chaque dossier pour les prérequis exacts.
 

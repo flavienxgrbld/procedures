@@ -1,69 +1,89 @@
 #!/usr/bin/env bash
+# Installation de Docker Engine et du plugin Compose depuis le dépôt officiel Docker.
+#
+# Variables modifiables :
+#   DOCKER_USER  utilisateur à ajouter au groupe docker (défaut : celui qui a lancé sudo)
 
 set -euo pipefail
 
-COMMON_SCRIPT="/tmp/install_common.sh"
-rm -f "$COMMON_SCRIPT"
-curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/install-scripts/main/root/common/install_common.sh" -o "$COMMON_SCRIPT"
+# Bibliothèque commune : copie du dépôt en priorité, téléchargement sinon.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_SCRIPT="${SCRIPT_DIR}/../install_common.sh"
+if [ ! -f "$COMMON_SCRIPT" ]; then
+    COMMON_SCRIPT="$(mktemp)"
+    curl -fsSL "https://raw.githubusercontent.com/flavienxgrbld/procedures/main/install_common.sh" -o "$COMMON_SCRIPT"
+fi
+# shellcheck source=../install_common.sh
 source "$COMMON_SCRIPT"
 
 ensure_root
 detect_os
 detect_package_manager
 
-info "Docker - Plateforme de conteneurisation"
+info "Docker - Plateforme de conteneurs"
 
-echo "=== Mise à jour du système ==="
-pkg_update
-pkg_upgrade
+DOCKER_PKGS=(docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)
 
-echo "=== Installation de Docker ==="
 case "$PKG_MANAGER" in
     apt)
-        pkg_install apt-transport-https ca-certificates curl gnupg lsb-release
-
-        mkdir -p /usr/share/keyrings
-        if [ ! -f /usr/share/keyrings/docker-archive-keyring.gpg ]; then
-            curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-        fi
-
-        if is_ubuntu; then
-            DOCKER_REPO="ubuntu"
-        else
-            DOCKER_REPO="debian"
-        fi
-
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${DOCKER_REPO} $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        # Paquets non officiels qui entrent en conflit avec ceux de Docker
+        for p in docker.io docker-doc docker-compose podman-docker containerd runc; do
+            if dpkg -s "$p" >/dev/null 2>&1; then
+                warn "Suppression du paquet en conflit : $p"
+                apt-get remove -y "$p"
+            fi
+        done
         pkg_update
-        pkg_install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+        pkg_install ca-certificates curl
+
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        if is_ubuntu || [[ "${ID_LIKE:-}" == *ubuntu* ]]; then
+            DOCKER_DISTRO="ubuntu"; CODENAME="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+        else
+            DOCKER_DISTRO="debian"; CODENAME="${VERSION_CODENAME}"
+        fi
+
+        install -m 0755 -d /etc/apt/keyrings
+        download_file "https://download.docker.com/linux/${DOCKER_DISTRO}/gpg" /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${DOCKER_DISTRO} ${CODENAME} stable" \
+            > /etc/apt/sources.list.d/docker.list
+        pkg_update
+        pkg_install "${DOCKER_PKGS[@]}"
         ;;
-    dnf|yum)
-        pkg_install docker docker-compose
+    dnf)
+        if [ "$OS_ID" = "fedora" ]; then REPO_DISTRO="fedora"; else REPO_DISTRO="rhel"; fi
+        pkg_install dnf-plugins-core
+        dnf config-manager --add-repo "https://download.docker.com/linux/${REPO_DISTRO}/docker-ce.repo" \
+            || dnf config-manager addrepo --from-repofile="https://download.docker.com/linux/${REPO_DISTRO}/docker-ce.repo"
+        pkg_install "${DOCKER_PKGS[@]}"
         ;;
     zypper)
         pkg_install docker docker-compose
         ;;
     pacman)
-        pkg_install docker docker-compose
+        pkg_install docker docker-compose docker-buildx
+        ;;
+    *)
+        error_exit "Gestionnaire de paquets non géré : $PKG_MANAGER"
         ;;
 esac
 
-systemctl enable docker 2>/dev/null || true
-systemctl start docker 2>/dev/null || true
+systemctl enable --now docker
+check_service_status docker
 
-DOCKER_USER="${SUDO_USER:-${USER:-ubuntu}}"
-if [ -z "$DOCKER_USER" ] || [ "$DOCKER_USER" = "root" ]; then
-    DOCKER_USER="ubuntu"
-fi
-
-if id "$DOCKER_USER" >/dev/null 2>&1; then
-    usermod -aG docker "$DOCKER_USER" 2>/dev/null || true
+DOCKER_USER="${DOCKER_USER:-${SUDO_USER:-}}"
+if [ -n "$DOCKER_USER" ] && [ "$DOCKER_USER" != "root" ] && id "$DOCKER_USER" >/dev/null 2>&1; then
+    usermod -aG docker "$DOCKER_USER"
+    info "Utilisateur ${DOCKER_USER} ajouté au groupe docker (reconnexion nécessaire)"
 else
-    warn "L'utilisateur $DOCKER_USER n'existe pas sur le système, aucun ajout au groupe docker n'a été effectué"
+    info "Aucun utilisateur ajouté au groupe docker (lancer avec sudo ou définir DOCKER_USER)"
 fi
+
+info "Test : conteneur hello-world"
+docker run --rm hello-world >/dev/null && info "Docker fonctionne"
 
 echo
-echo "✅ Docker installé avec succès"
-echo "Version: $(docker --version 2>/dev/null || echo 'non disponible')"
-echo "Docker Compose: $(docker compose version 2>/dev/null || echo 'non disponible')"
-echo "L'utilisateur doit se reconnecter pour que l'accès au groupe docker soit effectif"
+echo "✅ $(docker --version)"
+echo "✅ $(docker compose version)"

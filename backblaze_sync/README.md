@@ -9,12 +9,34 @@ Backblaze B2 est un stockage objet en ligne, peu coûteux, adapté aux sauvegard
 | **Systèmes** | Debian, Ubuntu (rclone existe pour toutes les distributions) |
 | **Outil** | rclone |
 | **Ports** | Aucun port entrant (connexions sortantes HTTPS) |
-| **Script** | `install_backblaze_sync.sh` (voir les points d'attention) |
+| **Script** | `install_backblaze_sync.sh` |
 
 ## Prérequis
 
 - Un compte Backblaze avec un **bucket B2** créé et une **clé d'application** (`keyID` et `applicationKey`), générée dans *App Keys* et limitée à ce bucket.
 - Un accès root et une connexion Internet.
+
+## Installation automatique
+
+Le bucket et la clé d'application doivent exister (voir les prérequis). Le script installe rclone, déclare le stockage `b2` dans `/root/.config/rclone/rclone.conf` (droits 600), teste l'accès au bucket, affiche une simulation (`--dry-run`) puis crée un service et un minuteur systemd qui lancent l'envoi chaque nuit.
+
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/backblaze_sync
+sudo B2_KEY_ID=<keyID> B2_APP_KEY=<applicationKey> B2_BUCKET=mon-bucket SOURCE_DIR=/srv/donnees \
+     bash install_backblaze_sync.sh
+```
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `B2_KEY_ID`, `B2_APP_KEY` | Clé d'application Backblaze | obligatoires |
+| `B2_BUCKET` | Bucket de destination | obligatoire |
+| `SOURCE_DIR` | Dossier local à envoyer | obligatoire |
+| `B2_PATH` | Sous-dossier dans le bucket | nom court de la machine |
+| `RCLONE_MODE` | `sync` (miroir : supprime à destination) ou `copy` (n'efface jamais) | `sync` |
+| `SYNC_TIME` | Heure du lancement quotidien | `02:00` |
+
+Commandes utiles ensuite : `sudo systemctl start backblaze-sync.service` (envoi immédiat), `systemctl list-timers backblaze-sync.timer`, journal `/var/log/rclone-b2.log`.
 
 ## Installation manuelle
 
@@ -92,10 +114,10 @@ tail /var/log/rclone-b2.log
 
 ## Points d'attention
 
-- **Le script actuel n'installe pas d'outil Backblaze** : il installe et démarre Syncthing (service `syncthing@root`, ports 8384, 22000 et 21027), copie du script `syncthing`. Il ne doit pas être utilisé pour cette procédure ; suivre l'installation manuelle ci-dessus.
-- Le script utilise `apt-key`, retiré des versions récentes de Debian et Ubuntu.
-- Activer la **gestion des versions** (lifecycle) du bucket B2 permet de récupérer un fichier supprimé ou écrasé par erreur.
-- Pour chiffrer les données avant l'envoi, ajouter un stockage rclone de type `crypt` au-dessus de `b2:`.
+- En mode `sync`, un fichier supprimé localement est aussi supprimé dans B2 à la synchronisation suivante. Le script règle `hard_delete = false` : B2 garde alors une version masquée du fichier, récupérable tant que les règles de cycle de vie (lifecycle) du bucket la conservent.
+- Pour chiffrer les données avant l'envoi, ajouter un stockage rclone de type `crypt` au-dessus de `b2:` et l'utiliser comme destination.
+- La clé d'application est stockée en clair dans `rclone.conf` (lisible par root uniquement) : la limiter au seul bucket concerné lors de sa création.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -2,12 +2,12 @@
 
 ## Description
 
-Akaunting est un logiciel de comptabilité en ligne, libre et auto-hébergé, destiné aux petites entreprises et aux indépendants (factures, dépenses, clients, rapports). Cette procédure l'installe sur une pile Apache, PHP 8.1 et MariaDB.
+Akaunting est un logiciel de comptabilité en ligne, libre et auto-hébergé, destiné aux petites entreprises et aux indépendants (factures, dépenses, clients, rapports). Cette procédure installe la dernière version (3.3) sur une pile Apache, PHP 8.2 ou plus récent et MariaDB.
 
 | | |
 |---|---|
-| **Systèmes** | Debian 11+ / Ubuntu 20.04+ (dnf, zypper et pacman gérés par la bibliothèque commune) |
-| **Méthode** | Code source depuis GitHub + Composer |
+| **Systèmes** | Debian 12/13, Ubuntu 22.04/24.04 |
+| **Méthode** | Archive officielle (akaunting.com), déjà compilée |
 | **Dossier** | `/var/www/akaunting` |
 | **Ports** | 80/tcp (HTTP) |
 | **Script** | `install_akaunting.sh` |
@@ -15,8 +15,8 @@ Akaunting est un logiciel de comptabilité en ligne, libre et auto-hébergé, de
 ## Prérequis
 
 - Une machine Debian ou Ubuntu à jour, avec un accès root (`sudo`).
-- Une connexion Internet : le script télécharge sa bibliothèque commune, PHP, Composer et le code d'Akaunting.
-- 2 Go de RAM conseillés (Composer est gourmand pendant l'installation).
+- Une connexion Internet : le script télécharge les paquets et l'archive d'Akaunting.
+- 1 Go de RAM minimum.
 
 ## Installation automatique
 
@@ -26,7 +26,9 @@ cd procedures/akaunting
 sudo bash install_akaunting.sh
 ```
 
-Le script installe PHP 8.1, Apache, MariaDB, Composer, puis récupère Akaunting dans `/var/www/akaunting`. Lire les **points d'attention** avant de l'utiliser : la base de données et le site Apache restent à configurer.
+Le script installe Apache, MariaDB et PHP (version de la distribution si elle est en 8.2 ou plus, sinon PHP 8.2 depuis le dépôt Sury ou `ppa:ondrej/php`). Il crée la base `akaunting` avec un mot de passe aléatoire, décompresse l'archive officielle dans `/var/www/akaunting` et publie le site Apache. Il reste à suivre l'assistant web (étape 6) avec les informations enregistrées dans `/root/akaunting_identifiants.txt`.
+
+Variables facultatives : `AKAUNTING_DOMAIN` (nom du site) et `AKAUNTING_DB_PASS` (mot de passe de la base), par exemple `sudo AKAUNTING_DOMAIN=compta.exemple.local bash install_akaunting.sh`.
 
 ## Installation manuelle
 
@@ -36,14 +38,14 @@ Le script installe PHP 8.1, Apache, MariaDB, Composer, puis récupère Akaunting
 sudo apt update && sudo apt upgrade -y
 ```
 
-### 2. Installer Apache, MariaDB et PHP 8.1
+### 2. Installer Apache, MariaDB et PHP 8.2 ou plus
 
-Si PHP 8.1 n'est pas dans les dépôts de la distribution, ajouter le dépôt Sury (Debian) ou `ppa:ondrej/php` (Ubuntu), comme le fait le script.
+Akaunting 3.3 demande PHP 8.2 au minimum. Debian 12 (8.2), Debian 13 (8.4) et Ubuntu 24.04 (8.3) le fournissent ; sur Ubuntu 22.04 (8.1), ajouter d'abord `ppa:ondrej/php`. Remplacer `8.2` par la version installée.
 
 ```bash
 sudo apt install -y apache2 mariadb-server git unzip
-sudo apt install -y php8.1 php8.1-cli php8.1-common php8.1-mysql php8.1-zip php8.1-gd \
-  php8.1-mbstring php8.1-curl php8.1-xml php8.1-bcmath php8.1-intl libapache2-mod-php8.1
+sudo apt install -y php8.2 php8.2-cli php8.2-common php8.2-mysql php8.2-zip php8.2-gd \
+  php8.2-mbstring php8.2-curl php8.2-xml php8.2-bcmath php8.2-intl libapache2-mod-php8.2
 ```
 
 ### 3. Créer la base de données
@@ -61,24 +63,19 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-### 4. Installer Composer
+### 4. Télécharger Akaunting
+
+L'archive officielle contient déjà les dépendances PHP et les fichiers compilés : ni Composer ni npm ne sont nécessaires.
 
 ```bash
-curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
-```
-
-### 5. Récupérer Akaunting et ses dépendances
-
-```bash
-cd /var/www
-sudo git clone https://github.com/akaunting/akaunting.git
-cd akaunting
-sudo composer install --no-dev
-sudo php artisan storage:link
+cd /tmp
+wget -O akaunting.zip "https://akaunting.com/download.php?version=latest"
+sudo mkdir -p /var/www/akaunting
+sudo unzip -o akaunting.zip -d /var/www/akaunting
 sudo chown -R www-data:www-data /var/www/akaunting
 ```
 
-### 6. Créer le site Apache
+### 5. Créer le site Apache
 
 ```bash
 sudo nano /etc/apache2/sites-available/akaunting.conf
@@ -103,9 +100,9 @@ sudo a2enmod rewrite
 sudo systemctl reload apache2
 ```
 
-### 7. Terminer l'installation dans le navigateur
+### 6. Terminer l'installation dans le navigateur
 
-Ouvrir `http://<adresse-du-serveur>/` : l'assistant d'Akaunting demande la langue, les informations de la base créée à l'étape 3, puis le compte administrateur.
+Ouvrir `http://<adresse-du-serveur>/` : l'assistant d'Akaunting demande la langue, les informations de la base créée à l'étape 3 (ou dans `/root/akaunting_identifiants.txt` avec le script), puis le compte administrateur.
 
 ## Vérification
 
@@ -134,11 +131,12 @@ La page d'accueil doit répondre (code 200 ou 302 vers l'assistant d'installatio
 
 ## Points d'attention
 
-- Le script lance `php artisan migrate --force` sans avoir créé de base de données ni de fichier `.env` : cette étape échoue. Il faut créer la base (étape 3) et passer par l'assistant web (étape 7).
-- Le script ne crée pas de site Apache : l'URL `http://votre-serveur/akaunting` qu'il affiche ne fonctionne pas tant que l'étape 6 n'est pas faite.
-- Installé depuis GitHub, le code peut aussi nécessiter la compilation des fichiers front (`npm install && npm run prod`). L'archive officielle disponible sur akaunting.com contient déjà tout et évite Composer et npm.
+- Le script désactive le site Apache par défaut (`000-default`) : Akaunting répond sur l'adresse IP du serveur. Sur une machine qui héberge déjà d'autres sites, définir `AKAUNTING_DOMAIN` et un enregistrement DNS correspondant.
+- Le site est publié en HTTP. Pour un accès depuis Internet, ajouter HTTPS (procédure Certbot).
+- Relu et mis à jour le 12/11/2026 : Akaunting 3.3.1, PHP 8.2 minimum.
 
 ## Sources
 
 - [Documentation Akaunting — installation](https://akaunting.com/hc/docs/on-premise/requirements/)
 - [Dépôt GitHub d'Akaunting](https://github.com/akaunting/akaunting)
+- [composer.json d'Akaunting 3.3.1 (version de PHP requise)](https://github.com/akaunting/akaunting/blob/3.3.1/composer.json)

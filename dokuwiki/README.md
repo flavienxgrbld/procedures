@@ -25,7 +25,7 @@ cd procedures/dokuwiki
 sudo bash install_dokuwiki.sh
 ```
 
-Lire les points d'attention : l'URL de téléchargement du script n'est plus valide.
+Le script installe Apache et PHP, télécharge la version stable officielle (`dokuwiki-stable.tgz`) dans `/var/www/dokuwiki`, crée le site Apache de l'étape 3 (accès aux dossiers `data`, `conf`… interdit) et désactive le site par défaut. Il reste à lancer l'assistant (étape 4) puis à supprimer `install.php` (étape 5). Variable facultative : `DOKUWIKI_DOMAIN`.
 
 ## Installation manuelle
 
@@ -111,9 +111,10 @@ Sauvegarder les dossiers `data/` et `conf/` suffit à sauvegarder le wiki.
 
 ## Points d'attention
 
-- L'URL utilisée par le script (`github.com/splitbrain/dokuwiki/releases/download/release-2023-04-04/...`) renvoie une erreur 404 (vérifié le 13/10/2026) : le script s'arrête au téléchargement. Utiliser `https://download.dokuwiki.org/src/dokuwiki/dokuwiki-stable.tgz`.
-- Le site Apache du script garde le site par défaut `000-default` actif et a pour `ServerName` `localhost` : en accédant par l'adresse IP, c'est la page par défaut d'Apache qui s'affiche. Le script indique aussi l'URL `/dokuwiki`, alors que le wiki est publié à la racine.
-- Le script ne supprime pas `install.php` une fois l'installation terminée.
+- Tant que `install.php` existe, n'importe qui peut relancer l'assistant et prendre le contrôle du wiki : le supprimer juste après l'installation (le script le rappelle).
+- Les pages sont des fichiers texte dans `data/` : sauvegarder ce dossier (et `conf/`) suffit à sauvegarder le wiki.
+- Le script désactive le site Apache par défaut (`000-default`) : le wiki répond sur l'adresse IP du serveur.
+- Relu et mis à jour le 12/11/2026 (version stable 2026-07-14).
 
 ## Sources
 

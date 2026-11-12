@@ -26,6 +26,8 @@ sudo bash install_docker.sh
 
 Le script ajoute l'utilisateur qui l'a lancé avec `sudo` au groupe `docker`.
 
+Le script retire les paquets Docker non officiels (`docker.io`, `podman-docker`…), ajoute le dépôt officiel adapté (Debian, Ubuntu, Fedora ou RHEL) avec la bonne architecture, installe Docker Engine, Buildx et Compose, puis lance un conteneur `hello-world` de test. L'utilisateur qui a lancé `sudo` est ajouté au groupe `docker` (ou celui de `DOCKER_USER`).
+
 ## Installation manuelle
 
 ### 1. Retirer les anciennes versions
@@ -107,8 +109,8 @@ docker compose logs -f
 
 - Appartenir au groupe `docker` revient à avoir les droits root sur la machine : le réserver aux administrateurs.
 - Les ports publiés par Docker contournent les règles `ufw` : n'exposer que ce qui est nécessaire, ou publier sur `127.0.0.1` (`"127.0.0.1:8080:80"`).
-- Le script force l'architecture `amd64` dans le dépôt : sur un Raspberry Pi (`arm64`), utiliser la commande de l'étape 2, qui détecte l'architecture.
-- Lancé directement en root (sans `sudo`), le script tente d'ajouter un utilisateur `ubuntu` au groupe `docker`.
+- Sur openSUSE et Arch, le script installe les paquets de la distribution (Docker n'y publie pas de dépôt) : la commande Compose y est parfois `docker-compose` au lieu de `docker compose`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

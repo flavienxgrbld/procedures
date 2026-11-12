@@ -25,7 +25,7 @@ cd procedures/drupal
 sudo bash install_drupal.sh
 ```
 
-Le script installe Apache, PHP, MariaDB, télécharge Drupal et crée le site Apache. La base de données reste à créer (étape 2 ci-dessous) avant l'assistant web.
+Le script installe Apache, MariaDB et PHP 8.3 ou plus récent (version de la distribution si elle suffit, sinon dépôt Sury ou `ppa:ondrej/php`), crée la base `drupal` avec un mot de passe aléatoire, télécharge la dernière version de Drupal et publie le site Apache. Il reste l'assistant (étape 5), avec les informations de `/root/drupal_identifiants.txt`, et la sécurisation de `settings.php` (étape 6). Variables facultatives : `DRUPAL_DOMAIN`, `DRUPAL_DB_PASS`.
 
 ## Installation manuelle
 
@@ -38,7 +38,7 @@ sudo apt install -y php libapache2-mod-php php-mysql php-gd php-xml php-mbstring
 php -v
 ```
 
-Si la version de PHP de la distribution est trop ancienne pour la version de Drupal, ajouter le dépôt Sury (Debian) ou `ppa:ondrej/php` (Ubuntu).
+Drupal 11 demande **PHP 8.3** au minimum. Debian 13 (8.4) et Ubuntu 24.04 (8.3) le fournissent ; sur Debian 12 (8.2), ajouter d'abord le dépôt Sury et installer `php8.3` et ses modules (sur Ubuntu 22.04 : `ppa:ondrej/php`).
 
 ### 2. Créer la base de données
 
@@ -121,10 +121,10 @@ Dans `settings.php`, renseigner `$settings['trusted_host_patterns']` avec le nom
 
 ## Points d'attention
 
-- Le script installe PHP 8.1, insuffisant pour les versions récentes de Drupal (Drupal 11 demande PHP 8.3). Vérifier la version requise avant l'installation.
-- Le site Apache du script garde le site par défaut `000-default` actif : en accédant par l'adresse IP, c'est la page par défaut d'Apache qui s'affiche. Désactiver `000-default` comme à l'étape 4.
-- Le script ne crée pas de base de données : il faut l'étape 2 avant l'assistant web.
-- Pour un site maintenu dans la durée, l'installation recommandée par Drupal passe par Composer (`composer create-project drupal/recommended-project`).
+- Pour un site maintenu dans la durée, l'installation recommandée par Drupal passe par Composer (`composer create-project drupal/recommended-project`) : les mises à jour et les modules se gèrent alors avec Composer. L'archive utilisée ici convient à un TP ou à un petit site.
+- Renseigner `$settings['trusted_host_patterns']` dans `settings.php` (étape 6) : sans cela, le rapport d'état signale une faille possible (en-tête Host non contrôlé).
+- Le script désactive le site Apache par défaut (`000-default`) : Drupal répond sur l'adresse IP du serveur.
+- Relu et mis à jour le 12/11/2026 (Drupal 11.4, PHP 8.3 minimum).
 
 ## Sources
 

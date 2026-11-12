@@ -25,7 +25,7 @@ cd "procedures/OPEN WEB ANALYTICS"
 sudo bash install_open_web_analytics.sh
 ```
 
-Lire les points d'attention : le script télécharge le code source sans ses dépendances.
+Le script installe Apache, MariaDB et PHP, crée la base `owa` (mot de passe aléatoire dans `/root/owa_identifiants.txt`), télécharge l'archive *packaged* 1.14.6 (ou `OWA_VERSION`), publie OWA à la racine du site et désactive le site par défaut. Il reste l'assistant `install.php`. Variable facultative : `OWA_DOMAIN`.
 
 ## Installation manuelle
 
@@ -57,9 +57,9 @@ Utiliser l'archive *packaged*, qui contient les dépendances :
 
 ```bash
 cd /tmp
-wget https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/1.14.0/owa_1.14.0_packaged.tar
+wget https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/1.14.6/owa_1.14.6_packaged.tar
 sudo mkdir -p /var/www/owa
-sudo tar -xf owa_1.14.0_packaged.tar -C /var/www/owa
+sudo tar -xf owa_1.14.6_packaged.tar -C /var/www/owa
 sudo chown -R www-data:www-data /var/www/owa
 ```
 
@@ -102,10 +102,10 @@ Visiter le site suivi, puis consulter le tableau de bord d'OWA : la visite appar
 
 ## Points d'attention
 
-- Le script télécharge la branche `master` du code source (ancienne adresse `padams/Open-Web-Analytics`, redirigée), sans les bibliothèques installées par Composer : l'installation ne fonctionne pas. Le projet fournit une archive *packaged* complète.
-- Le site Apache du script garde le site par défaut `000-default` actif, et l'URL `/owa` qu'il affiche ne correspond pas à son site, qui publie OWA à la racine.
-- Il installe MariaDB sans créer de base ni d'utilisateur.
 - OWA évolue peu : pour un nouveau projet, Matomo (procédure `MATOMO`) ou Plausible (procédure `PLAUSIBLE`) sont plus actifs.
+- Utiliser l'archive *packaged* : l'archive du code source ne contient pas les dépendances.
+- Supprimer `install.php` une fois l'installation terminée.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

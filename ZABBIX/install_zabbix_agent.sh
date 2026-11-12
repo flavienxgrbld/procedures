@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-ZABBIX_VERSION="7.4"
+ZABBIX_VERSION="${ZABBIX_VERSION:-7.4}"
 TMP_DIR="/tmp/zabbix_agent_install_$$"
 AGENT_CONF=""
 AGENT_SERVICE=""

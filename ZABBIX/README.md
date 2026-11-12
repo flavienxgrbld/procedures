@@ -101,5 +101,6 @@ zabbix_agentd -t agent.ping
 
 ## Notes
 - Ce script cible Debian 13 / Ubuntu compatibles, mais peut fonctionner sur d'autres versions avec des ajustements.
+- Version : Zabbix **7.4** par défaut. Zabbix **8.0 LTS** est sorti : `sudo ZABBIX_VERSION=8.0 bash install_zabbix.sh` (et la même variable pour l'agent) une fois ses notes de mise à niveau lues. La branche 7.4 n'étant pas LTS, prévoir la migration vers 8.0. Relu le 12/11/2026.
 - Le mot de passe par défaut `Admin/zabbix` doit être changé après la première connexion.
 - Pour les environnements de production, configurez HTTPS pour l'interface web et des sauvegardes régulières de la base de données.

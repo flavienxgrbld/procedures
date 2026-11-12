@@ -19,13 +19,16 @@ Woodpecker CI est un moteur d'intégration continue libre et léger : il exécut
 
 ## Installation automatique
 
+Créer d'abord l'application OAuth2 dans Gitea (étape 1), puis :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/woodpecker_ci
-sudo bash install_woodpecker_ci.sh
+sudo WP_HOST=http://192.168.1.90:8000 WP_GITEA_URL=http://192.168.1.85:3000 \
+     WP_GITEA_CLIENT=<identifiant> WP_GITEA_SECRET=<secret> WP_ADMIN=flavien bash install_woodpecker_ci.sh
 ```
 
-Lire les points d'attention : sans forge configurée, le serveur ne démarre pas.
+Le script installe Docker s'il est absent, génère le secret partagé entre serveur et agent (étape 2), écrit le `compose.yaml` de l'étape 3 (serveur + agent, inscriptions fermées) avec les valeurs dans `/opt/woodpecker/.env`, puis démarre les conteneurs.
 
 ## Installation manuelle
 
@@ -126,10 +129,10 @@ L'agent apparaît dans *Paramètres → Agents* de Woodpecker.
 
 ## Points d'attention
 
-- Le script démarre le serveur sans aucune forge (`WOODPECKER_GITEA`, `WOODPECKER_GITHUB`…) ni `WOODPECKER_HOST` : le serveur refuse de démarrer, et l'on ne peut pas s'y connecter.
-- Il n'installe aucun agent : aucun pipeline ne peut s'exécuter. Il monte aussi le socket Docker dans le serveur, ce qui ne sert qu'à l'agent.
-- `WOODPECKER_OPEN=true` (script) autorise n'importe quel utilisateur de la forge à s'inscrire : le désactiver, sauf besoin explicite.
+- `WOODPECKER_OPEN=false` : seuls les comptes déjà connus peuvent se connecter ; ne l'ouvrir qu'en cas de besoin explicite.
 - L'agent a accès au socket Docker, donc aux droits root sur l'hôte : n'activer que des dépôts de confiance.
+- L'URL de redirection déclarée dans Gitea doit être exactement `<WP_HOST>/authorize`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

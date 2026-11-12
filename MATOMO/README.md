@@ -25,7 +25,7 @@ cd procedures/MATOMO
 sudo bash install_matomo.sh
 ```
 
-Le script demande le mot de passe de la base. Lire les points d'attention : sur Debian et Ubuntu, il échoue à l'installation des modules PHP.
+Le script installe Apache, MariaDB et PHP, crée la base `matomo` (mot de passe aléatoire dans `/root/matomo_identifiants.txt`), télécharge `matomo-latest`, publie Matomo à la racine du site (dossiers `config`, `tmp` et `lang` interdits), désactive le site par défaut et planifie l'archivage des rapports par cron. Il reste l'assistant web (étape 5). Variable facultative : `MATOMO_DOMAIN`.
 
 ## Installation manuelle
 
@@ -114,9 +114,10 @@ Visiter le site suivi, puis ouvrir *Visiteurs → Visites en temps réel* dans M
 
 ## Points d'attention
 
-- Le script installe les modules PHP sous les noms `php81-mysql`, `php81-gd`, `php81-curl` et `php81-zip`. Sur Debian et Ubuntu, ce sont `php8.1-mysql`, etc. : le script s'arrête.
-- Son site Apache garde le site par défaut `000-default` actif. Il indique aussi l'URL `/matomo`, alors que le site publie Matomo à la racine.
 - Pour le RGPD : activer l'anonymisation des adresses IP (*Administration → Confidentialité*) permet, dans certaines conditions, de mesurer l'audience sans bandeau de consentement.
+- Après l'assistant, désactiver l'archivage déclenché par le navigateur (le cron créé par le script s'en charge).
+- Matomo se met à jour depuis l'interface : sauvegarder la base avant chaque mise à jour.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

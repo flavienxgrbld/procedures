@@ -23,10 +23,10 @@ Plausible est un outil de mesure d'audience web léger et respectueux de la vie 
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/PLAUSIBLE
-sudo bash install_plausible.sh
+sudo PLAUSIBLE_URL=https://stats.exemple.fr bash install_plausible.sh
 ```
 
-Lire les points d'attention : avec la clé secrète du script, Plausible ne démarre pas.
+Le script installe Docker s'il est absent, récupère le dépôt officiel `plausible/community-edition` (branche v3.2.1), crée le `.env` de l'étape 2 avec une clé `SECRET_KEY_BASE` de 64 octets, publie les ports 80 et 443 (certificat Let's Encrypt obtenu par Plausible) et démarre les conteneurs. Avec `PLAUSIBLE_TLS=non`, Plausible est publié sur `127.0.0.1:8000`, à placer derrière un proxy HTTPS. Variable facultative : `PLAUSIBLE_VERSION`.
 
 ## Installation manuelle
 
@@ -85,9 +85,10 @@ Une visite du site suivi apparaît en quelques secondes sur le tableau de bord (
 
 ## Points d'attention
 
-- Le script définit `SECRET_KEY_BASE=CHANGE_ME` : Plausible exige une clé d'au moins 64 octets et refuse de démarrer.
-- Il utilise l'image `plausible/analytics:latest` et un Compose incomplet. L'édition communautaire est distribuée par le dépôt `plausible/community-edition`, avec la configuration de ClickHouse adaptée.
-- Il installe aussi PostgreSQL sur l'hôte alors que la base tourne dans un conteneur, et laisse `BASE_URL=http://localhost:8000`.
+- `BASE_URL` doit être l'adresse publique exacte : le domaine doit pointer vers le serveur pour obtenir le certificat.
+- Créer le compte administrateur dès la première visite : l'inscription est ouverte tant qu'aucun compte n'existe.
+- ClickHouse, utilisé par Plausible, demande 2 Go de RAM au minimum.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

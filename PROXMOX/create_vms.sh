@@ -15,7 +15,7 @@ AUTO_RECREATE_TEMPLATE=0  # 1 = recréer le template s'il existe, 0 = réutilise
 # ========== CONFIGURATION CLOUD-INIT (pour VMs Linux) ==========
 CLOUD_INIT_TEMPLATE_ID=9000  # ID du template cloud-init
 CLOUD_INIT_USER="sio"
-CLOUD_INIT_PASSWORD="Azerty13."  # À changer!
+CLOUD_INIT_PASSWORD="${CLOUD_INIT_PASSWORD:-$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16)}"  # aléatoire si non fourni (affiché en fin de script)
 CLOUD_INIT_SSH_KEY=""  # Chemin vers votre clé SSH publique (ex: ~/.ssh/id_rsa.pub) ou laisser vide
 CLOUD_INIT_DISTRO="ubuntu2204"  # Distribution pour cloud-init: ubuntu2204, ubuntu2404, debian12, debian13
 
@@ -29,7 +29,7 @@ VM5_ISO_NAME=""  # Ex: "Windows_11.iso" ou vide
 VM1_ID=101
 VM1_NAME="SRV-AD1EX"
 VM1_CORES=4
-VM1_MEMORY=24000
+VM1_MEMORY="${VM1_MEMORY:-8192}"   # en Mo : à adapter à la RAM de l'hôte
 VM1_DISK_SIZE="120G"
 VM1_STORAGE="local-lvm"
 VM1_BRIDGE="vmbr0"
@@ -611,3 +611,5 @@ echo "Pour vous connecter aux consoles:"
 echo "  qm terminal <VMID>"
 echo ""
 echo "Interface Web: https://your-proxmox-host:8006"
+
+echo "Mot de passe cloud-init de l'utilisateur ${CLOUD_INIT_USER} : ${CLOUD_INIT_PASSWORD}"

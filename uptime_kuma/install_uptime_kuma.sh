@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Installation d'Uptime Kuma 2 (image officielle) avec Docker Compose.
 
 set -euo pipefail
 
@@ -16,36 +17,24 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Uptime Kuma - Surveillance de services web"
+info "Uptime Kuma - Surveillance de disponibilité"
 
-UPTIMEKUMA_DIR="/opt/uptime-kuma"
-UPTIMEKUMA_USER="uptimekuma"
-
-echo "=== Installation d'Uptime Kuma ==="
-
-# Création utilisateur
-if ! id "$UPTIMEKUMA_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$UPTIMEKUMA_DIR" -c "Uptime Kuma Service" "$UPTIMEKUMA_USER"
-fi
-
-mkdir -p $UPTIMEKUMA_DIR
-cd $UPTIMEKUMA_DIR
-
-# Installation Docker
-pkg_install docker.io
-
-docker run -d \
-  -p 3001:3001 \
-  --name uptime-kuma \
-  --restart=always \
-  -v $UPTIMEKUMA_DIR/data:/app/data \
-  louislam/uptime-kuma:latest
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 3001/tcp
-fi
+APP_DIR="/opt/uptime-kuma"
+ensure_docker
+mkdir -p "${APP_DIR}/data"
+cat > "${APP_DIR}/compose.yaml" <<'EOF'
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+EOF
+compose_up "$APP_DIR"
+open_ports 3001/tcp
 
 echo
-echo "✅ Uptime Kuma en cours d'installation"
-echo "URL: http://votre-serveur:3001"
-echo "Créez un compte administrateur au premier accès"
+echo "✅ Uptime Kuma démarré : http://$(primary_ip):3001 -> créer le compte administrateur sans attendre"

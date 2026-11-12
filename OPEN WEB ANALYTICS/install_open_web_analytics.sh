@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation d'Open Web Analytics (archive « packaged » officielle) sur Apache, PHP et MariaDB.
+#
+# Variables modifiables :
+#   OWA_VERSION  version (défaut : 1.14.6)
+#   OWA_DOMAIN   nom du site Apache (défaut : nom de la machine)
 
 set -euo pipefail
 
@@ -15,49 +20,49 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Open Web Analytics - Alternative à Google Analytics"
+info "Open Web Analytics - Mesure d'audience"
 
-OWA_DIR="/var/www/owa"
-PHP_VERSION="8.1"
+OWA_VERSION="${OWA_VERSION:-1.14.6}"
+OWA_DOMAIN="${OWA_DOMAIN:-$(hostname -f 2>/dev/null || hostname)}"
+APP_DIR="/var/www/owa"
+DB_PASS="$(random_password 24)"
 
-echo "=== Installation d'Open Web Analytics ==="
+pkg_update
+pkg_install apache2 mariadb-server curl php libapache2-mod-php php-mysql php-curl php-xml php-mbstring php-gd
+service_enable mariadb
+service_restart mariadb
 
-# Installation PHP
-install_php "$PHP_VERSION"
+if [ -f "${APP_DIR}/owa-config.php" ]; then
+    warn "OWA est déjà configuré : fichiers conservés"
+else
+    mysql_create_db owa owa "$DB_PASS"
+    TAR="$(mktemp --suffix=.tar)"; add_temp_file "$TAR"
+    download_file "https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/${OWA_VERSION}/owa_${OWA_VERSION}_packaged.tar" "$TAR"
+    mkdir -p "$APP_DIR"
+    tar -xf "$TAR" -C "$APP_DIR"
+    save_credentials /root/owa_identifiants.txt "Base : owa (hôte localhost)" "Utilisateur : owa" "Mot de passe : ${DB_PASS}"
+fi
+chown -R www-data:www-data "$APP_DIR"
 
-# Installation serveur web
-install_webserver "apache"
-
-# Installation base de données
-install_database
-
-# Téléchargement
-cd /var/www
-wget https://github.com/padams/Open-Web-Analytics/archive/refs/heads/master.zip -O owa.zip
-unzip owa.zip
-rm owa.zip
-mv Open-Web-Analytics-master owa
-
-chown -R www-data:www-data $OWA_DIR
-
-# Configuration Apache
-cat > /etc/apache2/sites-available/owa.conf <<'EOF'
+cat > /etc/apache2/sites-available/owa.conf <<EOF
 <VirtualHost *:80>
-    ServerName localhost
-    DocumentRoot /var/www/owa
+    ServerName ${OWA_DOMAIN}
+    DocumentRoot ${APP_DIR}
 
-    <Directory /var/www/owa>
-        Options Indexes FollowSymLinks
+    <Directory ${APP_DIR}>
         AllowOverride All
+        Require all granted
     </Directory>
 </VirtualHost>
 EOF
-
-a2enmod rewrite
-a2ensite owa.conf
-systemctl restart apache2
+a2enmod -q rewrite
+a2ensite -q owa
+a2dissite -q 000-default || true
+apache2ctl configtest
+service_restart apache2
+open_ports 80/tcp
 
 echo
-echo "✅ Open Web Analytics en cours d'installation"
-echo "Accédez via: http://votre-serveur/owa"
+echo "✅ OWA ${OWA_VERSION} installé : http://$(primary_ip)/install.php (base : /root/owa_identifiants.txt)"

@@ -25,7 +25,7 @@ cd procedures/uptime_kuma
 sudo bash install_uptime_kuma.sh
 ```
 
-Le script démarre le conteneur `uptime-kuma` avec ses données dans `/opt/uptime-kuma/data`.
+Le script installe Docker s'il est absent (procédure `docker`), écrit le `compose.yaml` de l'étape 1 (image `louislam/uptime-kuma:2`, données dans `/opt/uptime-kuma/data`) et démarre le conteneur. Relancé, il met l'image à jour dans la même version majeure.
 
 ## Installation manuelle
 
@@ -83,10 +83,10 @@ Sauvegarder le dossier `data/` avant une mise à jour majeure.
 
 ## Points d'attention
 
-- Le script installe le paquet `docker.io` sans vérifier si Docker est déjà installé depuis le dépôt officiel : les deux installations entrent en conflit. Utiliser la procédure `docker`.
-- Il crée un utilisateur système `uptimekuma` qui ne sert à rien, le conteneur tournant de façon indépendante.
-- Il utilise l'étiquette `latest` : préférer une version majeure (`:2`) pour éviter une mise à jour majeure non prévue.
+- Créer le compte administrateur dès le premier démarrage : la page le propose à tout visiteur tant qu'il n'existe pas.
 - Ne pas stocker `data/` sur un partage NFS : la base SQLite risque d'être corrompue.
+- L'étiquette `:2` évite une mise à jour majeure non prévue ; pour passer à une future version 3, lire ses notes de migration.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

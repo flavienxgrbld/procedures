@@ -33,7 +33,7 @@ if [ -d "${APP_DIR}/.git" ]; then
 else
     git clone https://github.com/mastodon/mastodon.git "$APP_DIR"
 fi
-TAG="$(git -C "$APP_DIR" tag -l 'v4.*' | grep -vE 'rc|beta' | sort -V | tail -n1)"
+TAG="$(git -C "$APP_DIR" tag -l 'v4.*' | grep -vE 'rc|beta' | sort -V | tail -n1)" || true
 [ -n "$TAG" ] || error_exit "Aucune version v4.x trouvée"
 info "Version ${TAG}"
 git -C "$APP_DIR" checkout -q "$TAG"

@@ -23,10 +23,10 @@ WireGuard est un VPN moderne, simple et très rapide, intégré au noyau Linux :
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/wireguard
-sudo bash install_wireguard.sh
+sudo WG_PUBLIC=vpn.exemple.fr bash install_wireguard.sh
 ```
 
-Lire les points d'attention : le script échoue au démarrage de l'interface.
+Le script installe WireGuard, génère les clés du serveur (jamais affichées), écrit `wg0.conf` avec le routage et le NAT vers le réseau local, active le routage IP et démarre `wg-quick@wg0`. Il ajoute ensuite un client avec la prochaine adresse libre, une clé pré-partagée, et crée son fichier `/root/wireguard-clients/client1.conf`, affiché aussi en QR code pour l'application mobile. Pour un autre client : `sudo WG_PUBLIC=vpn.exemple.fr WG_CLIENT=bob bash install_wireguard.sh` (sans couper les connexions en cours). Variables facultatives : `WG_NET`, `WG_PORT`, `WG_DNS`.
 
 ## Installation manuelle
 
@@ -117,9 +117,10 @@ Après connexion du client, la ligne `latest handshake` apparaît pour son *peer
 
 ## Points d'attention
 
-- Le script écrit `PrivateKey = [YOUR_PRIVATE_KEY_HERE]` dans `wg0.conf`, puis lance `wg-quick up wg0` : la clé est invalide, donc la commande échoue et le script s'arrête. Il faut y copier le contenu de `/etc/wireguard/privatekey`.
-- Il installe `wireguard-dkms` et les en-têtes du noyau, inutiles sur les noyaux récents qui intègrent WireGuard. Il ne génère aucune configuration client et n'active pas le routage IP.
-- Il affiche la **clé privée** du serveur à l'écran en fin d'installation : elle ne doit jamais être communiquée.
+- La clé privée du serveur (`/etc/wireguard/serveur.key`) ne doit jamais être communiquée ; chaque client a sa propre paire de clés.
+- Le port UDP (51820) doit être redirigé vers le serveur sur la box ou le pare-feu de l'entreprise.
+- Pour retirer un accès, supprimer le bloc `[Peer]` du client dans `wg0.conf`, puis `sudo systemctl restart wg-quick@wg0`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

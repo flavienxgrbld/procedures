@@ -24,7 +24,7 @@ cd procedures/vault
 sudo bash install_vault.sh
 ```
 
-Lire les points d'attention : le script désactive TLS.
+Le script ajoute le dépôt HashiCorp, installe Vault, génère un certificat autosigné valable pour l'adresse du serveur, écrit la configuration de l'étape 2 (stockage Raft, TLS, `api_addr`), démarre le service, puis **initialise** Vault (5 clés, 3 nécessaires) et le descelle. Les clés et le jeton root sont enregistrés dans `/root/vault_init.json` (600) : les distribuer puis supprimer ce fichier. Variables facultatives : `VAULT_ADDR_IP`, `VAULT_SHARES`, `VAULT_THRESHOLD`.
 
 ## Installation manuelle
 
@@ -106,9 +106,11 @@ vault status
 
 ## Points d'attention
 
-- Le script configure un port d'écoute sur toutes les interfaces avec `tls_disable = 1` : les jetons et les secrets circulent en clair sur le réseau.
-- Il utilise le stockage `file`, sans haute disponibilité ni instantanés intégrés, alors que HashiCorp recommande le stockage intégré Raft.
-- Il installe Vault 1.15.0 sans installer `unzip`, nécessaire pour extraire l'archive, et ne fait pas l'initialisation. Le jeton root obtenu à l'initialisation ne doit servir qu'à la configuration initiale : créer ensuite des politiques et des méthodes d'authentification dédiées.
+- Le jeton root et les clés de descellement réunis donnent accès à tous les secrets : ne pas les laisser sur le serveur (le script les écrit dans `/root/vault_init.json` pour les récupérer, à supprimer ensuite).
+- Après chaque redémarrage, Vault est **scellé** : le desceller avec `vault operator unseal` (3 clés différentes).
+- Le jeton root ne sert qu'à la configuration initiale : créer ensuite des politiques et des méthodes d'authentification dédiées, puis révoquer le jeton root.
+- En production, remplacer le certificat autosigné par un vrai certificat.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

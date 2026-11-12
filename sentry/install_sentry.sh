@@ -34,7 +34,7 @@ if [ -d "${APP_DIR}/.git" ]; then
 else
     git clone -q https://github.com/getsentry/self-hosted.git "$APP_DIR"
 fi
-TAG="$(git -C "$APP_DIR" tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
+TAG="$(git -C "$APP_DIR" tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)" || true
 info "Version ${TAG}"
 git -C "$APP_DIR" checkout -q "$TAG"
 cd "$APP_DIR"

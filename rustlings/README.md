@@ -24,7 +24,7 @@ cd procedures/rustlings
 sudo bash install_rustlings.sh
 ```
 
-Lire les points d'attention : le script d'installation qu'il télécharge n'existe plus.
+Lancer le script avec `sudo` depuis le compte qui fera les exercices : il installe les outils de compilation, puis, **sous ce compte**, Rust avec rustup (sans question), Rustlings (`cargo install rustlings --locked`) et le dossier d'exercices `~/rustlings`. Variable facultative : `RUST_USER`.
 
 ## Installation manuelle
 
@@ -81,9 +81,10 @@ Dans le mode interactif, la barre de progression indique le nombre d'exercices r
 
 ## Points d'attention
 
-- Le script télécharge `https://raw.githubusercontent.com/rust-lang/rustlings/main/install.sh`, qui n'existe plus (erreur 404, vérifié le 13/10/2026) : Rustlings 6 s'installe avec `cargo install rustlings`.
-- Il installe le paquet `rustc` de la distribution, souvent trop ancien pour les exercices, au lieu de rustup.
-- Lancé avec `sudo`, il installe tout pour root : Rustlings doit être installé par l'utilisateur qui fait les exercices.
+- Rustlings s'installe pour l'utilisateur qui fait les exercices, jamais pour root.
+- Utiliser rustup plutôt que le paquet `rustc` de la distribution, souvent trop ancien pour les exercices.
+- Mettre Rust à jour de temps en temps : `rustup update`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -24,7 +24,7 @@ cd procedures/restic
 sudo bash install_restic.sh
 ```
 
-Le script installe restic, crée `/etc/restic/backup.conf`, `/etc/restic/backup.sh` et une tâche quotidienne à 2 h. Il faut ensuite créer le fichier de mot de passe : lire les points d'attention.
+Le script installe restic (et tente `restic self-update`), crée le mot de passe du dépôt (`/etc/restic/password`, 600), initialise le dépôt (`/mnt/backup/restic` ou `RESTIC_REPO`), écrit le script de l'étape 4 avec les variables **exportées**, puis un service et un minuteur systemd quotidiens (à la place de la tâche cron de l'étape 5). Il prévient si le dépôt local est sur le disque système. Variables facultatives : `RESTIC_REPO`, `RESTIC_PATHS`, `RESTIC_TIME`.
 
 ## Installation manuelle
 
@@ -106,9 +106,10 @@ Tester une restauration régulièrement : une sauvegarde jamais restaurée n'est
 
 ## Points d'attention
 
-- Le script `backup.sh` charge `RESTIC_PASSWORD_FILE` avec `source`, sans l'exporter : restic ne voit pas la variable et demande le mot de passe au clavier. Lancée par cron, la sauvegarde échoue. Il faut `export` (étape 4) ou l'option `--password-file`.
-- Le script ne crée pas le fichier `/etc/restic/password` : il faut le créer avant la première exécution (étape 2).
-- Il conserve le dépôt dans `/mnt/backup/restic` : s'assurer qu'un disque est bien monté à cet endroit, sinon la sauvegarde remplit le disque système et disparaît avec lui.
+- **Conserver une copie du mot de passe du dépôt** hors du serveur : sans lui, les sauvegardes sont illisibles.
+- Un dépôt sur le même disque que les données ne protège pas d'une panne de disque : utiliser un disque séparé, un NAS (SFTP) ou un stockage S3.
+- Tester régulièrement une restauration : `restic restore latest --target /tmp/test-restauration`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

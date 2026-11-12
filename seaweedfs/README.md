@@ -7,7 +7,7 @@ SeaweedFS est un système de stockage distribué libre (licence Apache 2.0), rap
 | | |
 |---|---|
 | **Systèmes** | Linux 64 bits avec systemd |
-| **Méthode** | Binaire officiel `weed` (GitHub), version 4.48 |
+| **Méthode** | Binaire officiel `weed` (GitHub), version 4.53 |
 | **Ports** | 9333 (master), 8080 (volume), 8888 (filer), 8333 (API S3) |
 | **Script** | `install_seaweedfs.sh` |
 
@@ -24,7 +24,7 @@ cd procedures/seaweedfs
 sudo bash install_seaweedfs.sh
 ```
 
-Lire les points d'attention : le script ne démarre que le maître, qui ne peut rien stocker seul.
+Le script télécharge la dernière version de `weed`, crée l'utilisateur `seaweedfs`, un fichier `/etc/seaweedfs/s3.json` avec une clé secrète aléatoire (enregistrée dans `/root/seaweedfs_identifiants.txt`) et le service de l'étape 4 (master, volume, filer et S3 sur un nœud, adresse détectée ou `WEED_IP`). Le port S3 (8333) n'est ouvert qu'au réseau local si `ufw` est actif. Variables facultatives : `WEED_VERSION`, `WEED_IP`.
 
 ## Installation manuelle
 
@@ -32,7 +32,7 @@ Lire les points d'attention : le script ne démarre que le maître, qui ne peut 
 
 ```bash
 cd /tmp
-wget https://github.com/seaweedfs/seaweedfs/releases/download/4.48/linux_amd64.tar.gz
+wget https://github.com/seaweedfs/seaweedfs/releases/download/4.53/linux_amd64.tar.gz
 tar -xzf linux_amd64.tar.gz
 sudo mv weed /usr/local/bin/
 weed version
@@ -115,10 +115,10 @@ L'interface du maître (`http://<serveur>:9333`) affiche les volumes, et celle d
 
 ## Points d'attention
 
-- Le script ne démarre que le **maître** (`weed master`), qui gère les métadonnées sans stocker de données : sans serveur de volumes, aucun fichier ne peut être enregistré. Il n'active ni le filer ni l'API S3.
-- Il ne précise pas `-mdir` : le maître écrit ses métadonnées dans `/tmp`, effacé au redémarrage. Il écoute aussi sur `localhost`, ce qui le rend injoignable depuis le réseau.
-- Il installe la version 3.57 ; la version actuelle est la 4.48.
-- Exposée sans identifiants, l'API S3 accepte toutes les requêtes : toujours fournir `-s3.config`.
+- Exposée sans `-s3.config`, l'API S3 accepte toutes les requêtes : le script fournit toujours des identifiants.
+- Les autres ports (9333 master, 8080 volume, 8888 filer) n'ont pas d'authentification : ne pas les ouvrir hors du réseau d'administration.
+- Un seul nœud n'offre aucune redondance : pour des données importantes, prévoir plusieurs serveurs de volumes et une réplication (`-defaultReplication`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

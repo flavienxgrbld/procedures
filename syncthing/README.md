@@ -24,7 +24,7 @@ cd procedures/syncthing
 sudo bash install_syncthing.sh
 ```
 
-Lire les points d'attention : lancé avec `sudo`, le script démarre Syncthing pour `root`.
+Lancer le script avec `sudo` depuis le compte dont les dossiers seront synchronisés : il ajoute le dépôt officiel (canal `stable-v2`, clé dans `/etc/apt/keyrings`), installe Syncthing, démarre `syncthing@<utilisateur>` (jamais root) et ouvre les ports de synchronisation avec le profil `ufw` `syncthing`. L'interface reste sur `127.0.0.1:8384` (accès par tunnel SSH, étape 3). Variable facultative : `SYNC_USER`.
 
 ## Installation manuelle
 
@@ -83,9 +83,10 @@ Dans l'interface, l'appareil distant apparaît **Connecté** et le dossier **À 
 
 ## Points d'attention
 
-- Le script lance `syncthing@$USER` : avec `sudo`, `$USER` vaut `root`, donc Syncthing tourne en root et synchronise avec ses droits. Il faut indiquer l'utilisateur réel.
-- Il ajoute la clé avec `apt-key` (retiré des distributions récentes) et utilise le canal `stable`. Le dépôt propose maintenant `stable-v2` pour Syncthing 2.x.
-- Il ouvre le port 8384 alors que l'interface n'écoute que sur `127.0.0.1` par défaut. Si on l'expose, la protéger par un mot de passe et HTTPS.
+- Syncthing tourne avec les droits de l'utilisateur : ne jamais le lancer en root.
+- L'interface n'écoute que sur `127.0.0.1` : si on l'expose, la protéger par un mot de passe et HTTPS.
+- Syncthing synchronise aussi les suppressions : ce n'est pas une sauvegarde (activer le versionnage des fichiers dans les options du dossier).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

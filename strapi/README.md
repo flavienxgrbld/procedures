@@ -26,7 +26,7 @@ cd procedures/strapi
 sudo bash install_strapi.sh
 ```
 
-Lire les points d'attention : le script reste bloqué sur le serveur de développement.
+Le script installe Node.js 22 LTS et PostgreSQL, crée la base `strapi` (mot de passe aléatoire), l'utilisateur système `strapi`, puis le projet **sans question** (`create-strapi --non-interactive`, JavaScript, PostgreSQL), construit l'interface d'administration en mode production et crée le service de l'étape 5. Il reste à créer le premier administrateur (étape 6). Variable facultative : `STRAPI_PROJECT`.
 
 ## Installation manuelle
 
@@ -113,9 +113,10 @@ curl -I http://localhost:1337/admin
 
 ## Points d'attention
 
-- Le script lance `create-strapi-app --quickstart`, qui démarre le serveur de **développement** au premier plan à la fin de la création : le script reste bloqué et n'arrive jamais à la création du service.
-- Il installe Node.js 18, qui n'est plus pris en charge par Strapi 5. Son service lance `npm start` sans construction préalable (`npm run build`) ni `NODE_ENV=production`.
-- Il installe PostgreSQL et Redis alors que `--quickstart` utilise SQLite.
+- En production, le *Content-Type Builder* est désactivé : les types de contenus se créent en développement (`npm run develop` sur un poste), puis se déploient sur le serveur.
+- Créer le premier administrateur dès le démarrage : la page `/admin` le propose à tout visiteur tant qu'il n'existe pas.
+- Pour un accès depuis Internet, publier Strapi derrière Nginx en HTTPS.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

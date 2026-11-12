@@ -26,7 +26,7 @@ cd procedures/sonarqube
 sudo bash install_sonarqube.sh
 ```
 
-Lire les points d'attention : le script s'arrête dès l'étape de la base de données.
+Le script applique les réglages du noyau de l'étape 1 (`vm.max_map_count`, `fs.file-max`), installe Docker s'il est absent, écrit le `compose.yaml` de l'étape 2 avec un mot de passe de base aléatoire (dans `/opt/sonarqube/.env`) et démarre SonarQube et PostgreSQL.
 
 ## Installation manuelle
 
@@ -116,8 +116,10 @@ L'API doit répondre `"status":"UP"`.
 
 ## Points d'attention
 
-- Le script exécute `. "$SCRIPT_DIR/../databases/install_postgresql.sh"`, mais la variable `SCRIPT_DIR` n'est jamais définie : avec `set -u`, le script s'arrête sur « unbound variable » (le repli `|| pkg_install` n'est pas atteint). Le chemin indiqué n'existe pas non plus dans le dépôt.
-- Il installe Java 11, alors que les versions actuelles de SonarQube demandent Java 17 ou 21. Il ne crée ni la base ni l'utilisateur PostgreSQL `sonarqube` déclarés dans sa configuration, et ne règle pas `vm.max_map_count` : Elasticsearch refuse de démarrer.
+- Changer le mot de passe `admin` / `admin` dès la première connexion (SonarQube l'impose).
+- Les jetons d'analyse se créent par utilisateur (*My Account → Security*) : en créer un par pipeline CI/CD, avec les droits minimaux.
+- SonarQube demande 4 Go de RAM au minimum avec PostgreSQL.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

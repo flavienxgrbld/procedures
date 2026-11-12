@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Installation de rclone (dernière version, script officiel) et de fuse3 pour « rclone mount ».
+# La configuration des stockages se fait ensuite SANS sudo : rclone config.
 
 set -euo pipefail
 
@@ -16,20 +18,26 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Rclone - Outil de synchronisation cloud"
+info "rclone - Copie et synchronisation vers le cloud"
 
-echo "=== Installation de Rclone ==="
-pkg_install fuse
+pkg_update
+case "$PKG_MANAGER" in
+    apt|dnf|yum|zypper) pkg_install curl unzip fuse3 ;;
+    pacman) pkg_install curl unzip fuse3 ;;
+esac
 
-# Installation
-curl https://rclone.org/install.sh | bash
+INSTALLER="$(mktemp)"
+add_temp_file "$INSTALLER"
+download_file https://rclone.org/install.sh "$INSTALLER"
+# install.sh renvoie 3 quand la dernière version est déjà installée
+bash "$INSTALLER" || [ $? -eq 3 ]
 
-# Configuration
-mkdir -p ~/.config/rclone
+# Autoriser « --allow-other » pour les montages partagés entre utilisateurs
+if [ -f /etc/fuse.conf ] && grep -q '^#user_allow_other' /etc/fuse.conf; then
+    sed -i 's/^#user_allow_other/user_allow_other/' /etc/fuse.conf
+fi
 
 echo
-echo "✅ Rclone installé avec succès"
-echo "Configurez avec: rclone config"
-echo "Commandes utiles:"
-echo "  rclone sync /source /destination"
-echo "  rclone mount remote: /mount"
+echo "✅ $(rclone version | head -n1)"
+echo "Configurer un stockage avec le compte qui fera les synchronisations (sans sudo) : rclone config"
+echo "Chiffrer la configuration : rclone config, puis « s » (set configuration password)"

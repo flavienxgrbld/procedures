@@ -24,7 +24,7 @@ cd procedures/tig_stack
 sudo bash install_tig_stack.sh
 ```
 
-Lire les points d'attention : l'ajout des deux dépôts par le script échoue.
+Le script installe InfluxDB 2, Telegraf et Grafana depuis les dépôts officiels (clés dans `/etc/apt/keyrings`), fait la configuration initiale d'InfluxDB (étape 2), crée un jeton en écriture pour Telegraf et un jeton en lecture pour Grafana, relie Telegraf à InfluxDB 2 (étape 3) et déclare la source de données InfluxDB dans Grafana (provisioning) : les métriques du serveur sont visibles dès la fin du script. Identifiants : `/root/tig_identifiants.txt`.
 
 ## Installation manuelle
 
@@ -97,9 +97,10 @@ influx query 'from(bucket:"telegraf") |> range(start:-5m) |> limit(n:3)'
 
 ## Points d'attention
 
-- Pour InfluxDB, le script déclare le dépôt avec un fichier de clé (`signed-by=/usr/share/keyrings/influxdb-archive-keyring.gpg`) qu'il ne crée jamais : `apt update` refuse le dépôt.
-- Pour Grafana, il récupère une clé sur un serveur de clés avec `apt-key` et utilise l'ancien dépôt `packages.grafana.com`, remplacé par `apt.grafana.com`. `apt-key` est retiré des distributions récentes.
-- Il ne configure pas Telegraf : la sortie par défaut vise InfluxDB 1.x (base `telegraf` sans jeton), refusée par InfluxDB 2. Aucune métrique n'est enregistrée tant que l'étape 3 n'est pas faite.
+- Changer le mot de passe `admin` / `admin` de Grafana dès la première connexion (Grafana l'impose).
+- Les jetons créés par le script sont limités au bucket `telegraf` (écriture pour Telegraf, lecture pour Grafana) : garder le jeton d'administration pour l'administration seulement.
+- Ouvrir les ports 3000 et 8086 au réseau d'administration uniquement.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

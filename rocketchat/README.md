@@ -26,7 +26,7 @@ cd procedures/rocketchat
 sudo bash install_rocketchat.sh
 ```
 
-Lire les points d'attention : si Docker n'est pas installé, le script s'arrête.
+Le script installe Docker s'il est absent, récupère le dépôt officiel `rocketchat-compose` dans `/opt`, crée `.env` à partir de l'exemple officiel avec `ROOT_URL` = adresse du serveur (ou `RC_ROOT_URL`), puis démarre la configuration sans proxy (`compose.database.yml` + `compose.yml`) sur le port 3000. Variable facultative : `RC_RELEASE` (version de Rocket.Chat).
 
 ## Installation manuelle
 
@@ -78,9 +78,10 @@ sudo docker compose -f compose.database.yml -f compose.yml logs -f rocketchat
 
 ## Points d'attention
 
-- Le script appelle `$SCRIPT_DIR/../infrastructure/install_docker.sh` si Docker est absent : la variable `SCRIPT_DIR` n'est jamais définie (le script s'arrête sur « unbound variable ») et ce chemin n'existe pas dans le dépôt. Installer Docker avant (procédure `docker`).
-- Son Compose utilise l'ancienne image `rocket.chat:latest` et MongoDB 5.0, qui n'est plus maintenu. Il appelle ensuite `docker-compose` (version 1), absent des installations récentes de Docker.
-- Il garde `ROOT_URL: http://localhost:3000` : les liens et les notifications sont incorrects depuis un autre poste.
+- `ROOT_URL` doit être l'adresse exacte utilisée par les utilisateurs : avec `localhost`, les liens et les notifications sont faux.
+- Pour un accès depuis Internet, utiliser la configuration avec Traefik et Let's Encrypt (étape 3) ou un proxy inverse HTTPS.
+- Créer le compte administrateur dès la première visite : l'assistant est accessible à tous tant qu'il n'est pas terminé.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

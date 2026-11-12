@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# RequestBin n'existe plus : installation de Webhook.site (équivalent libre) avec Docker Compose.
+#
+# Variables modifiables :
+#   WEBHOOK_URL  adresse utilisée dans le navigateur (défaut : http://<ip>:8084)
 
 set -euo pipefail
 
@@ -16,51 +20,24 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Request Bin - Débogage de webhooks HTTP"
+info "Webhook.site - Capture de requêtes HTTP (remplaçant de RequestBin)"
 
-REQUESTBIN_DIR="/opt/requestbin"
-
-echo "=== Installation de RequestBin ==="
-pkg_install python3 python3-pip python3-dev redis-server
-
-# Création répertoire
-mkdir -p $REQUESTBIN_DIR
-cd $REQUESTBIN_DIR
-
-# Installation
-git clone https://github.com/Runscope/requestbin.git . || true
-
-# Dépendances
-pip3 install -r requirements.txt
-
-# Service Redis
-systemctl enable redis-server
-systemctl start redis-server
-
-# Service
-cat > /etc/systemd/system/requestbin.service <<'EOF'
-[Unit]
-Description=RequestBin
-After=network.target redis-server.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/requestbin
-ExecStart=gunicorn app:app -b 0.0.0.0:5000
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable requestbin
-systemctl start requestbin
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 5000/tcp
+APP_DIR="/opt/webhook.site"
+WEBHOOK_URL="${WEBHOOK_URL:-http://$(primary_ip):8084}"
+ensure_docker
+pkg_install git
+if [ -d "${APP_DIR}/.git" ]; then
+    git -C "$APP_DIR" checkout -q -- docker-compose.yml
+    git -C "$APP_DIR" pull -q --ff-only
+else
+    git clone -q --depth 1 https://github.com/webhooksite/webhook.site.git "$APP_DIR"
 fi
+F="${APP_DIR}/docker-compose.yml"
+sed -i -E "s|(- *APP_URL=).*|\1${WEBHOOK_URL}|; s|(- *APP_ENV=).*|\1production|; s|(- *APP_DEBUG=).*|\1false|" "$F"
+grep -q "APP_URL=${WEBHOOK_URL}" "$F" || warn "APP_URL introuvable dans docker-compose.yml : le régler à la main"
+compose_up "$APP_DIR"
+open_ports 8084/tcp
 
 echo
-echo "✅ RequestBin en cours d'installation"
-echo "URL: http://votre-serveur:5000"
+echo "✅ Webhook.site démarré : ${WEBHOOK_URL}"
+echo "Une URL unique est générée à l'ouverture de la page ; ne pas y envoyer de vraies données sensibles."

@@ -22,10 +22,10 @@ RustDesk est un logiciel libre de prise en main à distance, alternative à Team
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/rustdesk
-sudo bash install_rustdesk.sh
+sudo RUSTDESK_HOST=rustdesk.exemple.fr bash install_rustdesk.sh
 ```
 
-Lire les points d'attention : le conteneur créé par le script ne lance aucun des deux services.
+Le script installe Docker s'il est absent, écrit le `compose.yaml` de l'étape 1 (services `hbbs` et `hbbr`, relais annoncé sur `RUSTDESK_HOST`), démarre les conteneurs, ouvre les ports et affiche la clé publique à saisir dans les clients (étapes 3 et 4).
 
 ## Installation manuelle
 
@@ -100,9 +100,9 @@ Sur un client configuré, l'état « Prêt » s'affiche en bas de la fenêtre ; 
 
 ## Points d'attention
 
-- Le script lance un seul conteneur `rustdesk/rustdesk-server` sans commande. Cette image doit être démarrée avec `hbbs` ou `hbbr` : sans commande, aucun service n'écoute.
-- Il publie et ouvre le port 8000, qui n'est pas utilisé par RustDesk.
 - Ne jamais diffuser le fichier privé `id_ed25519` : seul `id_ed25519.pub` se partage avec les clients.
+- Derrière une box, rediriger les ports 21115 à 21117 en TCP et 21116 en UDP vers le serveur.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation du serveur RustDesk (hbbs + hbbr) avec l'image Docker officielle.
+#
+# Variables :
+#   RUSTDESK_HOST  nom ou adresse publique du serveur (défaut : adresse principale)
 
 set -euo pipefail
 
@@ -16,35 +20,51 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Rustdesk - Logiciel de bureaux distants"
+info "RustDesk Server - Prise en main à distance auto-hébergée"
 
-RUSTDESK_DIR="/opt/rustdesk"
+APP_DIR="/opt/rustdesk"
+RUSTDESK_HOST="${RUSTDESK_HOST:-$(primary_ip)}"
+ensure_docker
+mkdir -p "${APP_DIR}/data"
+chmod 700 "${APP_DIR}/data"
 
-echo "=== Installation de Rustdesk serveur ==="
-pkg_install curl
+cat > "${APP_DIR}/compose.yaml" <<EOF
+services:
+  hbbs:
+    container_name: hbbs
+    image: rustdesk/rustdesk-server:latest
+    command: hbbs -r ${RUSTDESK_HOST}:21117
+    ports:
+      - "21115:21115"
+      - "21116:21116"
+      - "21116:21116/udp"
+    volumes:
+      - ./data:/root
+    depends_on: [hbbr]
+    restart: unless-stopped
 
-docker pull rustdesk/rustdesk-server
+  hbbr:
+    container_name: hbbr
+    image: rustdesk/rustdesk-server:latest
+    command: hbbr
+    ports:
+      - "21117:21117"
+    volumes:
+      - ./data:/root
+    restart: unless-stopped
+EOF
+compose_up "$APP_DIR"
+open_ports 21115:21117/tcp 21116/udp
 
-docker volume create rustdesk-db
-
-docker run -d \
-  -p 21115:21115 \
-  -p 21116:21116 \
-  -p 21116:21116/udp \
-  -p 21117:21117 \
-  -p 8000:8000 \
-  --name rustdesk-server \
-  --restart=always \
-  -v rustdesk-db:/root \
-  rustdesk/rustdesk-server:latest
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 21115:21117/tcp
-    ufw allow 21116/udp
-    ufw allow 8000/tcp
-fi
+info "Attente de la génération des clés"
+for _ in $(seq 1 30); do [ -s "${APP_DIR}/data/id_ed25519.pub" ] && break; sleep 1; done
 
 echo
-echo "✅ Rustdesk serveur en cours d'installation"
-echo "Ports: 21115-21117/tcp, 21116/udp, 8000/tcp"
-echo "Conseil oui oui!"
+echo "✅ Serveur RustDesk démarré"
+echo "Dans chaque client : Paramètres > Réseau > Serveur ID = ${RUSTDESK_HOST}"
+if [ -s "${APP_DIR}/data/id_ed25519.pub" ]; then
+    echo "Clé = $(cat "${APP_DIR}/data/id_ed25519.pub")"
+else
+    echo "Clé : sudo cat ${APP_DIR}/data/id_ed25519.pub"
+fi
+echo "Ne jamais diffuser ${APP_DIR}/data/id_ed25519 (clé privée)."

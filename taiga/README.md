@@ -25,7 +25,7 @@ cd procedures/taiga
 sudo bash install_taiga.sh
 ```
 
-Lire les points d'attention : l'image utilisée par le script n'existe pas.
+Le script installe Docker s'il est absent, récupère `taiga-docker` (branche `stable`), règle `.env` (adresse du serveur, clé secrète et mots de passe PostgreSQL/RabbitMQ aléatoires), démarre Taiga avec `launch-taiga.sh` puis crée le super-utilisateur `admin` sans question (mot de passe dans `/root/taiga_identifiants.txt`). Variables facultatives : `TAIGA_DOMAIN`, `TAIGA_ADMIN_EMAIL`.
 
 ## Installation manuelle
 
@@ -82,9 +82,9 @@ sudo docker compose logs -f taiga-back
 
 ## Points d'attention
 
-- Le script utilise l'image `taigaio/taiga`, qui n'existe pas sur Docker Hub (vérifié le 13/10/2026). Taiga se compose de plusieurs services (`taiga-back`, `taiga-front`, `taiga-events`, `taiga-async`, RabbitMQ, PostgreSQL), décrits dans le dépôt `taiga-docker`.
-- Il installe aussi PostgreSQL, Redis et Python sur l'hôte, inutiles avec Docker, et laisse `SECRET_KEY: "your-secret-key"`.
+- Les e-mails sont désactivés (`EMAIL_BACKEND=console`) : pour les invitations et notifications, configurer les variables `EMAIL_*` de `.env`.
 - Pour la production, publier Taiga derrière Nginx en HTTPS (procédures `nginx` et `certbot`) et passer `TAIGA_SCHEME=https` et `WEBSOCKETS_SCHEME=wss`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

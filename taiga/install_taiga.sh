@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Installation de Taiga avec le dépôt officiel taiga-docker (branche stable),
+# secrets générés et super-utilisateur créé sans question.
+#
+# Variables modifiables :
+#   TAIGA_DOMAIN      adresse:port utilisée dans le navigateur (défaut : <ip>:9000)
+#   TAIGA_ADMIN_EMAIL e-mail du super-utilisateur (défaut : admin@exemple.local)
 
 set -euo pipefail
 
@@ -16,61 +22,49 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Taiga - Plateforme de gestion de projets"
+info "Taiga - Gestion de projets agiles"
 
-TAIGA_DIR="/opt/taiga"
-TAIGA_USER="taiga"
+APP_DIR="/opt/taiga-docker"
+TAIGA_DOMAIN="${TAIGA_DOMAIN:-$(primary_ip):9000}"
+TAIGA_ADMIN_EMAIL="${TAIGA_ADMIN_EMAIL:-admin@exemple.local}"
+ensure_docker
+pkg_install git openssl
+if [ -d "${APP_DIR}/.git" ]; then
+    git -C "$APP_DIR" pull -q --ff-only
+else
+    git clone -q --branch stable https://github.com/taigaio/taiga-docker.git "$APP_DIR"
+fi
+cd "$APP_DIR"
 
-echo "=== Installation de Taiga ==="
-pkg_install python3 python3-dev python3-pip postgresql postgresql-client redis-server
-
-# Création utilisateur
-if ! id "$TAIGA_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$TAIGA_DIR" -c "Taiga Service" "$TAIGA_USER"
+if [ ! -f .configured ]; then
+    set_env() { if grep -qE "^$1=" .env; then sed -i -E "s|^$1=.*|$1=$2|" .env; else echo "$1=$2" >> .env; fi; }
+    set_env TAIGA_SCHEME http
+    set_env TAIGA_DOMAIN "$TAIGA_DOMAIN"
+    set_env WEBSOCKETS_SCHEME ws
+    set_env SECRET_KEY "\"$(openssl rand -hex 32)\""
+    set_env POSTGRES_PASSWORD "$(random_password 24)"
+    set_env RABBITMQ_PASS "$(random_password 24)"
+    set_env RABBITMQ_ERLANG_COOKIE "$(random_password 32)"
+    set_env EMAIL_BACKEND console
+    chmod 600 .env
+    touch .configured
 fi
 
-mkdir -p $TAIGA_DIR
-cd $TAIGA_DIR
+docker compose -f docker-compose.yml pull
+./launch-taiga.sh
+open_ports 9000/tcp
 
-# Installation via Docker
-pkg_install docker.io docker-compose
-
-cat > docker-compose.yml <<'EOF'
-version: '3'
-
-services:
-  db:
-    image: postgres:14
-    environment:
-      POSTGRES_DB: taiga
-      POSTGRES_USER: taiga
-      POSTGRES_PASSWORD: taiga
-    volumes:
-      - taiga_db:/var/lib/postgresql/data
-
-  taiga:
-    image: taigaio/taiga:latest
-    ports:
-      - "8000:8000"
-    environment:
-      DEBUG: "False"
-      SECRET_KEY: "your-secret-key"
-      DB_HOST: db
-      DB_NAME: taiga
-      DB_USER: taiga
-      DB_PASSWORD: taiga
-    depends_on:
-      - db
-    volumes:
-      - taiga_media:/taiga/media
-
-volumes:
-  taiga_db:
-  taiga_media:
-EOF
-
-docker-compose up -d
+if [ ! -f .admin_created ]; then
+    info "Attente de taiga-back puis création du super-utilisateur"
+    sleep 30
+    ADMIN_PASS="$(random_password 16)"
+    docker compose -f docker-compose.yml -f docker-compose-inits.yml run --rm \
+        -e DJANGO_SUPERUSER_PASSWORD="$ADMIN_PASS" taiga-manage \
+        createsuperuser --noinput --username admin --email "$TAIGA_ADMIN_EMAIL"
+    touch .admin_created
+    save_credentials /root/taiga_identifiants.txt "Taiga : http://${TAIGA_DOMAIN}" "Compte : admin" "Mot de passe : ${ADMIN_PASS}"
+fi
 
 echo
-echo "✅ Taiga en cours d'installation"
-echo "URL: http://votre-serveur:8000"
+echo "✅ Taiga démarré : http://${TAIGA_DOMAIN} (identifiants : /root/taiga_identifiants.txt)"
+echo "E-mails désactivés (EMAIL_BACKEND=console) : configurer EMAIL_* dans ${APP_DIR}/.env pour les invitations."

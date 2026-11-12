@@ -23,10 +23,10 @@ Seafile est une plateforme libre de synchronisation et de partage de fichiers, r
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/seafile
-sudo bash install_seafile.sh
+sudo SEAFILE_HOST=cloud.exemple.fr SEAFILE_ADMIN_EMAIL=admin@exemple.fr bash install_seafile.sh
 ```
 
-Lire les points d'attention : l'archive téléchargée par le script n'existe pas.
+Le script installe Docker s'il est absent, télécharge les fichiers officiels de Seafile 13 dans `/opt/seafile`, règle le `.env` de l'étape 2 (secrets et mots de passe aléatoires, HTTPS avec un nom de domaine, HTTP avec une adresse IP) et démarre les conteneurs. Le compte administrateur est enregistré dans `/root/seafile_identifiants.txt`.
 
 ## Installation manuelle
 
@@ -87,9 +87,10 @@ sudo docker compose logs -f seafile
 
 ## Points d'attention
 
-- Le script télécharge une archive « x86-64 » depuis le dépôt `seafile-rpi`, consacré aux versions Raspberry Pi : l'adresse renvoie une erreur 404 (vérifié le 13/10/2026), donc le script s'arrête.
-- Même avec une archive valide, il n'exécute pas l'assistant de configuration (`setup-seafile-mysql.sh`), ne crée pas de service et ne configure pas de serveur web : Seafile ne démarre pas.
+- Avec un nom de domaine, Caddy obtient le certificat HTTPS automatiquement : le domaine doit pointer vers le serveur et les ports 80 et 443 être joignables.
 - Sauvegarder à la fois les bases MariaDB et `/opt/seafile-data`.
+- Après la première connexion, retirer `INIT_SEAFILE_ADMIN_PASSWORD` du fichier `.env`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -23,7 +23,7 @@ cd procedures/netdata
 sudo bash install_netdata.sh
 ```
 
-Le script compile Netdata depuis les sources : c'est long, et la méthode recommandée est celle ci-dessous.
+Le script télécharge puis exécute le script officiel `kickstart.sh` (canal stable, télémétrie désactivée, paquets natifs) et n'ouvre le port 19999 qu'au réseau local si `ufw` est actif. Pour un tableau de bord accessible uniquement depuis la machine (à consulter par tunnel SSH) : `sudo NETDATA_LOCAL=oui bash install_netdata.sh`.
 
 ## Installation manuelle
 
@@ -95,8 +95,9 @@ curl -s http://localhost:19999/api/v1/info | head -c 300
 
 ## Points d'attention
 
-- Le script clone le dépôt Git et compile Netdata, ce qui demande de nombreuses dépendances et plusieurs minutes. Le script officiel `kickstart.sh` installe un paquet précompilé, plus simple à mettre à jour.
-- Il ouvre le port 19999 à tout le réseau alors que le tableau de bord n'a pas d'authentification.
+- Le tableau de bord n'a pas d'authentification : ne pas l'exposer hors du réseau d'administration.
+- Netdata conserve par défaut un historique limité par l'espace disque qui lui est alloué (réglable dans `netdata.conf`, section `[db]`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

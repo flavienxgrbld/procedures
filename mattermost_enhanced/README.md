@@ -26,7 +26,7 @@ cd procedures/mattermost_enhanced
 sudo bash install_mattermost_enhanced.sh
 ```
 
-Lire les points d'attention : le script ne parvient plus à télécharger Mattermost et ne configure pas la base.
+Le script installe PostgreSQL et crée la base (mot de passe aléatoire), télécharge la dernière version publiée (ou `MM_VERSION`), règle `config.json` (base PostgreSQL et `SiteURL`), crée l'utilisateur `mattermost` et le service systemd de l'étape 5. Variable facultative : `MM_SITE_URL` (ex. `https://chat.exemple.fr` derrière un proxy).
 
 ## Installation manuelle
 
@@ -48,12 +48,12 @@ GRANT USAGE, CREATE ON SCHEMA public TO mmuser;
 
 ### 2. Télécharger Mattermost
 
-Prendre la dernière version sur la page de téléchargement (ici la 11.11.1) :
+Prendre la dernière version sur la page de téléchargement (12.1.0 au 12/11/2026) :
 
 ```bash
 cd /tmp
-wget https://releases.mattermost.com/11.11.1/mattermost-11.11.1-linux-amd64.tar.gz
-sudo tar -xzf mattermost-11.11.1-linux-amd64.tar.gz -C /opt
+wget https://releases.mattermost.com/12.1.0/mattermost-12.1.0-linux-amd64.tar.gz
+sudo tar -xzf mattermost-12.1.0-linux-amd64.tar.gz -C /opt
 sudo mkdir -p /opt/mattermost/data
 ```
 
@@ -137,9 +137,10 @@ curl -s http://localhost:8065/api/v4/system/ping
 
 ## Points d'attention
 
-- Le script télécharge Mattermost 7.8.0 à une adresse qui ne répond plus (erreur 403, vérifié le 13/10/2026) : il s'arrête au téléchargement. Cette version ne reçoit plus de correctifs de sécurité.
-- Il crée une base MySQL sans jamais l'indiquer dans `config.json` : Mattermost ne peut pas se connecter à sa base. Les versions récentes de Mattermost fonctionnent avec PostgreSQL.
-- Son service n'indique ni `WorkingDirectory` ni de dépendance à la base de données.
+- Le premier compte créé devient administrateur système : le créer dès l'installation.
+- Pour la production, publier Mattermost derrière Nginx en HTTPS, avec la prise en charge des WebSockets (procédures `nginx` et `certbot`).
+- Les versions ESR (Extended Support Release) sont maintenues plus longtemps : les préférer pour un serveur que l'on met peu à jour.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Mattermost (archive officielle) avec PostgreSQL, en service systemd.
+#
+# Variables modifiables :
+#   MM_VERSION   version, ex. 12.1.0 (défaut : dernière publiée sur GitHub)
+#   MM_SITE_URL  adresse publique (défaut : http://<ip>:8065)
 
 set -euo pipefail
 
@@ -15,64 +20,92 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Mattermost - Plateforme de collaboration d'entreprise"
+info "Mattermost - Messagerie d'équipe"
 
-MATTERMOST_DIR="/opt/mattermost"
-MATTERMOST_USER="mattermost"
-MATTERMOST_DB="mattermost"
+MM_VERSION="${MM_VERSION:-$(github_latest_tag mattermost/mattermost v12.1.0)}"
+MM_VERSION="${MM_VERSION#v}"
+MM_SITE_URL="${MM_SITE_URL:-http://$(primary_ip):8065}"
+APP_DIR="/opt/mattermost"
+DB_PASS="$(random_password 24)"
+[ "$(dpkg --print-architecture)" = "amd64" ] || [ "$(dpkg --print-architecture)" = "arm64" ] || error_exit "Architecture non gérée"
+ARCH="$(dpkg --print-architecture)"
 
-echo "=== Installation de Mattermost ==="
+pkg_update
+pkg_install postgresql curl jq sudo
+systemctl enable --now postgresql
 
-# Installation base de données
-install_database
-
-# Création utilisateur
-if ! id "$MATTERMOST_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$MATTERMOST_DIR" -c "Mattermost Service" "$MATTERMOST_USER"
+info "Base PostgreSQL mattermost"
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='mmuser'" | grep -q 1; then
+    sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
+CREATE DATABASE mattermost;
+CREATE USER mmuser WITH PASSWORD '${DB_PASS}';
+ALTER DATABASE mattermost OWNER TO mmuser;
+\c mattermost
+GRANT USAGE, CREATE ON SCHEMA public TO mmuser;
+SQL
+    NEW_DB=1
+else
+    NEW_DB=0
 fi
 
-# Téléchargement Mattermost
-cd /opt
-MATTERMOST_VERSION="7.8.0"
-wget "https://releases.mattermost.com/mattermost-server/v${MATTERMOST_VERSION}/mattermost-v${MATTERMOST_VERSION}-linux-amd64.tar.gz"
-tar -xzf "mattermost-v${MATTERMOST_VERSION}-linux-amd64.tar.gz"
-rm "mattermost-v${MATTERMOST_VERSION}-linux-amd64.tar.gz"
+if [ -x "${APP_DIR}/bin/mattermost" ]; then
+    warn "Mattermost déjà présent dans ${APP_DIR} : archive non réinstallée (mise à jour : voir la documentation officielle)"
+else
+    info "Téléchargement de Mattermost ${MM_VERSION}"
+    TGZ="$(mktemp --suffix=.tar.gz)"
+    add_temp_file "$TGZ"
+    download_file "https://releases.mattermost.com/${MM_VERSION}/mattermost-${MM_VERSION}-linux-${ARCH}.tar.gz" "$TGZ"
+    tar -xzf "$TGZ" -C /opt
+    mkdir -p "${APP_DIR}/data"
+fi
 
-mkdir -p $MATTERMOST_DIR/data
-chown -R "$MATTERMOST_USER:$MATTERMOST_USER" $MATTERMOST_DIR
+id mattermost >/dev/null 2>&1 || useradd --system --user-group mattermost
 
-# Configuration DB
-read -sp "Mot de passe Mattermost DB: " DB_PASS
-echo
-mysql -e "CREATE DATABASE $MATTERMOST_DB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -e "CREATE USER 'mattermost'@'localhost' IDENTIFIED BY '$DB_PASS';"
-mysql -e "GRANT ALL PRIVILEGES ON $MATTERMOST_DB.* TO 'mattermost'@'localhost';"
+CFG="${APP_DIR}/config/config.json"
+if [ "$NEW_DB" = 1 ]; then
+    backup_file "$CFG"
+    tmp="$(mktemp)"
+    jq --arg ds "postgres://mmuser:${DB_PASS}@localhost/mattermost?sslmode=disable&connect_timeout=10" \
+       --arg url "$MM_SITE_URL" \
+       '.SqlSettings.DriverName="postgres" | .SqlSettings.DataSource=$ds | .ServiceSettings.SiteURL=$url' \
+       "$CFG" > "$tmp"
+    mv "$tmp" "$CFG"
+fi
+chown -R mattermost:mattermost "$APP_DIR"
+chmod -R g+w "$APP_DIR"
+chmod 600 "$CFG"
 
-# Service
-cat > /etc/systemd/system/mattermost.service <<'EOF'
+cat > /etc/systemd/system/mattermost.service <<EOF
 [Unit]
 Description=Mattermost
-After=network.target
+After=network.target postgresql.service
+Requires=postgresql.service
 
 [Service]
-Type=simple
+Type=notify
+ExecStart=${APP_DIR}/bin/mattermost
+TimeoutStartSec=3600
+KillMode=mixed
+Restart=always
+RestartSec=10
+WorkingDirectory=${APP_DIR}
 User=mattermost
-ExecStart=/opt/mattermost/bin/mattermost
-Restart=on-failure
+Group=mattermost
+LimitNOFILE=49152
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
 systemctl daemon-reload
 systemctl enable mattermost
-systemctl start mattermost
+systemctl restart mattermost
+check_service_status mattermost
+open_ports 8065/tcp
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8065/tcp
-fi
+[ "$NEW_DB" = 1 ] && save_credentials /root/mattermost_identifiants.txt "Base : mattermost / utilisateur mmuser" "Mot de passe : ${DB_PASS}"
 
 echo
-echo "✅ Mattermost en cours d'installation"
-echo "URL: http://votre-serveur:8065"
+echo "✅ Mattermost ${MM_VERSION} installé : ${MM_SITE_URL}"
+echo "Le premier compte créé devient administrateur système : le créer sans attendre."

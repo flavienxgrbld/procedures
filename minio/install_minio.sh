@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# Stockage objet compatible S3.
+# L'édition open source de MinIO n'est plus distribuée (binaires retirés, dépôt archivé).
+#   - Avec MINIO_DEB=/chemin/vers/minio_xxx.deb : installe et configure AIStor Free
+#     (paquet téléchargé à la main sur https://min.io/download, inscription requise).
+#   - Sans MINIO_DEB : installe SeaweedFS, alternative libre (procédure seaweedfs).
+#
+# Variables (AIStor) :
+#   MINIO_DEB, MINIO_VOLUMES (défaut : /srv/s3), MINIO_ROOT_USER (défaut : admin),
+#   MINIO_ROOT_PASSWORD (défaut : généré)
 
 set -euo pipefail
 
@@ -16,55 +25,41 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "MinIO - Stockage d'objets compatibles S3"
+info "Stockage objet S3 (AIStor Free ou SeaweedFS)"
 
-MINIO_DIR="/opt/minio"
-MINIO_USER="minio"
-MINIO_DISK="/minio"
-
-echo "=== Installation de MinIO ==="
-
-# Création utilisateur
-if ! id "$MINIO_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$MINIO_DIR" -c "MinIO Service" "$MINIO_USER"
+if [ -z "${MINIO_DEB:-}" ]; then
+    warn "MINIO_DEB non défini : installation de SeaweedFS, alternative libre à MinIO"
+    [ -f "${SCRIPT_DIR}/../seaweedfs/install_seaweedfs.sh" ] || error_exit "Procédure seaweedfs introuvable dans le dépôt"
+    exec bash "${SCRIPT_DIR}/../seaweedfs/install_seaweedfs.sh"
 fi
 
-# Téléchargement
-cd /tmp
-wget https://dl.min.io/server/minio/release/linux-amd64/minio
-chmod +x minio
-mv minio /usr/local/bin/
+[ "$PKG_MANAGER" = "apt" ] || error_exit "Paquet .deb : Debian ou Ubuntu requis"
+[ -f "$MINIO_DEB" ] || error_exit "Fichier introuvable : $MINIO_DEB"
+MINIO_VOLUMES="${MINIO_VOLUMES:-/srv/s3}"
+MINIO_ROOT_USER="${MINIO_ROOT_USER:-admin}"
+MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-$(random_password 24)}"
+[ "${#MINIO_ROOT_PASSWORD}" -ge 8 ] || error_exit "MINIO_ROOT_PASSWORD : 8 caractères minimum"
 
-# Dossier de stockage
-mkdir -p "$MINIO_DISK"
-chown "$MINIO_USER:$MINIO_USER" "$MINIO_DISK"
+DEBIAN_FRONTEND=noninteractive apt-get install -y "$(realpath "$MINIO_DEB")"
 
-# Service systemd
-cat > /etc/systemd/system/minio.service <<'EOF'
-[Unit]
-Description=MinIO
-After=network.target
+id minio-user >/dev/null 2>&1 || useradd --system --user-group --no-create-home --shell /usr/sbin/nologin minio-user
+mkdir -p "$MINIO_VOLUMES"
+chown minio-user:minio-user "$MINIO_VOLUMES"
 
-[Service]
-Type=simple
-User=minio
-ExecStart=/usr/local/bin/minio server /minio
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
+backup_file /etc/default/minio
+(umask 077; cat > /etc/default/minio) <<EOF
+MINIO_ROOT_USER=${MINIO_ROOT_USER}
+MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+MINIO_VOLUMES="${MINIO_VOLUMES}"
+MINIO_OPTS="--console-address :9001"
 EOF
 
-systemctl daemon-reload
 systemctl enable minio
-systemctl start minio
+systemctl restart minio
+check_service_status minio
+open_ports 9000/tcp 9001/tcp
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 9000/tcp
-    ufw allow 9001/tcp
-fi
-
+save_credentials /root/minio_identifiants.txt "Console : http://<serveur>:9001" "Utilisateur : ${MINIO_ROOT_USER}" "Mot de passe : ${MINIO_ROOT_PASSWORD}"
 echo
-echo "✅ MinIO installé avec succès"
-echo "API: http://votre-serveur:9000"
-echo "Console: http://votre-serveur:9001"
+echo "✅ AIStor Free installé : API http://$(primary_ip):9000, console :9001"
+echo "Enregistrer la clé de licence gratuite selon la documentation AIStor."

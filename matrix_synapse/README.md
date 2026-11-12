@@ -22,10 +22,10 @@ Matrix est un protocole ouvert de messagerie instantanée décentralisée et chi
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/matrix_synapse
-sudo bash install_matrix_synapse.sh
+sudo MATRIX_SERVER_NAME=matrix.exemple.fr MATRIX_EMAIL=admin@exemple.fr bash install_matrix_synapse.sh
 ```
 
-Lire les points d'attention : en l'état, le script s'arrête avant d'installer Synapse.
+Le script ajoute le dépôt Matrix, installe Synapse avec le nom de serveur indiqué (sans question), crée la base PostgreSQL (mot de passe aléatoire) et l'indique dans `homeserver.yaml` avec un `registration_shared_secret`. Avec `MATRIX_EMAIL`, il publie aussi Synapse derrière Nginx en HTTPS, y compris sur le port de fédération 8448 (étape 4). Il reste à créer le compte administrateur (étape 5).
 
 ## Installation manuelle
 
@@ -135,9 +135,10 @@ Le testeur de fédération (`federationtester.matrix.org`) vérifie que les autr
 
 ## Points d'attention
 
-- Le script change le propriétaire d'un dossier pour l'utilisateur `_matrix`, qu'il n'a jamais créé : `chown` échoue et le script s'arrête.
-- Il installe Synapse avec `pip3 install` dans le Python du système : refusé sur Debian 12 et Ubuntu 23.04 et plus récents (« externally-managed-environment »).
-- Il installe MariaDB, alors que Synapse fonctionne avec PostgreSQL (ou SQLite pour un test) : MariaDB n'est pas pris en charge.
+- Le **nom du serveur** fait partie de tous les identifiants (`@alice:matrix.exemple.fr`) et ne peut plus être changé après l'installation.
+- Synapse fonctionne avec PostgreSQL (ou SQLite pour un test) : MariaDB/MySQL n'est pas pris en charge.
+- L'inscription libre est désactivée par défaut : les comptes se créent avec `register_new_matrix_user`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

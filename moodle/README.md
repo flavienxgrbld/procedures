@@ -26,7 +26,7 @@ cd procedures/moodle
 sudo bash install_moodle.sh
 ```
 
-Lire les points d'attention : sur Debian et Ubuntu, le script échoue à l'installation des modules PHP.
+Le script installe Apache, MariaDB et PHP 8.3 ou plus (version de la distribution, sinon dépôt Sury ou `ppa:ondrej/php`), applique les réglages PHP de l'étape 2, crée la base, télécharge Moodle 5.3 et l'installe **en ligne de commande** (`admin/cli/install.php`) : pas d'assistant web. Il publie le dossier `public/` avec Apache et planifie la tâche cron. Le compte `admin` et les mots de passe sont enregistrés dans `/root/moodle_identifiants.txt`. Variables facultatives : `MOODLE_URL`, `MOODLE_NAME`, `MOODLE_ADMIN_PASS`, `MOODLE_ADMIN_EMAIL`.
 
 ## Installation manuelle
 
@@ -141,10 +141,10 @@ Se connecter en administrateur : *Administration du site → Serveur → Environ
 
 ## Points d'attention
 
-- Le script installe les modules PHP sous les noms `php81-gd`, `php81-xml`, `php81-intl` et `php81-curl`. Sur Debian et Ubuntu, ce sont `php8.1-gd`, etc. : le script s'arrête.
-- Il clone tout l'historique Git de Moodle (plusieurs Go) et choisit la branche `MOODLE_402_STABLE` : Moodle 4.2 n'est plus maintenu, et la version 5.3 demande PHP 8.3.
-- Il ne crée ni base de données, ni site Apache, ni tâche cron : l'URL `/moodle` qu'il affiche ne fonctionne pas, car `/var/www/moodle` n'est pas servi par le site par défaut.
-- Depuis Moodle 5.1, la racine web doit être le dossier `public/`, et non le dossier du code.
+- Le dossier de données (`/var/moodledata`) doit rester hors de la racine web et être sauvegardé avec la base.
+- Après l'installation, le code appartient à `root:www-data` : le serveur web ne peut pas le modifier. Les mises à jour et l'ajout de plugins se font donc en ligne de commande (`admin/cli/upgrade.php`).
+- Moodle 5.3 demande PHP 8.3 au minimum ; Debian 12 (8.2) et Ubuntu 22.04 (8.1) passent par un dépôt PHP externe.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

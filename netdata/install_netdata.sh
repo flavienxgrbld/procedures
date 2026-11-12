@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Installation de Netdata avec le script officiel kickstart.sh (paquets natifs, canal stable).
+#
+# Variables modifiables :
+#   NETDATA_LOCAL  oui pour n'écouter que sur 127.0.0.1 (défaut : non, accès réservé au réseau local par ufw)
 
 set -euo pipefail
 
@@ -16,30 +20,32 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Netdata - Monitoring système temps réel"
+info "Netdata - Supervision en temps réel"
 
-echo "=== Installation de Netdata ==="
-perl_version=$(perl -v | grep version | awk '{print $NF}')
+pkg_install curl ca-certificates
+KS="$(mktemp --suffix=.sh)"
+add_temp_file "$KS"
+download_file https://get.netdata.cloud/kickstart.sh "$KS"
+sh "$KS" --stable-channel --disable-telemetry --non-interactive
 
-case "$PKG_MANAGER" in
-    apt)
-        pkg_install curl git zlib1g-dev uuid-dev libuv1-dev liblz4-dev libssl-dev libelf-dev autoconf automake libtool
-        ;;
-    dnf|yum)
-        pkg_install curl git zlib-devel libuv-devel lz4-devel openssl-devel elfutils-libelf-devel
-        ;;
-esac
-
-cd /opt
-git clone https://github.com/netdata/netdata.git --depth=100 || true
-cd netdata
-
-./packaging/installer/install.sh --stable-channel --disable-telemetry
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 19999/tcp
+if [ "${NETDATA_LOCAL:-non}" = "oui" ]; then
+    CONF=/etc/netdata/netdata.conf
+    if [ -f "$CONF" ] && grep -q '^\[web\]' "$CONF"; then
+        sed -i '/^\[web\]/,/^\[/ s/^\(\s*#\?\s*bind to\s*=\).*/    bind to = 127.0.0.1/' "$CONF"
+        grep -q 'bind to = 127.0.0.1' "$CONF" || sed -i '/^\[web\]/a\    bind to = 127.0.0.1' "$CONF"
+    else
+        printf '[web]\n    bind to = 127.0.0.1\n' >> "$CONF"
+    fi
+    systemctl restart netdata
+else
+    LAN="$(ip -4 route show scope link 2>/dev/null | awk '!/docker|br-|veth/ {print $1; exit}')" || true
+    if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active" && [ -n "$LAN" ]; then
+        ufw allow from "$LAN" to any port 19999 proto tcp >/dev/null
+        info "Port 19999 ouvert pour ${LAN} uniquement"
+    fi
 fi
+check_service_status netdata
 
 echo
-echo "✅ Netdata installé avec succès"
-echo "URL: http://votre-serveur:19999"
+echo "✅ Netdata installé : http://$(primary_ip):19999"
+echo "Le tableau de bord n'a pas d'authentification : ne pas l'exposer hors du réseau d'administration."

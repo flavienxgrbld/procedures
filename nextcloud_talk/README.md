@@ -18,13 +18,15 @@ Nextcloud Talk ajoute à Nextcloud la discussion instantanée, les appels audio 
 
 ## Installation automatique
 
+Sur un serveur où Nextcloud est déjà installé (`/var/www/nextcloud` par défaut) :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/nextcloud_talk
-sudo bash install_nextcloud_talk.sh
+sudo TURN_HOST=cloud.exemple.fr bash install_nextcloud_talk.sh
 ```
 
-Le script vérifie la présence de `/var/www/nextcloud`, puis installe et active Talk avec `occ`. Lire les points d'attention : la configuration TURN qu'il écrit n'est pas valide.
+Le script installe (ou met à jour) l'application Talk avec `occ`, installe coturn avec un secret partagé aléatoire (étape 2), puis **déclare lui-même** les serveurs STUN et TURN dans Talk (`occ talk:stun:add`, `occ talk:turn:add`), ce qui remplace l'étape 3. Variable facultative : `NC_DIR`.
 
 ## Installation manuelle
 
@@ -89,10 +91,10 @@ Créer une conversation, lancer un appel vidéo depuis un ordinateur, puis le re
 
 ## Points d'attention
 
-- Le script renvoie vers `install_nextcloud.sh`, qui n'existe pas dans le dépôt : sans Nextcloud déjà installé dans `/var/www/nextcloud`, il s'arrête.
-- Il active l'application avec `app:enable` juste après `app:install`, alors que `app:install` l'active déjà.
-- La valeur qu'il écrit dans `turn_servers` (un objet avec une liste `servers` vide) ne correspond pas au format attendu par Talk et ne déclare aucun serveur. Les appels entre réseaux différents échouent : il faut configurer le TURN dans l'interface (étape 3).
-- Son message final indique `http://votre-serveur/nextcloud` : Talk s'utilise en HTTPS, l'accès à la caméra et au micro étant refusé par les navigateurs en HTTP.
+- Talk s'utilise en HTTPS : en HTTP, les navigateurs refusent l'accès à la caméra et au micro.
+- Sans serveur TURN joignable depuis Internet (port 3478 TCP et UDP), les appels entre réseaux différents échouent.
+- Au-delà de 4 ou 5 participants par appel, prévoir le *High Performance Backend* (étape 4).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

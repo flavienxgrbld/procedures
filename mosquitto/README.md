@@ -23,7 +23,7 @@ cd procedures/mosquitto
 sudo bash install_mosquitto.sh
 ```
 
-Lire les points d'attention : avec la configuration du script, aucun client ne peut se connecter.
+Le script installe Mosquitto, garde le `mosquitto.conf` d'origine et ajoute `/etc/mosquitto/conf.d/local.conf` (étape 3), crée un premier compte (`domotique`, mot de passe aléatoire dans `/root/mosquitto_identifiants.txt`), refuse les connexions anonymes et n'ouvre le port 1883 qu'au réseau local si `ufw` est actif. Variables facultatives : `MQTT_USER`, `MQTT_PASS`, `MQTT_WEBSOCKET=oui` (port 9001).
 
 ## Installation manuelle
 
@@ -101,9 +101,10 @@ Le message `maison/salon/temperature 21.5` doit apparaître dans le premier term
 
 ## Points d'attention
 
-- Depuis Mosquitto 2.0, un port déclaré avec `listener` refuse les clients anonymes tant que `allow_anonymous true` ou un `password_file` n'est pas configuré. La configuration du script ne définit ni l'un ni l'autre : toutes les connexions sont refusées.
-- Le script remplace tout `mosquitto.conf`, ce qui supprime l'inclusion de `/etc/mosquitto/conf.d/`, et donne la propriété de `/etc/mosquitto` à l'utilisateur du service.
 - Sur Internet, utiliser MQTT chiffré (port 8883 avec certificat TLS) plutôt que le port 1883 en clair.
+- Depuis Mosquitto 2.0, un port sans `password_file` ni `allow_anonymous true` refuse toutes les connexions : c'est voulu.
+- Après l'ajout d'un compte avec `mosquitto_passwd`, redémarrer (ou recharger) le service.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

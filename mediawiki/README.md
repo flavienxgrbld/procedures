@@ -25,7 +25,7 @@ cd procedures/mediawiki
 sudo bash install_mediawiki.sh
 ```
 
-Le script demande le mot de passe de la base. Lire les points d'attention : sur Debian et Ubuntu, il échoue à l'installation des modules PHP.
+Le script installe Apache, MariaDB et PHP, crée la base `wiki`, télécharge MediaWiki 1.43 (LTS) et lance **l'installateur en ligne de commande** (`maintenance/run.php install`) : `LocalSettings.php` est généré directement sur le serveur, sans passer par l'assistant web (étapes 5 et 6). Le compte administrateur et les mots de passe sont enregistrés dans `/root/mediawiki_identifiants.txt`. Variables facultatives : `MW_VERSION`, `MW_NAME`, `MW_ADMIN`, `MW_ADMIN_PASS`, `MW_SERVER`, `MW_LANG`.
 
 ## Installation manuelle
 
@@ -55,7 +55,7 @@ EXIT;
 
 ```bash
 cd /tmp
-wget https://releases.wikimedia.org/mediawiki/1.43/mediawiki-1.43.11.tar.gz
+wget https://releases.wikimedia.org/mediawiki/1.43/mediawiki-1.43.11.tar.gz   # 1.43.11 au 12/11/2026
 sudo mkdir -p /var/www/mediawiki
 sudo tar -xzf mediawiki-1.43.11.tar.gz -C /var/www/mediawiki --strip-components=1
 sudo chown -R www-data:www-data /var/www/mediawiki
@@ -132,9 +132,10 @@ $wgGroupPermissions['*']['edit'] = false;
 
 ## Points d'attention
 
-- Le script installe les modules PHP sous les noms `php81-xml`, `php81-intl` et `php81-mbstring`. Sur Debian et Ubuntu, ce sont `php8.1-xml`, etc. : le script s'arrête.
-- Il extrait MediaWiki dans `/var/www/mediawiki` sans créer de site Apache. Ce dossier n'étant pas servi par le site par défaut (`/var/www/html`), l'URL `/mediawiki` qu'il affiche ne fonctionne pas.
-- Il installe la version 1.39.5, dont la période de maintenance est terminée : la version LTS actuelle est la 1.43.
+- La branche LTS 1.43 est maintenue jusqu'à fin 2027 ; les versions intermédiaires (1.44 à 1.46) ont une durée de vie d'un an seulement.
+- Par défaut, tout visiteur peut créer un compte et modifier les pages : pour un wiki interne, régler `$wgGroupPermissions` dans `LocalSettings.php`.
+- L'exécution de PHP est désactivée dans le dossier `images/` (fichiers envoyés) par le site Apache du script.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

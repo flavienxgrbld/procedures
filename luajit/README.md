@@ -24,7 +24,11 @@ cd procedures/luajit
 sudo bash install_luajit.sh
 ```
 
-Le script compile LuaJIT depuis les sources et l'installe dans `/usr/local`.
+Par défaut, le script installe le paquet de la distribution (méthode 1). Pour la dernière version de la branche 2.1, compilée depuis le dépôt officiel (méthode 2) :
+
+```bash
+sudo LUAJIT_SOURCE=oui bash install_luajit.sh
+```
 
 ## Installation manuelle
 
@@ -81,9 +85,9 @@ luajit -e 'print(jit.version, jit.status())'
 
 ## Points d'attention
 
-- Le script n'installe pas `git`, qu'il utilise pour récupérer les sources : sur une machine minimale, il s'arrête au clonage.
-- Il installe `libreadline-dev`, inutile pour LuaJIT.
 - LuaJIT est compatible avec Lua 5.1 (et quelques ajouts de 5.2), pas avec les versions plus récentes du langage.
+- LuaJIT ne publie plus de versions numérotées : la branche `v2.1` est mise à jour en continu ; la version installée par paquet peut donc être plus ancienne.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

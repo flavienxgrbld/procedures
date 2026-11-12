@@ -7,7 +7,7 @@ ownCloud est une solution de partage et de synchronisation de fichiers auto-héb
 | | |
 |---|---|
 | **Systèmes** | Linux 64 bits avec systemd |
-| **Méthode** | Binaire officiel oCIS (GitHub), version 8.2.1 |
+| **Méthode** | Binaire officiel oCIS (GitHub), version 8.2.3 |
 | **Ports** | 9200/tcp (HTTPS) |
 | **Script** | `install_owncloud.sh` (ownCloud 10 classique, voir les points d'attention) |
 
@@ -24,14 +24,14 @@ cd procedures/owncloud
 sudo bash install_owncloud.sh
 ```
 
-Le script vise l'ancien ownCloud 10, qu'il ne parvient pas à télécharger : suivre l'installation manuelle.
+Le script télécharge la dernière version d'oCIS pour l'architecture de la machine en vérifiant sa somme SHA-256, crée l'utilisateur `ocis` et ses dossiers, initialise la configuration (le mot de passe du compte `admin` est enregistré dans `/root/ocis_identifiants.txt`) et crée le service de l'étape 4. Variables facultatives : `OCIS_VERSION`, `OCIS_URL` (doit correspondre exactement à l'adresse utilisée dans le navigateur).
 
 ## Installation manuelle
 
 ### 1. Installer le binaire
 
 ```bash
-sudo wget -O /usr/local/bin/ocis https://github.com/owncloud/ocis/releases/download/v8.2.1/ocis-8.2.1-linux-amd64
+sudo wget -O /usr/local/bin/ocis https://github.com/owncloud/ocis/releases/download/v8.2.3/ocis-8.2.3-linux-amd64
 sudo chmod +x /usr/local/bin/ocis
 ocis version
 ```
@@ -99,10 +99,10 @@ journalctl -u ocis -n 30
 
 ## Points d'attention
 
-- Le script installe l'ownCloud 10 classique depuis `download.owncloud.org/community/owncloud-latest.tar.gz`. Cette adresse redirige vers la page d'accueil du site au lieu de fournir l'archive (vérifié le 13/10/2026) : l'extraction échoue.
-- Le script installe PHP 8.1, alors qu'ownCloud 10 ne fonctionne qu'avec PHP 7.4. Il nomme aussi les modules PHP `php81-gd`, etc., au lieu de `php8.1-gd` sur Debian et Ubuntu.
+- `OCIS_URL` doit correspondre exactement à l'adresse saisie dans le navigateur, sinon la connexion échoue (redirection OpenID Connect).
 - En production, placer oCIS derrière un proxy inverse avec un vrai certificat (procédures `nginx` et `certbot`) et retirer `OCIS_INSECURE`.
 - Pour une solution de la même famille avec un large catalogue d'applications, Nextcloud est l'autre choix courant.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

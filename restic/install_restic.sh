@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# Sauvegardes restic : installation, mot de passe du dépôt, initialisation,
+# script de sauvegarde et minuteur systemd quotidien.
+#
+# Variables modifiables :
+#   RESTIC_REPO   dépôt (défaut : /mnt/backup/restic ; ex. sftp:user@nas:/srv/restic, s3:https://..., rclone:gdrive:restic)
+#   RESTIC_PATHS  dossiers sauvegardés (défaut : "/etc /home /root /srv")
+#   RESTIC_TIME   heure de la sauvegarde (défaut : 01:30)
 
 set -euo pipefail
 
@@ -16,72 +23,82 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Restic - Backup décentralisé et sécurisé"
+info "restic - Sauvegardes chiffrées et dédupliquées"
 
-echo "=== Mise à jour du système ==="
+RESTIC_REPO="${RESTIC_REPO:-/mnt/backup/restic}"
+RESTIC_PATHS="${RESTIC_PATHS:-/etc /home /root /srv}"
+RESTIC_TIME="${RESTIC_TIME:-01:30}"
+PASS_FILE=/etc/restic/password
+
 pkg_update
-pkg_upgrade
+pkg_install restic openssl
+restic self-update >/dev/null 2>&1 || warn "restic self-update indisponible (paquet de la distribution conservé)"
+restic version
 
-echo "=== Installation de Restic ==="
-case "$PKG_MANAGER" in
-    apt)
-        pkg_install restic
-        ;;
-    dnf|yum)
-        pkg_install restic
-        ;;
-    zypper)
-        pkg_install restic
-        ;;
-    pacman)
-        pkg_install restic
+case "$RESTIC_REPO" in
+    /*)
+        parent="$(dirname "$RESTIC_REPO")"
+        mkdir -p "$parent"
+        if ! mountpoint -q "$parent" && [ "$(df --output=source "$parent" | tail -n1)" = "$(df --output=source / | tail -n1)" ]; then
+            warn "${parent} est sur le disque système : une sauvegarde doit être sur un autre disque (monter un disque à cet endroit)"
+        fi
         ;;
 esac
 
-# Création répertoire de configuration
-mkdir -p /etc/restic
+mkdir -p /etc/restic; chmod 700 /etc/restic
+if [ ! -f "$PASS_FILE" ]; then
+    (umask 077; openssl rand -base64 32 > "$PASS_FILE")
+    NEW_PASS=1
+else
+    NEW_PASS=0
+fi
 
-# Configuration de base
-cat > /etc/restic/backup.conf <<'EOF'
-#!/bin/bash
-BACKUP_DIRS="/home /etc /root"
-RESTIC_REPO="/mnt/backup/restic"
-RESTIC_PASSWORD_FILE="/etc/restic/password"
-RESTIC_FORGET_KEEP="--keep-daily 7 --keep-weekly 4 --keep-monthly 12"
+export RESTIC_REPOSITORY="$RESTIC_REPO" RESTIC_PASSWORD_FILE="$PASS_FILE"
+if restic cat config >/dev/null 2>&1; then
+    info "Dépôt existant : ${RESTIC_REPO}"
+else
+    restic init
+fi
+
+cat > /etc/restic/backup.sh <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+export RESTIC_REPOSITORY='${RESTIC_REPO}'
+export RESTIC_PASSWORD_FILE='${PASS_FILE}'
+restic backup ${RESTIC_PATHS} --exclude-caches
+restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 12 --prune
+restic check
 EOF
+chmod 700 /etc/restic/backup.sh
 
-chmod 600 /etc/restic/backup.conf
+cat > /etc/systemd/system/restic-backup.service <<'EOF'
+[Unit]
+Description=Sauvegarde restic
+Wants=network-online.target
+After=network-online.target
 
-# Script de backup
-cat > /etc/restic/backup.sh <<'EOF'
-#!/bin/bash
-source /etc/restic/backup.conf
-
-# Initialiser le dépôt si nécessaire
-restic -r $RESTIC_REPO init || true
-
-# Effectuer le backup
-restic -r $RESTIC_REPO backup $BACKUP_DIRS
-
-# Nettoyer les anciennes sauvegardes
-restic -r $RESTIC_REPO forget $RESTIC_FORGET_KEEP --prune
-
-# Vérifier intégrité
-restic -r $RESTIC_REPO check
+[Service]
+Type=oneshot
+ExecStart=/etc/restic/backup.sh
+Nice=10
+IOSchedulingClass=idle
 EOF
+cat > /etc/systemd/system/restic-backup.timer <<EOF
+[Unit]
+Description=Sauvegarde restic quotidienne
 
-chmod +x /etc/restic/backup.sh
+[Timer]
+OnCalendar=*-*-* ${RESTIC_TIME}:00
+Persistent=true
+RandomizedDelaySec=10min
 
-# Tâche cron pour backups automatiques
-cat > /etc/cron.d/restic <<EOF
-0 2 * * * root /etc/restic/backup.sh >> /var/log/restic.log 2>&1
+[Install]
+WantedBy=timers.target
 EOF
+systemctl daemon-reload
+systemctl enable --now restic-backup.timer
 
 echo
-echo "✅ Restic installé avec succès"
-echo "Configuration: /etc/restic/backup.conf"
-echo "Script backup: /etc/restic/backup.sh"
-echo "À faire:"
-echo "  1. Définir le mot de passe dans /etc/restic/password"
-echo "  2. Configurer les chemins de sauvegarde"
-echo "  3. Initialiser le dépôt: /etc/restic/backup.sh"
+echo "✅ restic configuré : dépôt ${RESTIC_REPO}, sauvegarde quotidienne à ${RESTIC_TIME}"
+[ "$NEW_PASS" = 1 ] && echo "⚠️  Copier MAINTENANT le mot de passe ${PASS_FILE} en lieu sûr : sans lui, aucune restauration possible."
+echo "Première sauvegarde : sudo systemctl start restic-backup.service ; journal : journalctl -u restic-backup"

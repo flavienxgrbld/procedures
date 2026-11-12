@@ -23,10 +23,10 @@ OpenVPN est un logiciel libre de réseau privé virtuel (VPN) : il crée un tunn
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/openvpn
-sudo bash install_openvpn.sh
+sudo VPN_PUBLIC=vpn.exemple.fr bash install_openvpn.sh
 ```
 
-Lire les points d'attention : le script s'arrête dès la copie d'easy-rsa et attend des réponses au clavier.
+Le script fait toutes les étapes sans question : PKI easy-rsa dans `/etc/openvpn/easy-rsa` (mode batch), certificat du serveur, clé `tls-crypt`, configuration de l'étape 4 avec le réseau local détecté, routage IP et NAT (rendus persistants avec `iptables-persistent`), démarrage du service, puis création du premier client : `/root/openvpn-clients/client1.ovpn`. Pour un autre client, relancer avec `VPN_CLIENT=bob`. Variables facultatives : `VPN_LAN`, `VPN_DNS`, `VPN_NET`.
 
 ## Installation manuelle
 
@@ -172,9 +172,10 @@ Depuis le client connecté : `ping 10.8.0.1`, puis une machine du réseau local.
 
 ## Points d'attention
 
-- Le script copie `/usr/share/easy-rsa/*` avec `cp` sans `-r`. Ce dossier contient un sous-dossier (`x509-types`) : `cp` échoue et le script s'arrête.
-- Même corrigé, `build-ca` et `sign-req` attendent des réponses au clavier (nom de l'autorité, confirmation `yes`). Le script ne génère aucun fichier client, n'active pas le routage IP et ne pousse que la route du réseau VPN lui-même, ce qui ne donne accès à rien.
-- La PKI (en particulier `pki/private/ca.key`) permet de créer de nouveaux accès : la garder hors du serveur VPN ou la protéger par un mot de passe (sans `nopass`).
+- La PKI (`/etc/openvpn/easy-rsa`, en particulier `pki/private/ca.key`) permet de créer de nouveaux accès : la sauvegarder hors du serveur et limiter son accès à root.
+- Les clés générées par le script ne sont pas protégées par mot de passe (`nopass`) : transmettre chaque `.ovpn` par un canal sûr et révoquer tout accès perdu (étape 8).
+- Le port 1194/udp doit être redirigé vers le serveur sur la box ou le pare-feu de l'entreprise.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -19,13 +19,15 @@ Vaultwarden est une implémentation légère et libre du serveur Bitwarden : il 
 
 ## Installation automatique
 
+Le nom de domaine doit pointer vers le serveur (ports 80 et 443 joignables) :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/vaultwarden
-sudo bash install_vaultwarden.sh
+sudo VW_DOMAIN=vault.exemple.fr bash install_vaultwarden.sh
 ```
 
-Lire les points d'attention : sans HTTPS, le coffre web ne fonctionne pas.
+Le script installe Docker s'il est absent, génère le jeton d'administration au format argon2id (étape 2, mot de passe dans `/root/vaultwarden_identifiants.txt`), écrit le `compose.yaml` et le `Caddyfile` de l'étape 3 (HTTPS automatique) et démarre les conteneurs. Il reste à créer les comptes puis à fermer les inscriptions (étape 5).
 
 ## Installation manuelle
 
@@ -112,8 +114,10 @@ Sauvegarder régulièrement `/opt/vaultwarden/vw-data` (base `db.sqlite3`, clés
 
 ## Points d'attention
 
-- Le script publie les ports 80 et 443 directement sur le conteneur Vaultwarden, qui ne sert que du HTTP (port 80) : aucune connexion HTTPS n'est possible sur le port 443. Or les navigateurs bloquent les fonctions cryptographiques du coffre web hors HTTPS.
-- Il laisse `DOMAIN=https://votre-domaine.com`, crée un volume Docker qu'il n'utilise pas, et ne définit ni `ADMIN_TOKEN` ni `SIGNUPS_ALLOWED` : tout visiteur peut créer un compte.
+- Fermer les inscriptions (`SIGNUPS_ALLOWED=false`) dès que les comptes de l'équipe sont créés : sinon, tout visiteur peut créer un coffre sur le serveur.
+- Le mot de passe maître d'un coffre ne peut pas être récupéré en cas d'oubli.
+- Sauvegarder régulièrement `/opt/vaultwarden/vw-data` (base, pièces jointes, clés).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

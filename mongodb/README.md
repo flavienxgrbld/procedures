@@ -25,7 +25,7 @@ cd procedures/mongodb
 sudo bash install_mongodb.sh
 ```
 
-Lire les points d'attention : le script installe une version en fin de vie, depuis un dépôt prévu pour Ubuntu 20.04 seulement.
+Le script ajoute le dépôt MongoDB 8.0 adapté au système (Debian 12, Ubuntu 22.04 ou 24.04), installe `mongodb-org`, crée le compte `admin` (mot de passe aléatoire dans `/root/mongodb_identifiants.txt`) puis active l'authentification (étapes 3 et 4). MongoDB reste à l'écoute de `127.0.0.1` seulement ; pour les connexions depuis le réseau local : `sudo MONGO_NETWORK=oui bash install_mongodb.sh`.
 
 ## Installation manuelle
 
@@ -124,8 +124,10 @@ mongosh -u admin -p --authenticationDatabase admin --eval 'db.runCommand({ ping:
 
 ## Points d'attention
 
-- Le script installe MongoDB 5.0, qui n'est plus maintenu, depuis le dépôt `ubuntu focal` (Ubuntu 20.04), quelle que soit la distribution : sur Debian 12 ou Ubuntu 24.04, l'installation échoue faute de bibliothèques compatibles. Il utilise aussi `apt-key`, retiré des distributions récentes.
-- Il ouvre le port 27017 à tout le réseau sans activer l'authentification. MongoDB n'écoute que sur `127.0.0.1` par défaut : il faut à la fois `bindIp` et `authorization` (étape 4).
+- MongoDB 5.0 et plus récents demandent un processeur avec **AVX** : sur une VM, choisir le type de CPU « host » (Proxmox, KVM), sinon `mongod` s'arrête au démarrage.
+- Ne jamais ouvrir le port 27017 sans `authorization: enabled` : des bases exposées sont régulièrement effacées par des robots.
+- Le script ne gère que les systèmes listés par MongoDB pour la version 8.0 (Debian 12, Ubuntu 22.04 et 24.04) ; pour un autre système, vérifier la liste des plateformes prises en charge.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

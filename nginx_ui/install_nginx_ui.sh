@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Nginx UI (interface web d'administration de Nginx) avec l'image
+# Docker officielle, qui embarque Nginx.
+#
+# Variables modifiables :
+#   NGINXUI_HTTP / NGINXUI_HTTPS  ports publiés (défaut : 8080 / 8443)
 
 set -euo pipefail
 
@@ -16,28 +21,33 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Nginx UI - Interface de gestion Nginx"
+info "Nginx UI - Administration de Nginx dans le navigateur"
 
-echo "=== Installation de Nginx UI ==="
-pkg_install docker.io
+APP_DIR="/opt/nginx-ui"
+NGINXUI_HTTP="${NGINXUI_HTTP:-8080}"
+NGINXUI_HTTPS="${NGINXUI_HTTPS:-8443}"
+ensure_docker
+mkdir -p "${APP_DIR}"/{nginx,nginx-ui,www}
 
-docker run -d \
-  -p 8080:80 \
-  -p 8443:443 \
-  --name nginx-ui \
-  --restart=always \
-  -v nginx_config:/etc/nginx \
-  -v nginx_data:/var/www \
-  uozi/nginx-ui:latest
-
-docker volume create nginx_config
-docker volume create nginx_data
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8080/tcp
-    ufw allow 8443/tcp
-fi
+cat > "${APP_DIR}/compose.yaml" <<EOF
+services:
+  nginx-ui:
+    image: uozi/nginx-ui:latest
+    container_name: nginx-ui
+    restart: unless-stopped
+    environment:
+      TZ: $(system_tz)
+    ports:
+      - "${NGINXUI_HTTP}:80"
+      - "${NGINXUI_HTTPS}:443"
+    volumes:
+      - ./nginx:/etc/nginx
+      - ./nginx-ui:/etc/nginx-ui     # comptes et réglages de Nginx UI
+      - ./www:/var/www
+EOF
+compose_up "$APP_DIR"
+open_ports "${NGINXUI_HTTP}/tcp" "${NGINXUI_HTTPS}/tcp"
 
 echo
-echo "✅ Nginx UI en cours d'installation"
-echo "URL: http://votre-serveur:8080"
+echo "✅ Nginx UI démarré : http://$(primary_ip):${NGINXUI_HTTP}"
+echo "Créer le compte administrateur sans attendre, puis activer la double authentification."

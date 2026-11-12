@@ -25,7 +25,7 @@ cd procedures/nginx_ui
 sudo bash install_nginx_ui.sh
 ```
 
-Le script démarre le conteneur `nginx-ui` sur les ports 8080 et 8443.
+Le script installe Docker s'il est absent, écrit le `compose.yaml` de l'étape 2 (y compris le volume `/etc/nginx-ui`, où sont enregistrés les comptes) et démarre le conteneur. Variables facultatives : `NGINXUI_HTTP`, `NGINXUI_HTTPS`.
 
 ## Installation manuelle
 
@@ -85,9 +85,9 @@ sudo docker compose logs nginx-ui
 
 ## Points d'attention
 
-- Le script ne monte pas `/etc/nginx-ui`, où Nginx UI enregistre ses comptes et réglages : ils sont perdus si le conteneur est recréé.
-- Il crée ses volumes Docker après avoir démarré le conteneur, ce qui est inutile car Docker les crée automatiquement.
 - L'interface donne le contrôle complet du serveur web : ne pas l'exposer sur Internet sans HTTPS, et activer la double authentification dans ses préférences.
+- Créer le compte administrateur dès le premier démarrage : l'assistant est accessible à tous tant qu'il n'est pas terminé.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

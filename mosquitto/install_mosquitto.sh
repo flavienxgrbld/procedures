@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation du courtier MQTT Mosquitto avec authentification par mot de passe.
+#
+# Variables modifiables :
+#   MQTT_USER / MQTT_PASS  premier compte (défaut : domotique / généré)
+#   MQTT_WEBSOCKET         oui pour ouvrir aussi MQTT sur WebSocket, port 9001 (défaut : non)
 
 set -euo pipefail
 
@@ -16,44 +21,56 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Mosquitto - Broker MQTT pour IoT"
+info "Mosquitto - Courtier MQTT"
 
-echo "=== Installation de Mosquitto ==="
-pkg_install mosquitto mosquitto-clients
+MQTT_USER="${MQTT_USER:-domotique}"
+MQTT_PASS="${MQTT_PASS:-$(random_password 20)}"
+MQTT_WEBSOCKET="${MQTT_WEBSOCKET:-non}"
+PASSWD=/etc/mosquitto/passwd
 
-# Configuration
+pkg_update
+case "$PKG_MANAGER" in
+    apt) pkg_install mosquitto mosquitto-clients ;;
+    dnf|yum) pkg_install epel-release 2>/dev/null || true; pkg_install mosquitto ;;
+    *) pkg_install mosquitto ;;
+esac
+
 mkdir -p /etc/mosquitto/conf.d
-cat > /etc/mosquitto/mosquitto.conf <<'EOF'
-pid_file /var/run/mosquitto.pid
+grep -q '^include_dir /etc/mosquitto/conf.d' /etc/mosquitto/mosquitto.conf \
+    || echo "include_dir /etc/mosquitto/conf.d" >> /etc/mosquitto/mosquitto.conf
 
-persistence true
-persistence_location /var/lib/mosquitto/
+if [ -f "$PASSWD" ]; then
+    mosquitto_passwd -b "$PASSWD" "$MQTT_USER" "$MQTT_PASS"
+else
+    mosquitto_passwd -c -b "$PASSWD" "$MQTT_USER" "$MQTT_PASS"
+fi
+chown root:mosquitto "$PASSWD"
+chmod 640 "$PASSWD"
 
-log_dest file /var/log/mosquitto/mosquitto.log
-log_dest stdout
-log_dest topic
-
-# Port par défaut
-listener 1883
-protocol mqtt
-
-# WebSocket
-listener 9001
-protocol websockets
-EOF
-
-chown -R mosquitto:mosquitto /etc/mosquitto
-chmod 644 /etc/mosquitto/mosquitto.conf
+{
+    echo "# Généré par install_mosquitto.sh"
+    echo "listener 1883"
+    echo "allow_anonymous false"
+    echo "password_file ${PASSWD}"
+    if [ "$MQTT_WEBSOCKET" = "oui" ]; then
+        echo
+        echo "listener 9001"
+        echo "protocol websockets"
+    fi
+} > /etc/mosquitto/conf.d/local.conf
 
 systemctl enable mosquitto
 systemctl restart mosquitto
+check_service_status mosquitto
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 1883/tcp
-    ufw allow 9001/tcp
+LAN="$(ip -4 route show scope link 2>/dev/null | awk '!/docker|br-|veth/ {print $1; exit}')" || true
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active" && [ -n "$LAN" ]; then
+    ufw allow from "$LAN" to any port 1883 proto tcp >/dev/null
+    [ "$MQTT_WEBSOCKET" = "oui" ] && ufw allow from "$LAN" to any port 9001 proto tcp >/dev/null
 fi
 
+save_credentials /root/mosquitto_identifiants.txt "Compte MQTT : ${MQTT_USER}" "Mot de passe : ${MQTT_PASS}"
 echo
-echo "✅ Mosquitto installé avec succès"
-echo "Port MQTT: 1883"
-echo "Port WebSocket: 9001"
+echo "✅ Mosquitto installé (port 1883, authentification obligatoire)"
+echo "Ajouter un compte : sudo mosquitto_passwd ${PASSWD} capteur1 && sudo systemctl restart mosquitto"
+echo "Test : mosquitto_sub -h localhost -u ${MQTT_USER} -P <mot de passe> -t 'test/#'"

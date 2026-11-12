@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Installation de Nginx depuis les paquets de la distribution.
 
 set -euo pipefail
 
@@ -16,35 +17,22 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Nginx - Serveur web haute performance"
+info "Nginx - Serveur web et proxy inverse"
 
-echo "=== Installation de Nginx ==="
-
+pkg_update
+pkg_install nginx
 case "$PKG_MANAGER" in
-    apt)
-        pkg_install nginx
-        ;;
-    dnf|yum)
-        pkg_install nginx
-        ;;
-    zypper)
-        pkg_install nginx
-        ;;
-    pacman)
-        pkg_install nginx
-        ;;
+    apt) SITES="/etc/nginx/sites-available (activer avec un lien dans sites-enabled)" ;;
+    *)   SITES="/etc/nginx/conf.d/*.conf" ;;
 esac
 
-# Service
-systemctl enable nginx
-systemctl start nginx
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 80/tcp
-    ufw allow 443/tcp
-fi
+nginx -t
+systemctl enable --now nginx
+check_service_status nginx
+open_ports 80/tcp 443/tcp
 
 echo
-echo "✅ Nginx installé avec succès"
-echo "Fichiers de configuration: /etc/nginx/nginx.conf"
-echo "Répertoire de sites: /etc/nginx/sites-available"
+echo "✅ $(nginx -v 2>&1)"
+echo "Configuration : /etc/nginx/nginx.conf"
+echo "Sites         : ${SITES}"
+echo "Test          : curl -I http://localhost/"

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Installation d'openHAB 5 (dépôt APT officiel, branche stable) avec Java 21.
 
 set -euo pipefail
 
@@ -15,57 +16,29 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "OpenHAB - Domotique universelle"
+info "openHAB - Domotique indépendante des fabricants"
 
-OPENHAB_DIR="/opt/openhab"
-OPENHAB_USER="openhab"
+pkg_update
+install_java_min 21
+java -version 2>&1 | head -n1
 
-echo "=== Installation d'OpenHAB ==="
-pkg_install default-jre curl
-
-# Création utilisateur
-if ! id "$OPENHAB_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$OPENHAB_DIR" -c "openHAB Service" "$OPENHAB_USER"
-fi
-
-# Téléchargement
-cd /opt
-OPENHAB_VERSION="4.0.2"
-wget "https://github.com/openhab/openhab-distro/releases/download/${OPENHAB_VERSION}/openhab-${OPENHAB_VERSION}.zip"
-unzip "openhab-${OPENHAB_VERSION}.zip"
-rm "openhab-${OPENHAB_VERSION}.zip"
-
-chown -R "$OPENHAB_USER:$OPENHAB_USER" "$OPENHAB_DIR"
-
-# Service systemd
-cat > /etc/systemd/system/openhab.service <<'EOF'
-[Unit]
-Description=openHAB Service
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=openhab
-Group=openhab
-WorkingDirectory=/opt/openhab
-ExecStart=/opt/openhab/start.sh
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
+pkg_install curl gpg ca-certificates
+install -m 0755 -d /usr/share/keyrings
+curl -fsSL "https://openhab.jfrog.io/artifactory/api/gpg/key/public" | gpg --dearmor --yes -o /usr/share/keyrings/openhab.gpg
+chmod 644 /usr/share/keyrings/openhab.gpg
+echo 'deb [signed-by=/usr/share/keyrings/openhab.gpg] https://openhab.jfrog.io/artifactory/openhab-linuxpkg stable main' \
+    > /etc/apt/sources.list.d/openhab.list
+pkg_update
+pkg_install openhab openhab-addons
 
 systemctl daemon-reload
 systemctl enable openhab
-systemctl start openhab
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8080/tcp
-    ufw allow 8443/tcp
-fi
+systemctl restart openhab
+check_service_status openhab
+open_ports 8080/tcp 8443/tcp
 
 echo
-echo "✅ openHAB en cours d'installation"
-echo "URL: http://votre-serveur:8080"
+echo "✅ openHAB installé : http://$(primary_ip):8080 (premier démarrage : plusieurs minutes)"
+echo "Créer le compte administrateur dès l'ouverture de la page."

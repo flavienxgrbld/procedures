@@ -44,7 +44,15 @@ Au redémarrage, l'interface est accessible sur `https://192.168.1.10:8006` (uti
 
 ### Variante : installation sur un Debian 13 existant
 
-Proxmox VE peut aussi s'installer sur une Debian 13 minimale, en suivant le guide officiel « Install Proxmox VE on Debian 13 Trixie » (dépôt Proxmox, noyau `proxmox-default-kernel`, puis `proxmox-ve`).
+Proxmox VE peut aussi s'installer sur une Debian 13 minimale, en suivant le guide officiel « Install Proxmox VE on Debian 13 Trixie ». Le script du dossier le fait en deux passes :
+
+```bash
+sudo PROXMOX_CONFIRM=oui bash install_proxmox.sh   # passe 1 : nom d'hôte, dépôt sans abonnement, noyau Proxmox
+sudo reboot
+sudo PROXMOX_CONFIRM=oui bash install_proxmox.sh   # passe 2 : proxmox-ve, retrait du noyau Debian
+```
+
+Il corrige `/etc/hosts` (le nom de la machine doit résoudre vers son adresse IP réelle), vérifie la somme SHA-256 de la clé du dépôt et ne fonctionne que sur Debian 13 en 64 bits.
 
 ## Préparation après installation
 
@@ -130,9 +138,10 @@ L'aide-mémoire complet se trouve dans [`commandes.txt`](commandes.txt) : servic
 
 ## Points d'attention
 
-- `install_proxmox.sh` n'installe rien : il affiche les étapes à suivre. Il indique Debian 12 et « pas d'installation sur OS existant » ; or la version actuelle, Proxmox VE 9, repose sur Debian 13, et l'installation sur une Debian existante est prise en charge (guide officiel).
-- `create_vms.sh` réserve 24 Go de RAM à SRV-AD1EX : sur un hôte de 32 Go, réduire `VM1_MEMORY` avant de lancer le script.
-- Le modèle cloud-init du script utilise une image Ubuntu 22.04 ou 24.04 : penser à définir l'utilisateur et la clé SSH (`ciuser`, `sshkeys`) pour pouvoir se connecter aux VM clonées.
+- `install_proxmox.sh` installe Proxmox VE 9 sur un Debian 13 existant (variante ci-dessus). Pour une machine neuve, l'ISO reste la méthode la plus simple.
+- `create_vms.sh` : la mémoire de SRV-AD1EX est maintenant de 8 Go par défaut (`VM1_MEMORY`) ; le mot de passe cloud-init est aléatoire s'il n'est pas fourni (`CLOUD_INIT_PASSWORD`) et affiché en fin de script.
+- Le modèle cloud-init utilise une image Ubuntu 22.04 ou 24.04 : définir aussi une clé SSH (`CLOUD_INIT_SSH_KEY`) pour se connecter aux VM clonées sans mot de passe.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

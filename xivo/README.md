@@ -17,7 +17,20 @@ XiVO est une solution libre de téléphonie IP (IPBX) basée sur Asterisk : comp
 - 4 Go de RAM au minimum.
 - Un accès root et une connexion Internet.
 
-## Installation
+## Installation automatique
+
+Sur un Debian 13 propre et **dédié** :
+
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/xivo
+sudo XIVO_CONFIRM=oui XIVO_HOSTNAME=xivo.lab.local bash install_xivo.sh
+```
+
+Le script vérifie qu'il s'agit de Debian 13 en 64 bits, met le système à jour (étape 1), télécharge l'installateur officiel `xivo_install.sh` et le lance (étape 2 ; `XIVO_VERSION=2026.05-latest` pour une version précise), puis ouvre les ports si un pare-feu est actif. Sans `XIVO_CONFIRM=oui`, il s'arrête avant toute modification. Il reste l'assistant de configuration (étape 3).
+
+## Installation manuelle
+
 
 ### 1. Préparer la Debian
 
@@ -86,10 +99,11 @@ Enregistrer deux softphones sur deux comptes, puis appeler le numéro interne de
 
 ## Points d'attention
 
-- Le script `install_xivo.sh` du dépôt utilise le dépôt `https://apt.xivo.io/`, qui ne répond pas (vérifié le 13/10/2026) : il ne peut pas installer XiVO et s'arrête en signalant l'absence du paquet.
-- Il n'accepte que Debian 11/12 et Ubuntu 20.04/22.04, et refuse Debian 13. Or la LTS actuelle (2026.05) exige Debian 13. Ubuntu n'est pas pris en charge par l'éditeur.
-- Sur une distribution non prise en charge, il appelle la fonction `fatal`, qui n'existe pas dans la bibliothèque commune : il s'arrête avec « command not found ».
 - `xivo_install.sh` reconfigure entièrement la machine (dépôts, Docker, PostgreSQL) : ne jamais le lancer sur un serveur qui héberge déjà d'autres services.
+- La LTS 2026.05 exige Debian 13 « Trixie » ; Ubuntu n'est pas pris en charge par l'éditeur.
+- L'installateur est téléchargé en HTTP (adresse donnée par l'éditeur) : le faire depuis un réseau de confiance.
+- Ouvrir la plage RTP 10000-20000/udp vers le serveur, sinon les appels n'ont pas de son.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

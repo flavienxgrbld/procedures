@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# Installation de MediaWiki (version LTS) sur Apache, PHP et MariaDB, avec
+# l'installateur en ligne de commande (LocalSettings.php généré automatiquement).
+#
+# Variables modifiables :
+#   MW_VERSION     version LTS (défaut : 1.43.11)
+#   MW_NAME        nom du wiki (défaut : Wiki)
+#   MW_ADMIN       compte administrateur (défaut : Admin)
+#   MW_ADMIN_PASS  mot de passe administrateur (défaut : généré)
+#   MW_SERVER      adresse du wiki (défaut : http://<ip>)
+#   MW_LANG        langue (défaut : fr)
 
 set -euo pipefail
 
@@ -15,48 +25,74 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "MediaWiki - Moteur wiki utilisé par Wikipedia"
+info "MediaWiki - Moteur de wiki"
 
-MEDIAWIKI_DIR="/var/www/mediawiki"
-PHP_VERSION="8.1"
-WIKI_DB="wiki"
-WIKI_DB_USER="wiki"
+MW_VERSION="${MW_VERSION:-1.43.11}"
+MW_BRANCH="${MW_VERSION%.*}"
+APP_DIR="/var/www/mediawiki"
+MW_NAME="${MW_NAME:-Wiki}"
+MW_ADMIN="${MW_ADMIN:-Admin}"
+MW_ADMIN_PASS="${MW_ADMIN_PASS:-$(random_password 16)}"
+MW_SERVER="${MW_SERVER:-http://$(primary_ip)}"
+MW_LANG="${MW_LANG:-fr}"
+DB_PASS="$(random_password 24)"
 
-echo "=== Mise à jour du système ==="
 pkg_update
-pkg_upgrade
+pkg_install apache2 mariadb-server curl php libapache2-mod-php php-mysql php-xml php-mbstring \
+    php-intl php-gd php-curl php-apcu
+service_enable mariadb
+service_restart mariadb
 
-# Installation PHP
-install_php "$PHP_VERSION"
+if [ -f "${APP_DIR}/LocalSettings.php" ]; then
+    warn "MediaWiki est déjà configuré (${APP_DIR}/LocalSettings.php) : rien à faire"
+    exit 0
+fi
 
-# Installation serveur web
-install_webserver "apache"
+mysql_create_db wiki wiki "$DB_PASS"
 
-# Installation base de données
-install_database
+info "Téléchargement de MediaWiki ${MW_VERSION}"
+TGZ="$(mktemp --suffix=.tar.gz)"
+add_temp_file "$TGZ"
+download_file "https://releases.wikimedia.org/mediawiki/${MW_BRANCH}/mediawiki-${MW_VERSION}.tar.gz" "$TGZ"
+mkdir -p "$APP_DIR"
+tar -xzf "$TGZ" -C "$APP_DIR" --strip-components=1
 
-# Modules PHP
-pkg_install "php${PHP_VERSION//./}-xml" "php${PHP_VERSION//./}-intl" "php${PHP_VERSION//./}-mbstring"
+info "Installation en ligne de commande (génère LocalSettings.php)"
+php "${APP_DIR}/maintenance/run.php" install \
+    --dbtype mysql --dbserver localhost --dbname wiki --dbuser wiki --dbpass "$DB_PASS" \
+    --server "$MW_SERVER" --scriptpath "" --lang "$MW_LANG" \
+    --pass "$MW_ADMIN_PASS" "$MW_NAME" "$MW_ADMIN"
+chown -R www-data:www-data "$APP_DIR"
+chmod 640 "${APP_DIR}/LocalSettings.php"
 
-# Téléchargement MediaWiki
-cd /var/www
-MEDIAWIKI_VERSION="1.39.5"
-wget "https://releases.wikimedia.org/mediawiki/${MEDIAWIKI_VERSION%.*}/mediawiki-${MEDIAWIKI_VERSION}.tar.gz"
-tar -xzf "mediawiki-${MEDIAWIKI_VERSION}.tar.gz"
-rm "mediawiki-${MEDIAWIKI_VERSION}.tar.gz"
-mv "mediawiki-${MEDIAWIKI_VERSION}" mediawiki
+cat > /etc/apache2/sites-available/mediawiki.conf <<EOF
+<VirtualHost *:80>
+    ServerName $(hostname -f 2>/dev/null || hostname)
+    DocumentRoot ${APP_DIR}
 
-chown -R www-data:www-data $MEDIAWIKI_DIR
+    <Directory ${APP_DIR}>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    # Pas d'exécution de scripts dans les fichiers envoyés
+    <Directory ${APP_DIR}/images>
+        php_admin_flag engine off
+        Options -Indexes
+    </Directory>
+</VirtualHost>
+EOF
+a2ensite -q mediawiki
+a2dissite -q 000-default || true
+apache2ctl configtest
+service_restart apache2
+open_ports 80/tcp
 
-# Configuration base de données
-read -sp "Mot de passe Wiki DB: " DB_PASS
+save_credentials /root/mediawiki_identifiants.txt \
+    "Wiki : ${MW_SERVER}" "Administrateur : ${MW_ADMIN}" "Mot de passe : ${MW_ADMIN_PASS}" \
+    "Base : wiki / utilisateur wiki / mot de passe ${DB_PASS}"
+
 echo
-mysql -e "CREATE DATABASE $WIKI_DB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -e "CREATE USER '$WIKI_DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';"
-mysql -e "GRANT ALL PRIVILEGES ON $WIKI_DB.* TO '$WIKI_DB_USER'@'localhost';"
-
-echo
-echo "✅ MediaWiki en cours d'installation"
-echo "Accédez via: http://votre-serveur/mediawiki"
-echo "Complétez l'installation web-based"
+echo "✅ MediaWiki ${MW_VERSION} installé : ${MW_SERVER}"
+echo "Compte ${MW_ADMIN} : mot de passe dans /root/mediawiki_identifiants.txt"

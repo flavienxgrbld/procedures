@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Variables de configuration
-ZABBIX_VERSION="7.4"
+ZABBIX_VERSION="${ZABBIX_VERSION:-7.4}"   # 8.0 LTS disponible : voir le README
 ZABBIX_CONF="/etc/zabbix/zabbix_server.conf"
 TMP_DIR="/tmp/zabbix_install_$$"
 PKG_MANAGER=""

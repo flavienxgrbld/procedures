@@ -24,7 +24,7 @@ cd procedures/typesense
 sudo bash install_typesense.sh
 ```
 
-Lire les points d'attention : l'archive téléchargée par le script n'existe plus.
+Le script télécharge le paquet `.deb` officiel (30.2, amd64 ou arm64), l'installe, remplace la clé d'API si elle est trop courte ou vaut `xyz` (clé aléatoire enregistrée dans `/root/typesense_identifiants.txt`) et redémarre le service. Avec `TYPESENSE_NETWORK=oui`, il ouvre le port 8108 au réseau local seulement.
 
 ## Installation manuelle
 
@@ -96,8 +96,9 @@ curl -s http://localhost:8108/health
 
 ## Points d'attention
 
-- Le script télécharge `typesense-server-0.25.0-linux-amd64.tar.gz`, qui n'existe plus (erreur 404, vérifié le 13/10/2026) : il s'arrête au téléchargement. La version actuelle est la 30.2.
-- Son service fixe la clé d'API `xyz`, la valeur d'exemple de la documentation, et le port 8108 est ouvert à tout le réseau : n'importe qui peut lire, modifier ou supprimer les données.
+- La clé d'administration donne tous les droits : la garder côté serveur, et utiliser une clé de recherche seule pour un site public (étape 5).
+- Ne pas ouvrir le port 8108 à Internet : passer par l'application ou un proxy.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

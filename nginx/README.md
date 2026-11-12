@@ -24,6 +24,8 @@ cd procedures/nginx
 sudo bash install_nginx.sh
 ```
 
+Le script installe Nginx, vérifie la configuration (`nginx -t`), démarre le service et ouvre les ports 80 et 443 si un pare-feu (`ufw` ou `firewalld`) est actif. Il affiche le dossier des sites propre au système.
+
 ## Installation manuelle
 
 ### 1. Installer et démarrer
@@ -115,8 +117,9 @@ curl -I http://localhost
 
 ## Points d'attention
 
-- Les dossiers `sites-available` et `sites-enabled` indiqués par le script n'existent que sur Debian et Ubuntu. Sur RHEL, Fedora et Arch, les sites se déclarent dans `/etc/nginx/conf.d/*.conf`.
-- Le script n'ouvre les ports que si `ufw` est présent. Avec `firewalld` : `sudo firewall-cmd --permanent --add-service={http,https} && sudo firewall-cmd --reload`.
+- Les dossiers `sites-available` et `sites-enabled` n'existent que sur Debian et Ubuntu. Sur RHEL, Fedora et Arch, les sites se déclarent dans `/etc/nginx/conf.d/*.conf`.
+- Toujours tester avec `sudo nginx -t` avant `systemctl reload nginx` : une erreur de syntaxe empêche le rechargement.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

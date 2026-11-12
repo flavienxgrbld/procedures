@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Loki (dépôt officiel Grafana) en serveur unique, avec la
+# configuration fournie par le paquet (stockage TSDB sur disque local).
+#
+# Variables modifiables :
+#   LOKI_ALLOW_FROM  réseau autorisé à envoyer des journaux sur 3100 (défaut : réseau local détecté)
 
 set -euo pipefail
 
@@ -16,113 +21,26 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Loki - Système de logs centralisé"
+info "Loki - Centralisation des journaux"
 
-LOKI_VERSION="latest"
-LOKI_USER="loki"
-LOKI_HOME="/opt/loki"
-LOKI_DATA_DIR="/var/lib/loki"
-
-echo "=== Mise à jour du système ==="
-pkg_update
-pkg_upgrade
-
-pkg_install wget curl
-
-if ! id "$LOKI_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/false -m -d "$LOKI_HOME" -c "Loki Service" "$LOKI_USER"
-fi
-
-echo "=== Installation de Loki ==="
-cd /tmp
-ARCH=$(uname -m)
-case "$ARCH" in
-    x86_64) LOKI_ARCH="amd64" ;;
-    aarch64) LOKI_ARCH="arm64" ;;
-    armv7l) LOKI_ARCH="armv7" ;;
-    *) error_exit "Architecture non supportée" ;;
-esac
-
-if [ "$LOKI_VERSION" = "latest" ]; then
-    LOKI_VERSION=$(curl -s https://api.github.com/repos/grafana/loki/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
-fi
-
-wget "https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-${LOKI_ARCH}.zip" -O loki.zip
-unzip loki.zip
-chmod +x loki-linux-${LOKI_ARCH}
-mv loki-linux-${LOKI_ARCH} "$LOKI_HOME/loki"
-rm loki.zip
-
-mkdir -p "$LOKI_DATA_DIR"
-chown -R "$LOKI_USER:$LOKI_USER" "$LOKI_HOME"
-chown -R "$LOKI_USER:$LOKI_USER" "$LOKI_DATA_DIR"
-
-# Configuration Loki
-cat > "$LOKI_HOME/loki-config.yml" <<'EOF'
-auth_enabled: false
-
-ingester:
-  chunk_idle_period: 3m
-  chunk_retain_period: 1m
-
-limits_config:
-  enforce_metric_name: false
-  reject_old_samples: true
-  reject_old_samples_max_age: 168h
-
-schema_config:
-  configs:
-  - from: 2020-10-24
-    store: boltdb-shipper
-    object_store: filesystem
-    schema:
-      prefix: index_
-      period: 24h
-    index:
-      prefix: index_
-      period: 24h
-
-server:
-  http_listen_port: 3100
-  log_level: info
-
-storage_config:
-  boltdb_shipper:
-    active_index_directory: /var/lib/loki/boltdb-shipper-active
-    cache_location: /var/lib/loki/boltdb-shipper-cache
-    shared_store: filesystem
-  filesystem:
-    directory: /var/lib/loki/chunks
-EOF
-
-chown "$LOKI_USER:$LOKI_USER" "$LOKI_HOME/loki-config.yml"
-
-# Service systemd
-cat > /etc/systemd/system/loki.service <<EOF
-[Unit]
-Description=Loki
-After=network.target
-
-[Service]
-Type=simple
-User=$LOKI_USER
-Group=$LOKI_USER
-ExecStart=$LOKI_HOME/loki -config.file=$LOKI_HOME/loki-config.yml
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
+grafana_repo
+pkg_install loki
 systemctl enable loki
-systemctl start loki
+systemctl restart loki
+sleep 3
+check_service_status loki
 
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 3100/tcp
+info "Attente de l'API Loki"
+for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:3100/ready >/dev/null 2>&1 && break; sleep 2; done
+
+LAN="$(ip -4 route show scope link 2>/dev/null | awk '!/docker|br-|veth/ {print $1; exit}')" || true
+LOKI_ALLOW_FROM="${LOKI_ALLOW_FROM:-$LAN}"
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active" && [ -n "$LOKI_ALLOW_FROM" ]; then
+    ufw allow from "$LOKI_ALLOW_FROM" to any port 3100 proto tcp >/dev/null
+    info "Port 3100 ouvert pour ${LOKI_ALLOW_FROM} uniquement"
 fi
 
 echo
-echo "✅ Loki installé avec succès"
-echo "Port: 3100"
+echo "✅ Loki $(loki --version 2>/dev/null | awk 'NR==1{print $3}') installé : http://$(primary_ip):3100"
+echo "Configuration : /etc/loki/config.yml — test : curl http://localhost:3100/ready"
+echo "Agents : installer Grafana Alloy sur les machines à surveiller (étape 4 du README)."

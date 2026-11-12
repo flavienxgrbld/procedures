@@ -23,7 +23,7 @@ cd procedures/meilisearch
 sudo bash install_meilisearch.sh
 ```
 
-Lire les points d'attention : le service créé par le script ne trouve pas le binaire.
+Le script télécharge le binaire officiel (script `install.meilisearch.com`) et l'installe dans `/usr/local/bin`, crée l'utilisateur `meilisearch` et ses dossiers, écrit `/etc/meilisearch.toml` en mode `production` avec une clé maîtresse aléatoire (enregistrée dans `/root/meilisearch_identifiants.txt`) et crée le service. Par défaut, l'API n'écoute que sur `127.0.0.1` ; pour un accès réseau : `sudo MEILI_LISTEN=0.0.0.0 bash install_meilisearch.sh`.
 
 ## Installation manuelle
 
@@ -119,9 +119,9 @@ curl -s http://localhost:7700/health
 
 ## Points d'attention
 
-- Le script exécute `install.meilisearch.com`, qui dépose le binaire dans le dossier courant (`/tmp` ou autre), mais son service lance `/usr/bin/meilisearch` : le service ne démarre pas.
-- Il démarre Meilisearch sans clé maîtresse et l'expose sur le réseau (port 7700 ouvert) : n'importe qui peut lire, modifier ou supprimer les index.
-- Le service tourne sous l'utilisateur partagé `nobody`, déconseillé pour un service qui écrit des données.
+- La clé maîtresse donne tous les droits : ne pas l'utiliser dans un site ou une application. Créer des clés limitées avec l'API `/keys` (recherche seule pour le front).
+- Avant une mise à jour majeure, faire un *dump* (`POST /dumps`) : le format de la base change entre versions.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -24,7 +24,7 @@ cd procedures/loki
 sudo bash install_loki.sh
 ```
 
-Lire les points d'attention : avec la dernière version de Loki, la configuration du script empêche le démarrage.
+Le script ajoute le dépôt Grafana, installe le paquet `loki` avec sa configuration pour serveur unique (stockage TSDB sur disque local), démarre le service, attend que l'API réponde et, si `ufw` est actif, n'ouvre le port 3100 qu'au réseau local (ou à `LOKI_ALLOW_FROM`). Il reste à installer Grafana Alloy sur les machines à surveiller (étape 4).
 
 ## Installation manuelle
 
@@ -113,9 +113,10 @@ curl -s http://localhost:3100/loki/api/v1/labels
 
 ## Points d'attention
 
-- Le script télécharge la **dernière** version de Loki (3.x), mais écrit une configuration de Loki 2.x : les paramètres `enforce_metric_name` et `shared_store` n'existent plus, et le stockage `boltdb-shipper` est remplacé par `tsdb`. Loki refuse de démarrer et le service redémarre en boucle.
-- Le script n'installe pas `unzip`, nécessaire pour extraire l'archive.
-- Promtail, l'ancien agent de collecte de Loki, est en fin de vie : utiliser Grafana Alloy pour une nouvelle installation.
+- Loki n'a pas d'authentification par défaut : n'ouvrir le port 3100 qu'aux machines qui envoient des journaux.
+- Promtail, l'ancien agent de collecte de Loki, est en fin de vie : utiliser Grafana Alloy (étape 4).
+- La configuration du paquet conserve les journaux sur le disque local sans limite de durée : régler `limits_config.retention_period` et activer le compactage pour éviter de remplir le disque.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

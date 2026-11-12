@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Prometheus et node_exporter (binaires officiels, dernières versions)
+# en services systemd, configuration dans /etc/prometheus.
+#
+# Variables modifiables :
+#   PROM_TARGETS  autres machines avec node_exporter, ex. "192.168.1.21:9100 192.168.1.22:9100"
 
 set -euo pipefail
 
@@ -16,96 +21,106 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Prometheus - Système de monitoring et de collecte de métriques"
+info "Prometheus + node_exporter"
+command -v systemctl >/dev/null 2>&1 || error_exit "systemd est requis"
 
-PROMETHEUS_VERSION="latest"
-PROMETHEUS_USER="prometheus"
-PROMETHEUS_HOME="/opt/prometheus"
-PROMETHEUS_DATA_DIR="/var/lib/prometheus"
+case "$(uname -m)" in x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; armv7l) ARCH=armv7 ;; *) error_exit "Architecture non gérée" ;; esac
+pkg_install curl tar
 
-echo "=== Mise à jour du système ==="
-pkg_update
-pkg_upgrade
+fetch_release() {  # fetch_release depot nom version -> extrait dans $WORK/nom-version.linux-ARCH
+    local repo="$1" name="$2" ver="$3" pkg
+    pkg="${name}-${ver}.linux-${ARCH}"
+    download_file "https://github.com/${repo}/releases/download/v${ver}/${pkg}.tar.gz" "${WORK}/${pkg}.tar.gz"
+    download_file "https://github.com/${repo}/releases/download/v${ver}/sha256sums.txt" "${WORK}/${name}.sha256"
+    (cd "$WORK" && grep " ${pkg}.tar.gz\$" "${name}.sha256" | sha256sum -c -) || error_exit "Somme de contrôle invalide : ${pkg}"
+    tar -xzf "${WORK}/${pkg}.tar.gz" -C "$WORK"
+    echo "${WORK}/${pkg}"
+}
 
-# Installation des dépendances
-pkg_install wget curl
+WORK="$(mktemp -d)"; add_temp_file "$WORK"
+PROM_VER="$(github_latest_tag prometheus/prometheus v3.16.0)"; PROM_VER="${PROM_VER#v}"
+NE_VER="$(github_latest_tag prometheus/node_exporter v1.12.1)"; NE_VER="${NE_VER#v}"
 
-# Création de l'utilisateur Prometheus
-if ! id "$PROMETHEUS_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/false -m -d "$PROMETHEUS_HOME" -c "Prometheus Service" "$PROMETHEUS_USER"
-fi
+for u in prometheus node_exporter; do
+    id "$u" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$u"
+done
+mkdir -p /etc/prometheus /var/lib/prometheus
 
-# Installation de Prometheus
-echo "=== Téléchargement de Prometheus ==="
-cd /tmp
-ARCH=$(uname -m)
-case "$ARCH" in
-    x86_64) PROM_ARCH="amd64" ;;
-    aarch64) PROM_ARCH="arm64" ;;
-    armv7l) PROM_ARCH="armv7" ;;
-    *) error_exit "Architecture non supportée" ;;
-esac
+info "Prometheus ${PROM_VER}"
+D="$(fetch_release prometheus/prometheus prometheus "$PROM_VER")"
+install -m 0755 "${D}/prometheus" "${D}/promtool" /usr/local/bin/
 
-if [ "$PROMETHEUS_VERSION" = "latest" ]; then
-    PROMETHEUS_VERSION=$(curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
-fi
+info "node_exporter ${NE_VER}"
+D="$(fetch_release prometheus/node_exporter node_exporter "$NE_VER")"
+install -m 0755 "${D}/node_exporter" /usr/local/bin/
 
-PROM_URL="https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-${PROM_ARCH}.tar.gz"
-wget "$PROM_URL" -O prometheus.tar.gz
-tar -xzf prometheus.tar.gz
-rm prometheus.tar.gz
-
-mv prometheus-${PROMETHEUS_VERSION}.linux-${PROM_ARCH} prometheus
-mv prometheus/prometheus "$PROMETHEUS_HOME/"
-mv prometheus/promtool "$PROMETHEUS_HOME/"
-
-mkdir -p "$PROMETHEUS_DATA_DIR"
-chown -R "$PROMETHEUS_USER:$PROMETHEUS_USER" "$PROMETHEUS_HOME"
-chown -R "$PROMETHEUS_USER:$PROMETHEUS_USER" "$PROMETHEUS_DATA_DIR"
-
-# Configuration Prometheus
-echo "=== Configuration de Prometheus ==="
-cat > "$PROMETHEUS_HOME/prometheus.yml" <<'EOF'
+if [ ! -f /etc/prometheus/prometheus.yml ]; then
+    targets='"localhost:9100"'
+    for t in ${PROM_TARGETS:-}; do targets+=", \"${t}\""; done
+    cat > /etc/prometheus/prometheus.yml <<EOF
 global:
   scrape_interval: 15s
-  evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: prometheus
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ["localhost:9090"]
+
+  - job_name: serveurs
+    static_configs:
+      - targets: [${targets}]
 EOF
+else
+    info "Configuration existante conservée : /etc/prometheus/prometheus.yml"
+fi
+chown -R prometheus:prometheus /etc/prometheus /var/lib/prometheus
+promtool check config /etc/prometheus/prometheus.yml
 
-chown "$PROMETHEUS_USER:$PROMETHEUS_USER" "$PROMETHEUS_HOME/prometheus.yml"
-
-# Service systemd
-cat > /etc/systemd/system/prometheus.service <<EOF
+cat > /etc/systemd/system/prometheus.service <<'EOF'
 [Unit]
 Description=Prometheus
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
-Type=simple
-User=$PROMETHEUS_USER
-Group=$PROMETHEUS_USER
-ExecStart=$PROMETHEUS_HOME/prometheus --config.file=$PROMETHEUS_HOME/prometheus.yml --storage.tsdb.path=$PROMETHEUS_DATA_DIR
-Restart=always
-RestartSec=10
+User=prometheus
+Group=prometheus
+ExecStart=/usr/local/bin/prometheus \
+    --config.file=/etc/prometheus/prometheus.yml \
+    --storage.tsdb.path=/var/lib/prometheus \
+    --storage.tsdb.retention.time=30d
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF
+cat > /etc/systemd/system/node_exporter.service <<'EOF'
+[Unit]
+Description=Prometheus node_exporter
+After=network-online.target
 
+[Service]
+User=node_exporter
+Group=node_exporter
+ExecStart=/usr/local/bin/node_exporter
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
 systemctl daemon-reload
-systemctl enable prometheus
-systemctl start prometheus
+for s in node_exporter prometheus; do systemctl enable "$s"; systemctl restart "$s"; done
+sleep 2
+check_service_status prometheus
+check_service_status node_exporter
 
-# Configuration firewall
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 9090/tcp
+LAN="$(ip -4 route show scope link 2>/dev/null | awk '!/docker|br-|veth/ {print $1; exit}')" || true
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active" && [ -n "$LAN" ]; then
+    ufw allow from "$LAN" to any port 9090 proto tcp >/dev/null
+    ufw allow from "$LAN" to any port 9100 proto tcp >/dev/null
 fi
 
 echo
-echo "✅ Prometheus installé avec succès"
-echo "URL: http://votre-serveur:9090"
-echo "Configuration: $PROMETHEUS_HOME/prometheus.yml"
+echo "✅ Prometheus ${PROM_VER} et node_exporter ${NE_VER} installés"
+echo "Interface : http://$(primary_ip):9090 (Status > Targets)"

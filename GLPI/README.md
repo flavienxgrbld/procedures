@@ -103,9 +103,10 @@ Le menu *Configuration → Générale → Système* ne doit signaler aucun probl
 
 ## Points d'attention
 
-- Le message de fin du script et la procédure détaillée indiquent l'URL `http://votre-serveur/glpi`. Avec le site Apache créé, GLPI répond à la racine : `http://votre-serveur/`.
-- Penser à remplacer `ServerName yourglpi.yourdomain.com` dans `/etc/apache2/sites-available/glpi.conf` par le vrai nom du serveur.
-- La version 11.0.4 est figée dans le script : vérifier la dernière version publiée (GLPI 12 est sorti) avant une nouvelle installation.
+- Le script installe GLPI **11.0.13** (dernière version de la branche 11.0 au 12/11/2026). GLPI **12** est sorti (12.0.2) : `sudo GLPI_VERSION=12.0.2 bash install_glpi.sh` pour l'essayer, après avoir lu ses notes de version (prérequis PHP et modules).
+- Le nom du site Apache est le nom complet de la machine, ou `GLPI_SERVERNAME` (`sudo GLPI_SERVERNAME=glpi.exemple.local bash install_glpi.sh`). GLPI répond à la racine : `http://<serveur>/`.
+- Changer les mots de passe des comptes par défaut (`glpi`, `tech`, `normal`, `post-only`) et supprimer `install/install.php` dès la fin de l'assistant.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

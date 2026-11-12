@@ -18,6 +18,18 @@ Sentry collecte et regroupe les erreurs et les problèmes de performance des app
 - Docker et Docker Compose récents (procédure `docker`).
 - Pour un usage réel : un nom de domaine et HTTPS (proxy inverse).
 
+## Installation automatique
+
+Sur une machine dédiée (16 Go de RAM conseillés) :
+
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/sentry
+sudo SENTRY_ADMIN_EMAIL=admin@exemple.fr SENTRY_ADMIN_PASS=MotDePasseFort bash install_sentry.sh
+```
+
+Le script installe Docker s'il est absent, récupère `getsentry/self-hosted` dans `/opt/sentry` sur la dernière version publiée, lance `install.sh` sans question, crée le compte administrateur si `SENTRY_ADMIN_EMAIL` et `SENTRY_ADMIN_PASS` sont fournis, puis démarre Sentry. Le port 9000 n'est ouvert qu'au réseau local. Il reste à régler l'URL publique et le SMTP (étape 4).
+
 ## Installation manuelle
 
 ### 1. Récupérer la dernière version
@@ -77,9 +89,10 @@ sudo docker compose ps
 
 ## Points d'attention
 
-- Le script `install_sentry.sh` n'installe pas Sentry : il installe `sentry-sdk`, la **bibliothèque cliente** à intégrer dans une application, ainsi que Redis. Aucun serveur Sentry n'est mis en place.
 - La version auto-hébergée est lourde (14 Go de RAM au strict minimum). Pour un labo sur une petite machine, une alternative compatible avec les SDK Sentry est GlitchTip, plus légère.
 - Mettre à jour en suivant les versions dans l'ordre indiqué par la documentation (certaines versions sont des étapes obligatoires).
+- Le DSN d'un projet permet d'envoyer des événements : il peut être visible dans le code d'un site, mais ne donne pas accès aux données.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

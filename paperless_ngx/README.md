@@ -25,7 +25,7 @@ cd procedures/paperless_ngx
 sudo bash install_paperless_ngx.sh
 ```
 
-Lire les points d'attention : le paquet que le script tente d'installer n'existe pas.
+Plutôt que l'installateur interactif, le script télécharge les fichiers Compose officiels (variante PostgreSQL + Valkey) dans `/opt/paperless`, règle `docker-compose.env` (adresse, clé secrète, fuseau horaire, OCR `fra+eng`, compte administrateur créé au premier démarrage) et démarre les conteneurs. Identifiants : `/root/paperless_identifiants.txt`. Variables facultatives : `PAPERLESS_URL`, `PAPERLESS_OCR`, `PAPERLESS_ADMIN`, `PAPERLESS_ADMIN_PASS`.
 
 ## Installation manuelle
 
@@ -82,8 +82,10 @@ Un document importé doit apparaître avec son texte reconnu (recherche plein te
 
 ## Points d'attention
 
-- Le script installe Paperless-ngx avec `pip install paperless-ngx` : ce paquet n'est pas publié sur PyPI (vérifié le 13/10/2026), donc l'installation échoue. Il copie ensuite un fichier `config/paperless.conf.example` qui n'existe pas, et son service ne démarre ni Redis, ni le traitement des documents (*consumer*, *celery*).
-- Sauvegarder régulièrement l'export (`document_exporter`) : c'est la méthode recommandée pour restaurer ou migrer une installation.
+- Sauvegarder régulièrement l'export (`docker compose exec webserver document_exporter ../export`) : c'est la méthode recommandée pour restaurer ou migrer une installation.
+- Les fichiers déposés dans le dossier `consume` sont supprimés après leur import : ne pas y mettre l'unique copie d'un document.
+- Après la première connexion, retirer `PAPERLESS_ADMIN_PASSWORD` de `docker-compose.env`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Installation de Strapi 5 en production : Node.js 22 LTS, PostgreSQL, projet créé sans
+# question, interface d'administration construite, service systemd.
+#
+# Variables modifiables :
+#   STRAPI_PROJECT  nom du projet (défaut : mon-cms)
 
 set -euo pipefail
 
@@ -15,74 +20,67 @@ source "$COMMON_SCRIPT"
 ensure_root
 detect_os
 detect_package_manager
+is_debian_family || error_exit "Ce script est prévu pour Debian ou Ubuntu"
 
-info "Strapi - CMS Headless API-First"
+info "Strapi - CMS headless"
 
-STRAPI_DIR="/opt/strapi"
-STRAPI_USER="strapi"
+STRAPI_PROJECT="${STRAPI_PROJECT:-mon-cms}"
+APP_HOME="/opt/strapi"
+PROJ="${APP_HOME}/${STRAPI_PROJECT}"
+NODE_MAJOR=22
 
-echo "=== Mise à jour du système ==="
 pkg_update
-pkg_upgrade
+pkg_install curl ca-certificates gnupg postgresql build-essential sudo
+if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]')" != "$NODE_MAJOR" ]; then
+    NS="$(mktemp)"; add_temp_file "$NS"
+    download_file "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" "$NS"
+    bash "$NS"
+    pkg_install nodejs
+fi
+node -v
+systemctl enable --now postgresql
 
-# Installation Node.js
-echo "=== Installation de Node.js ==="
-case "$PKG_MANAGER" in
-    apt)
-        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-        pkg_install nodejs
-        ;;
-    dnf|yum)
-        pkg_install nodejs npm
-        ;;
-    zypper)
-        pkg_install nodejs npm
-        ;;
-    pacman)
-        pkg_install nodejs npm
-        ;;
-esac
+id strapi >/dev/null 2>&1 || useradd --system --create-home --home-dir "$APP_HOME" --shell /bin/bash strapi
 
-# Installation PostgreSQL et Redis
-pkg_install postgresql redis-server
-
-# Création utilisateur
-if ! id "$STRAPI_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$STRAPI_DIR" -c "Strapi Service" "$STRAPI_USER"
+if [ ! -f "${PROJ}/package.json" ]; then
+    DB_PASS="$(random_password 24)"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='strapi'" | grep -q 1; then
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE USER strapi WITH PASSWORD '${DB_PASS}';"
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE strapi OWNER strapi;"
+    else
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER USER strapi WITH PASSWORD '${DB_PASS}';"
+    fi
+    info "Création du projet ${STRAPI_PROJECT} (sans question, PostgreSQL)"
+    sudo -u strapi -H bash -c "cd '${APP_HOME}' && npx --yes create-strapi@latest '${STRAPI_PROJECT}' \
+        --non-interactive --skip-cloud --no-run --js --use-npm --no-example --no-git-init --install \
+        --dbclient=postgres --dbhost=127.0.0.1 --dbport=5432 --dbname=strapi --dbusername=strapi --dbpassword='${DB_PASS}'"
 fi
 
-# Installation Strapi
-echo "=== Installation de Strapi ==="
-mkdir -p "$STRAPI_DIR"
-cd "$STRAPI_DIR"
+info "Construction de l'interface d'administration"
+sudo -u strapi -H bash -c "cd '${PROJ}' && NODE_ENV=production npm run build"
 
-sudo -u "$STRAPI_USER" npx create-strapi-app@latest . --quickstart
-
-# Service systemd
 cat > /etc/systemd/system/strapi.service <<EOF
 [Unit]
-Description=Strapi CMS
-After=network.target
+Description=Strapi
+After=network.target postgresql.service
 
 [Service]
-Type=simple
-User=$STRAPI_USER
-WorkingDirectory=$STRAPI_DIR
-ExecStart=/usr/bin/npm start
-Restart=always
+User=strapi
+WorkingDirectory=${PROJ}
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
 systemctl daemon-reload
 systemctl enable strapi
-systemctl start strapi
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 1337/tcp
-fi
+systemctl restart strapi
+sleep 5
+check_service_status strapi
+open_ports 1337/tcp
 
 echo
-echo "✅ Strapi en cours d'installation"
-echo "URL: http://votre-serveur:1337"
+echo "✅ Strapi démarré : http://$(primary_ip):1337/admin -> créer le premier administrateur sans attendre"
+echo "Les types de contenus se créent en développement (npm run develop sur un poste), puis se déploient ici."

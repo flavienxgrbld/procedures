@@ -21,13 +21,15 @@ Mastodon est un réseau social libre et décentralisé, membre du « fédivers �
 
 ## Installation automatique
 
+Le domaine de l'instance doit pointer vers le serveur :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/mastodon
-sudo bash install_mastodon.sh
+sudo MASTODON_DOMAIN=social.exemple.fr MASTODON_EMAIL=admin@exemple.fr bash install_mastodon.sh
 ```
 
-Le script récupère le code et prépare `.env.production`. La configuration et le démarrage se font ensuite avec les étapes 2 à 5.
+Le script installe Docker s'il est absent, récupère le dépôt officiel dans `/opt/mastodon` sur la dernière version stable 4.x, lance l'assistant officiel `mastodon:setup` (questions de l'étape 2) si la configuration n'existe pas encore, démarre les conteneurs, puis, avec `MASTODON_DOMAIN`, publie l'instance derrière Nginx avec un certificat Let's Encrypt (étape 4). Relancé, il passe à la dernière version 4.x publiée.
 
 ## Installation manuelle
 
@@ -88,9 +90,10 @@ sudo docker compose logs -f web
 
 ## Points d'attention
 
-- Le script installe `docker.io` et `docker-compose` (ancienne version 1), clone la branche de développement (`main`) au lieu d'une version publiée, et copie un fichier `docker-compose.yml.example` qui n'existe pas : le fichier Compose est déjà fourni sous le nom `docker-compose.yml`.
-- Il ne génère pas les secrets ni la base : sans l'étape 2 (`mastodon:setup`), l'instance ne démarre pas.
-- Le cache des médias venant d'autres instances grossit vite : planifier `tootctl media remove`.
+- Mastodon exige un nom de domaine public et un serveur SMTP qui fonctionne (confirmation des comptes, notifications).
+- Le cache des médias venant d'autres instances grossit vite : planifier `tootctl media remove` (commande affichée par le script).
+- Avant de passer à une nouvelle version, lire ses notes : certaines demandent des migrations (`docker compose run --rm web bundle exec rails db:migrate`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

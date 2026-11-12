@@ -23,7 +23,14 @@ cd procedures/postgresql
 sudo bash install_postgresql.sh
 ```
 
-Le script installe PostgreSQL et demande un mot de passe pour le compte `postgres`. Les étapes 3 à 5 restent à faire pour un accès depuis le réseau.
+Par défaut, le script installe PostgreSQL depuis les paquets de la distribution (et initialise la base sur RHEL et Arch). Options :
+
+```bash
+# Dernière version (dépôt officiel PGDG), base et utilisateur dédiés, accès depuis le réseau local
+sudo PG_PGDG=oui PG_DB=appli_db PG_USER=appli PG_NETWORK=oui bash install_postgresql.sh
+```
+
+Avec `PG_DB` et `PG_USER`, il crée la base et l'utilisateur (mot de passe aléatoire dans `/root/postgresql_<base>.txt`). Avec `PG_NETWORK=oui`, il fait les étapes 3 à 5 : écoute sur l'adresse du serveur, ligne `scram-sha-256` pour le réseau local dans `pg_hba.conf`, port 5432 ouvert à ce réseau seulement.
 
 ## Installation manuelle
 
@@ -116,9 +123,10 @@ psql -h 192.168.1.50 -U appli -d appli_db -c '\conninfo'
 
 ## Points d'attention
 
-- Le script ouvre le port 5432 à tout le réseau, alors que PostgreSQL n'écoute que sur `localhost` par défaut : l'ouverture ne sert à rien tant que `listen_addresses` et `pg_hba.conf` ne sont pas modifiés (étapes 3 et 4). Une fois ces fichiers modifiés, il faut limiter l'accès au réseau local.
-- Il donne un mot de passe au super-utilisateur `postgres`. Les applications doivent utiliser leur propre utilisateur, limité à leur base (étape 2).
-- Sur openSUSE et Arch, il ne lance pas toujours l'initialisation de la base (`initdb`) : le service peut refuser de démarrer.
+- Les applications doivent utiliser leur propre utilisateur, limité à leur base : ne pas donner de mot de passe au super-utilisateur `postgres` pour un usage applicatif.
+- N'ouvrir le port 5432 qu'au réseau qui en a besoin, jamais à Internet.
+- Mise à jour majeure (ex. 16 vers 17) : les données doivent être migrées (`pg_upgradecluster` sur Debian/Ubuntu).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

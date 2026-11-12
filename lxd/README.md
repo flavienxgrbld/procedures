@@ -24,7 +24,7 @@ cd procedures/lxd
 sudo bash install_lxd.sh
 ```
 
-Lire les points d'attention : les paquets demandés par le script n'existent pas tels quels.
+Le script choisit l'outil selon le système : **LXD** en snap sur Ubuntu, **Incus** sur Debian (depuis `bookworm-backports` sur Debian 12, dépôts principaux sur Debian 13). Il fait une initialisation minimale (stockage `dir`, pont réseau) si rien n'est encore configuré, puis ajoute l'utilisateur qui a lancé `sudo` au groupe d'administration (`lxd` ou `incus-admin`).
 
 ## Installation manuelle
 
@@ -41,7 +41,9 @@ lxd init --minimal
 
 ```bash
 sudo apt update
-sudo apt install -y incus
+sudo apt install -y incus          # Debian 13
+# Debian 12 : echo "deb http://deb.debian.org/debian bookworm-backports main" | sudo tee /etc/apt/sources.list.d/backports.list
+#             sudo apt update && sudo apt install -y -t bookworm-backports incus
 sudo usermod -aG incus-admin $USER
 newgrp incus-admin
 incus admin init --minimal
@@ -90,9 +92,10 @@ Le conteneur doit apparaître à l'état `RUNNING` avec une adresse IPv4 sur le 
 
 ## Points d'attention
 
-- Le script installe les paquets `lxd` et `lxd-client` avec apt. Sur Ubuntu, LXD n'est distribué qu'en snap (le paquet apt est un simple raccourci vers le snap) et `lxd-client` n'existe plus. Sur Debian, l'outil fourni est Incus.
-- Il active ensuite un service systemd `lxd`, qui n'existe pas avec l'installation snap (`snap.lxd.daemon`) : le script s'arrête.
-- `lxd init --auto` accepte toutes les valeurs par défaut. `lxd init` sans option permet de choisir le stockage (ZFS, Btrfs, dossier) et le réseau.
+- Le groupe `lxd` (ou `incus-admin`) donne l'équivalent des droits root sur la machine : le réserver aux administrateurs.
+- L'initialisation minimale utilise un stockage « dir » (simple dossier). Pour des instantanés rapides, relancer `lxd init` (ou `incus admin init`) et choisir ZFS ou Btrfs.
+- Sur Debian 12, Incus vient du dépôt `bookworm-backports` : le script l'ajoute.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

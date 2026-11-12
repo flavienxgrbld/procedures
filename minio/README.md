@@ -16,6 +16,22 @@ MinIO était le stockage objet compatible Amazon S3 le plus utilisé en auto-hé
 - Un disque ou une partition dédiée aux données (ici monté sur `/srv/s3`).
 - Un accès root et une connexion Internet.
 
+## Installation automatique
+
+Deux possibilités :
+
+- **AIStor Free** : télécharger le paquet `.deb` sur `https://min.io/download` (inscription demandée), puis :
+
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/minio
+sudo MINIO_DEB=./minio_xxx_amd64.deb bash install_minio.sh
+```
+
+  Le script installe le paquet, crée le dossier `/srv/s3` (ou `MINIO_VOLUMES`), écrit `/etc/default/minio` avec un mot de passe aléatoire et la console sur le port 9001, puis démarre le service.
+
+- **Sans paquet** : le script installe **SeaweedFS**, alternative libre compatible S3 (procédure `seaweedfs`).
+
 ## Option 1 : AIStor Free (MinIO)
 
 AIStor Free est l'édition gratuite et autonome publiée par MinIO, sous licence propriétaire gratuite.
@@ -69,9 +85,10 @@ curl -I http://localhost:9000/minio/health/live
 
 ## Points d'attention
 
-- Le script télécharge `https://dl.min.io/server/minio/release/linux-amd64/minio`, qui renvoie « 410 Gone » (vérifié le 13/10/2026) : le binaire open source n'est plus publié et le script s'arrête au téléchargement.
-- Même avec le binaire, le service du script ne définit ni `MINIO_ROOT_USER` ni `MINIO_ROOT_PASSWORD` : l'accès se fait avec le couple par défaut `minioadmin` / `minioadmin`. Sans `--console-address`, la console écoute aussi sur un port aléatoire, et non sur le port 9001 ouvert par le script.
-- Un ancien binaire MinIO déjà installé continue de fonctionner, mais ne reçoit plus de correctifs de sécurité.
+- L'édition open source de MinIO n'est plus distribuée : le dépôt est archivé et les binaires publics renvoient « 410 Gone ». Un ancien binaire déjà installé continue de fonctionner mais ne reçoit plus de correctifs de sécurité.
+- AIStor Free est gratuit mais sous licence propriétaire, avec une clé de licence à enregistrer : les noms du paquet et des variables peuvent changer selon sa version.
+- Ne jamais garder le couple par défaut `minioadmin` / `minioadmin`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

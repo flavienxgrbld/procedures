@@ -21,26 +21,10 @@ Samba permet à un serveur Linux de partager des dossiers avec les postes Window
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/samba
-sudo bash install_samba.sh
+sudo SMB_SHARE=compta SMB_USERS="alice bob" bash install_samba.sh
 ```
 
-Le script propose trois profils :
-
-| Profil | Contenu |
-|---|---|
-| 1 — Basique (par défaut) | Partage `public` dans `/srv/samba/public`, accès invité en écriture |
-| 2 — Standard | Nom et chemin du partage demandés, mêmes droits que le profil basique |
-| 3 — Avancé | Toutes les valeurs demandées une à une |
-
-Sans terminal interactif, il utilise les variables d'environnement, par exemple :
-
-```bash
-sudo SMB_SHARE_NAME=commun SMB_SHARE_PATH=/srv/samba/commun SMB_GUEST_OK=no SMB_FORCE_USER=nobody bash install_samba.sh < /dev/null
-```
-
-Variables disponibles : `SMB_WORKGROUP`, `SMB_SERVER_STRING`, `SMB_SECURITY`, `SMB_SHARE_NAME`, `SMB_SHARE_PATH`, `SMB_READ_ONLY`, `SMB_GUEST_OK`, `SMB_BROWSEABLE`, `SMB_FORCE_USER`, `SMB_DIR_OWNER`, `SMB_DIR_GROUP`, `SMB_DIR_PERMS`, `SMB_FILE_PERMS`.
-
-Lire les points d'attention avant d'utiliser le profil par défaut.
+Le script fait la configuration sécurisée décrite ci-dessous, sans question : groupe (`compta`), comptes système sans connexion et comptes Samba avec des mots de passe aléatoires (enregistrés dans `/root/samba_identifiants.txt`), dossier `/srv/samba/compta` en `2770`, réglages `[global]` (pas d'invité, SMB2 minimum) et partage réservé au groupe. Il vérifie la configuration avec `testparm`, redémarre Samba et n'ouvre le port 445 qu'au réseau local. Variables facultatives : `SMB_GROUP`, `SMB_PATH`, `SMB_WORKGROUP`.
 
 ## Installation manuelle (partage sécurisé par groupe)
 
@@ -128,9 +112,10 @@ sudo smbstatus
 
 ## Points d'attention
 
-- Le profil par défaut du script crée un partage **accessible sans mot de passe, en écriture, avec `force user = root`** : tout fichier déposé appartient à root, et n'importe qui sur le réseau peut lire, modifier ou supprimer le contenu. À réserver à un test isolé ; sinon utiliser `SMB_GUEST_OK=no` et un utilisateur non privilégié, ou la configuration manuelle ci-dessus.
-- Le script remplace tout `smb.conf` (une copie datée est conservée) et ouvre aussi les ports 139/udp et 445/udp, inutiles.
+- Aucun accès invité n'est configuré : chaque utilisateur a besoin d'un compte Samba (`smbpasswd -a`).
+- Le script modifie `smb.conf` en gardant l'original (`smb.conf.orig`) et une copie datée.
 - Pour un **contrôleur de domaine Active Directory** sous Samba (`samba-tool domain provision`), suivre une procédure dédiée : ce script installe seulement un serveur de fichiers.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

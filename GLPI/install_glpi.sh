@@ -11,7 +11,8 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Variables de configuration
-GLPI_VERSION="11.0.4"
+GLPI_VERSION="${GLPI_VERSION:-11.0.13}"   # dernière version 11.0 au 12/11/2026 (GLPI 12 : voir le README)
+GLPI_SERVERNAME="${GLPI_SERVERNAME:-$(hostname -f 2>/dev/null || hostname)}"
 GLPI_DB_NAME="glpi"
 GLPI_DB_USER="glpi"
 PHP_MIN_VERSION="8.2"  # Version minimum requise pour GLPI 11.x
@@ -188,7 +189,7 @@ PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
 
 cat > /etc/apache2/sites-available/glpi.conf <<'EOCONF'
 <VirtualHost *:80>
-    ServerName yourglpi.yourdomain.com
+    ServerName __GLPI_SERVERNAME__
     DocumentRoot /var/www/html/glpi/public
     
     <Directory /var/www/html/glpi/public>
@@ -205,6 +206,7 @@ cat > /etc/apache2/sites-available/glpi.conf <<'EOCONF'
     </Directory>
 </VirtualHost>
 EOCONF
+sed -i "s/__GLPI_SERVERNAME__/${GLPI_SERVERNAME}/" /etc/apache2/sites-available/glpi.conf
 
 echo "=== Activation du site GLPI ==="
 a2dissite 000-default.conf
@@ -251,8 +253,8 @@ echo "Installation de GLPI terminée !"
 echo "========================================="
 echo ""
 echo "Prochaines étapes:"
-echo "1. Modifiez ServerName dans /etc/apache2/sites-available/glpi.conf"
-echo "2. Accédez à http://votre-serveur/glpi pour l'installation web"
+echo "1. Site Apache : ServerName ${GLPI_SERVERNAME} (/etc/apache2/sites-available/glpi.conf)"
+echo "2. Accédez à http://$(hostname -I | awk '{print $1}')/ pour l'installation web"
 echo "3. Utilisez les identifiants de base de données:"
 echo "   - Serveur: localhost"
 echo "   - Base de données: ${GLPI_DB_NAME}"

@@ -25,7 +25,7 @@ cd procedures/wallabag
 sudo bash install_wallabag.sh
 ```
 
-Lire les points d'attention : le script échoue au téléchargement et à l'installation des modules PHP, et n'installe pas Wallabag lui-même.
+Le script installe Apache, MariaDB et PHP, crée la base (mot de passe aléatoire), télécharge l'archive de version 2.6.15 depuis GitHub, renseigne `parameters.yml` (étape 4), initialise la base sans question (`wallabag:install --no-interaction`), donne un mot de passe aléatoire au compte `wallabag` et publie le dossier `web/` avec Apache. Identifiants : `/root/wallabag_identifiants.txt`. Variables facultatives : `WALLABAG_VERSION`, `WALLABAG_URL`.
 
 ## Installation manuelle
 
@@ -55,9 +55,9 @@ EXIT;
 
 ```bash
 cd /tmp
-wget https://github.com/wallabag/wallabag/releases/download/2.6.14/wallabag-2.6.14.tar.gz
+wget https://github.com/wallabag/wallabag/releases/download/2.6.15/wallabag-2.6.15.tar.gz
 sudo mkdir -p /var/www/wallabag
-sudo tar -xzf wallabag-2.6.14.tar.gz -C /var/www/wallabag --strip-components=1
+sudo tar -xzf wallabag-2.6.15.tar.gz -C /var/www/wallabag --strip-components=1
 ```
 
 ### 4. Renseigner la configuration
@@ -122,10 +122,10 @@ Ouvrir `http://wallabag.exemple.local`, se connecter, puis enregistrer un articl
 
 ## Points d'attention
 
-- Le script télécharge `https://static.wallabag.org/releases/wallabag-2.6.9.tar.gz`, qui renvoie une page HTML et non l'archive (vérifié le 13/10/2026) : l'extraction échoue. Les archives de version sont publiées sur GitHub.
-- Il installe les modules PHP sous les noms `php81-xml`, `php81-curl`, `php81-gd` et `php81-intl`. Sur Debian et Ubuntu, ce sont `php8.1-xml`, etc. : le script s'arrête.
-- Même corrigé, il se contente d'extraire l'archive et de créer la base : il ne remplit pas `parameters.yml`, ne lance pas `wallabag:install` et ne crée pas de site Apache. Wallabag n'est pas utilisable.
-- La racine web doit être le dossier `web/`, et non le dossier de l'application.
+- Le compte créé par l'installation s'appelle `wallabag` : le script remplace son mot de passe par défaut.
+- La racine web doit être le dossier `web/`, et non le dossier de l'application (fichiers de configuration).
+- Le script désactive le site Apache par défaut (`000-default`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

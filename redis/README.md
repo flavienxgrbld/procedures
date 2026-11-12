@@ -23,7 +23,7 @@ cd procedures/redis
 sudo bash install_redis.sh
 ```
 
-Le script demande un mot de passe et limite la mémoire à 256 Mo.
+Le script installe `redis-server`, règle `requirepass` (mot de passe aléatoire, enregistré dans `/root/redis_identifiants.txt`), `maxmemory` et la politique d'éviction sans passer par `sed` (aucun problème de caractères spéciaux), vérifie la connexion puis redémarre le service. Redis reste à l'écoute de `127.0.0.1` ; avec `REDIS_CLIENTS="192.168.1.21"`, il écoute aussi sur l'adresse du serveur et seules ces machines sont autorisées dans `ufw`. Variables facultatives : `REDIS_PASS`, `REDIS_MAXMEMORY`, `REDIS_POLICY` (`noeviction` par défaut, `allkeys-lru` pour un cache).
 
 ## Installation manuelle
 
@@ -81,9 +81,10 @@ redis-cli -a '...' INFO memory | grep maxmemory_human
 
 ## Points d'attention
 
-- Le script insère le mot de passe avec `sed` : un mot de passe contenant `/`, `&` ou `\` casse la commande ou donne une valeur inattendue. Vérifier la ligne `requirepass` après coup.
-- Il ouvre le port 6379 à tout le réseau, alors que Redis n'écoute que sur `127.0.0.1` par défaut. Si `bind` est élargi, limiter le pare-feu aux seules machines clientes : un Redis exposé sur Internet est une cible très courante.
-- La politique `allkeys-lru` convient à un cache, pas à des données à conserver : pour un usage comme base ou file de messages, garder `noeviction`.
+- Un Redis exposé sur Internet est une cible très courante : ne l'ouvrir qu'aux machines clientes.
+- La politique `allkeys-lru` supprime des clés quand la mémoire est pleine : elle convient à un cache, pas à des données à conserver (garder `noeviction`).
+- Les applications utilisent le mot de passe dans leur configuration (`redis://:motdepasse@serveur:6379`).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

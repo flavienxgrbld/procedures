@@ -16,6 +16,16 @@ Un « request bin » fournit une URL unique qui enregistre toutes les requêtes 
 
 - Docker et Docker Compose (procédure `docker`), Git.
 
+## Installation automatique
+
+```bash
+git clone https://github.com/flavienxgrbld/procedures.git
+cd procedures/requestbin
+sudo bash install_requestbin.sh
+```
+
+Le projet RequestBin d'origine n'existant plus, le script installe **Webhook.site** : Docker s'il est absent, clone du dépôt officiel dans `/opt/webhook.site`, réglage de l'étape 2 (`APP_URL`, mode production, débogage désactivé), puis démarrage sur le port 8084. Variable facultative : `WEBHOOK_URL`.
+
 ## Installation manuelle
 
 ### 1. Récupérer le projet
@@ -64,9 +74,9 @@ sudo docker compose logs -f webhook
 
 ## Points d'attention
 
-- Le script `install_requestbin.sh` clone `github.com/Runscope/requestbin`, qui n'existe plus (vérifié le 13/10/2026). Le clonage échoue silencieusement (`|| true`), puis `pip3 install -r requirements.txt` s'arrête faute de fichier.
-- Même disponible, RequestBin était écrit en Python 2. Le script n'installait ni `git` ni `gunicorn`, et utilisait `pip3` dans le Python du système, refusé sur les distributions récentes.
 - Un request bin enregistre tout ce qu'on lui envoie, y compris d'éventuels jetons ou données personnelles : le réserver aux tests et ne pas l'exposer publiquement sans nécessité.
+- Les requêtes capturées sont conservées dans le Redis du projet : penser à vider les URL de test.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

@@ -993,3 +993,30 @@ system_tz() {
     [ -n "$tz" ] || tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')" || true
     printf '%s' "${tz:-Europe/Paris}"
 }
+
+# grafana_repo : ajoute le dépôt officiel Grafana Labs (apt ou dnf)
+grafana_repo() {
+    case "$PKG_MANAGER" in
+        apt)
+            pkg_install gpg curl ca-certificates
+            install -m 0755 -d /etc/apt/keyrings
+            curl -fsSL https://apt.grafana.com/gpg.key | gpg --dearmor --yes -o /etc/apt/keyrings/grafana.gpg
+            echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
+            pkg_update
+            ;;
+        dnf|yum)
+            cat > /etc/yum.repos.d/grafana.repo <<'REPO'
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+REPO
+            ;;
+        *) error_exit "Dépôt Grafana disponible pour apt et dnf/yum seulement" ;;
+    esac
+}

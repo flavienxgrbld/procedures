@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# Installation de Plausible Community Edition avec le dépôt officiel plausible/community-edition.
+#
+# Variables :
+#   PLAUSIBLE_URL      adresse publique, ex. https://stats.exemple.fr (obligatoire)
+#   PLAUSIBLE_VERSION  branche du dépôt (défaut : v3.2.1)
+#   PLAUSIBLE_TLS      oui (défaut avec https://) : Plausible publie 80/443 et obtient lui-même le
+#                      certificat ; non : publication sur 127.0.0.1:8000 derrière un proxy
 
 set -euo pipefail
 
@@ -16,69 +23,49 @@ ensure_root
 detect_os
 detect_package_manager
 
-info "Plausible Analytics - Analytics respectueux de la vie privée"
+info "Plausible CE - Mesure d'audience respectueuse de la vie privée"
 
-PLAUSIBLE_DIR="/opt/plausible"
-PLAUSIBLE_USER="plausible"
+APP_DIR="/opt/plausible-ce"
+PLAUSIBLE_VERSION="${PLAUSIBLE_VERSION:-v3.2.1}"
+[ -n "${PLAUSIBLE_URL:-}" ] || [ -f "${APP_DIR}/.env" ] || error_exit "Définir PLAUSIBLE_URL (ex. https://stats.exemple.fr)"
+case "${PLAUSIBLE_URL:-}" in https://*) DEF_TLS=oui ;; *) DEF_TLS=non ;; esac
+PLAUSIBLE_TLS="${PLAUSIBLE_TLS:-$DEF_TLS}"
 
-echo "=== Installation de Plausible Analytics ==="
-pkg_install docker.io docker-compose curl postgresql
+ensure_docker
+pkg_install git openssl
+if [ -d "${APP_DIR}/.git" ]; then
+    git -C "$APP_DIR" fetch -q --depth 1 origin "$PLAUSIBLE_VERSION"
+    git -C "$APP_DIR" checkout -q FETCH_HEAD
+else
+    git clone -q -b "$PLAUSIBLE_VERSION" --single-branch https://github.com/plausible/community-edition "$APP_DIR"
+fi
+cd "$APP_DIR"
 
-# Création utilisateur
-if ! id "$PLAUSIBLE_USER" >/dev/null 2>&1; then
-    useradd -r -s /bin/bash -m -d "$PLAUSIBLE_DIR" -c "Plausible Service" "$PLAUSIBLE_USER"
+if [ ! -f .env ]; then
+    {
+        echo "BASE_URL=${PLAUSIBLE_URL}"
+        echo "SECRET_KEY_BASE=$(openssl rand -base64 48)"
+        if [ "$PLAUSIBLE_TLS" = "oui" ]; then
+            echo "HTTP_PORT=80"
+            echo "HTTPS_PORT=443"
+        else
+            echo "HTTP_PORT=8000"
+        fi
+    } > .env
+    chmod 600 .env
 fi
 
-mkdir -p "$PLAUSIBLE_DIR"
-cd "$PLAUSIBLE_DIR"
-
-# Docker Compose
-cat > docker-compose.yml <<'EOF'
-version: '3.3'
-
-services:
-  plausible:
-    image: plausible/analytics:latest
-    restart: always
-    ports:
-      - "8000:8000"
-    environment:
-      - BASE_URL=http://localhost:8000
-      - SECRET_KEY_BASE=CHANGE_ME
-      - DATABASE_URL=postgresql://plausible:plausible@postgres/plausible_db
-      - CLICKHOUSE_DATABASE_URL=http://clickhouse:8123/plausible
-    depends_on:
-      - postgres
-      - clickhouse
-
-  postgres:
-    image: postgres:13
-    restart: always
-    volumes:
-      - db:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_PASSWORD=plausible
-      - POSTGRES_USER=plausible
-      - POSTGRES_DB=plausible_db
-
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    restart: always
-    volumes:
-      - clickhouse:/var/lib/clickhouse
-
-volumes:
-  db:
-  clickhouse:
-EOF
-
-docker-compose up -d
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw allow 8000/tcp
+if [ "$PLAUSIBLE_TLS" = "oui" ]; then
+    printf 'services:\n  plausible:\n    ports:\n      - 80:80\n      - 443:443\n' > compose.override.yml
+    open_ports 80/tcp 443/tcp
+else
+    printf 'services:\n  plausible:\n    ports:\n      - 127.0.0.1:8000:8000\n' > compose.override.yml
 fi
+
+docker compose pull
+docker compose up -d
 
 echo
-echo "✅ Plausible Analytics en cours d'installation"
-echo "URL: http://votre-serveur:8000"
-echo "Changez BASE_URL et SECRET_KEY_BASE en production"
+echo "✅ Plausible ${PLAUSIBLE_VERSION} démarré : $(sed -n 's/^BASE_URL=//p' .env)"
+[ "$PLAUSIBLE_TLS" = "oui" ] || echo "Publier 127.0.0.1:8000 derrière un proxy HTTPS (Nginx + certbot)."
+echo "Créer le compte administrateur dès la première visite."

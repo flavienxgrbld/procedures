@@ -25,6 +25,8 @@ cd procedures/rclone
 sudo bash install_rclone.sh
 ```
 
+Le script installe `curl`, `unzip` et `fuse3`, puis la dernière version de rclone avec le script officiel `rclone.org/install.sh` (relancé, il ne fait rien si rclone est à jour), et autorise l'option `--allow-other` dans `/etc/fuse.conf`. La configuration des stockages (étape 2) se fait ensuite **sans sudo**, avec le compte qui exécutera les synchronisations.
+
 ## Installation manuelle
 
 ### 1. Installer rclone
@@ -95,10 +97,10 @@ rclone size gdrive:sauvegardes/serveur1
 
 ## Points d'attention
 
-- Le script installe le paquet `fuse`, alors que les versions récentes de rclone utilisent `fuse3` pour `rclone mount`.
-- Il crée `~/.config/rclone` pour l'utilisateur **root** : la configuration créée ensuite par un autre utilisateur se trouve dans le dossier personnel de cet utilisateur. Lancer `rclone config` avec le compte qui exécutera les synchronisations.
-- `rclone config password` permet de chiffrer le fichier de configuration, qui contient des jetons d'accès aux comptes.
+- La configuration est propre à chaque utilisateur (`~/.config/rclone/rclone.conf`) et contient des jetons d'accès : la chiffrer avec `rclone config password` (ou l'entrée « s » de `rclone config`).
+- `rclone sync` supprime à destination les fichiers absents de la source : toujours tester avec `--dry-run`.
 - Pour Backblaze B2, voir aussi la procédure `backblaze_sync`.
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 

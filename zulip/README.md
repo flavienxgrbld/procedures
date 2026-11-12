@@ -19,13 +19,15 @@ Zulip est une messagerie d'équipe libre, organisée en fils de discussion par s
 
 ## Installation automatique
 
+Sur une machine dédiée, avec un nom de domaine qui pointe vers elle :
+
 ```bash
 git clone https://github.com/flavienxgrbld/procedures.git
 cd procedures/zulip
-sudo bash install_zulip.sh
+sudo ZULIP_HOSTNAME=chat.exemple.fr ZULIP_EMAIL=admin@exemple.fr bash install_zulip.sh
 ```
 
-Lire les points d'attention : l'adresse utilisée par le script n'existe pas.
+Le script vérifie le système, télécharge la dernière archive officielle et lance l'installateur avec `--hostname`, `--email` et un certificat Let's Encrypt (`ZULIP_CERT=self-signed` pour un labo sans domaine public). Il reste à configurer l'envoi d'e-mails (étape 3) et à créer l'organisation avec le lien affiché (étape 4).
 
 ## Installation manuelle
 
@@ -82,9 +84,10 @@ sudo /home/zulip/deployments/current/scripts/upgrade-zulip zulip-server-latest.t
 
 ## Points d'attention
 
-- Le script télécharge `https://zulip.com/deployments/next/install`, qui n'existe pas (erreur 404, vérifié le 13/10/2026), et l'exécute avec `bash -x` : l'installation ne peut pas aboutir.
-- Il ne transmet ni `--hostname` ni `--email`, obligatoires pour l'installateur officiel.
 - Zulip doit avoir sa propre machine ou VM : l'installateur remplace la configuration de Nginx et de PostgreSQL.
+- Sans serveur SMTP, ni les invitations ni la récupération de mot de passe ne fonctionnent.
+- Mettre à jour avec `scripts/upgrade-zulip` (jamais en relançant l'installateur).
+- Relu et mis à jour le 12/11/2026.
 
 ## Sources
 
